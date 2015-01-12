@@ -1,0 +1,33 @@
+The Doxyfile is used as configuration file for Doxygen. Doxygen is an open source programm that parses a projects
+source code and creates a documentation out of it. See http://www.stack.nl/~dimitri/doxygen/index.html for more information.
+
+
+In order to get an uniform source code documentation on QBlade it is recommended to adhere to the following guidelines:
+1. The documentation is located in the header files.
+2. For classes and functions a brief description is provided. In Qt-style documentation /*! ... */ everything before the
+   first full stop is interpreted as brief description. The following is the detailed description.
+   In JavaDoc-style documentation /** ... */ the @brief keyword starts the brief description. The detailed description
+   starts after an empty line.
+3. For members there is no brief description (improves the overview in the help file).
+4. For classes there is a detailed description.
+5. For functions and members a detailed description is optional but in most cases useful.
+
+
+Hints:
+- To add a detailed description to member variables you can use ///< in the same line as the declaration.
+- It makes no difference if a keyword starts with \ or @
+- See all keywords at http://www.stack.nl/~dimitri/doxygen/manual/commands.html
+- When documenting, try to figure out what other developers need to know about your class or function:
+   * what is it's purpose?
+   * is there something forbidden to do with your class or function?
+   * can inconsistend states occure?
+   * are there known bugs?
+   * or features that were not yet tested with particular parameters?
+   * with @attention you can point out commonly made mistakes
+   * in complicated cases you might give an example.
+- For QtCreator there is a plugin supporting Doxygen. See http://dev.kofee.org/projects/qtcreator-doxygen/wiki
+  If installed, you can create the documentation with Tools->Doxygen->Build_Doxygen_Documentation
+  It will be stored in ./doc/
+  With Tools->Options...->Help->Documentation->Add... you can add the ./doc/qch/QBlade.qch file to QtCreator. Now you can access
+  the documentation with F1 via QtCreator help.
+
