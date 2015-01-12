@@ -101,6 +101,12 @@ public:
 	void mapgen(int n, double x[],double y[]);
 	complex<double> conjg(complex<double> cplx);
 
+    /**
+     * @brief This function is responsible to clone partially XFoil object state.
+     * @return Returns a new instance of XFoil object with values copied.
+     */
+    XFoil * clone();
+
 	QString m_FoilName;
 	bool m_bTrace;
 

@@ -102,6 +102,7 @@ private:
 	QGraph m_RmsGraph;
 
 	XFoil* m_pXFoil;
+    std::list<XFoil *> *m_pXFoilPoints; //keep a copy of XFoil calculated
 	
 
 };

@@ -179,6 +179,12 @@ bool XFoilAnalysisDlg::AlphaLoop()
 
 	QString strange;
 
+    //Clean the current list but release memory before
+    while(m_pXFoilPoints->size() > 0){
+        XFoil * memTmp  = m_pXFoilPoints->front();
+        m_pXFoilPoints->erase(m_pXFoilPoints->begin());
+        delete memTmp;
+    }
 
 	for (ia=0; ia<=total; ia++)
 	{
@@ -242,6 +248,10 @@ bool XFoilAnalysisDlg::AlphaLoop()
 			ResetCurves();
 			m_Iterations = 0;
 			AddOpPoint();// only if converged ???
+
+            //Push XFoil with current state cloned in the list
+            m_pXFoilPoints->push_back(m_pXFoil->clone());
+
 		}
 		else
 		{
