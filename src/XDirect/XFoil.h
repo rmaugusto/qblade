@@ -102,6 +102,7 @@ public:
 	complex<double> conjg(complex<double> cplx);
 
     /**
+     * JS/RA
      * @brief This function is responsible to clone partially XFoil object state.
      * @return Returns a new instance of XFoil object with values copied.
      */

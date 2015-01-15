@@ -397,7 +397,7 @@ private:
 	XFoilAnalysisDlg m_XFdlg;	// the dialog class which manages the xfoil calculation and display output
 
     XFoil *m_pXFoil;		// a pointer to the XFoil object
-    std::list<XFoil *> m_pXFoilPoints; //keep a copy of each XFoil calculated
+    std::list<XFoil *> m_pXFoilPoints; //keep a copy of each XFoil calculated - JS/RA
 };
 
 

@@ -1681,7 +1681,7 @@ void QXDirect::OnAnalyze()
     m_XFdlg.m_FoilName = g_pCurFoil->getName();
 	m_XFdlg.m_IterLim = m_IterLim;
 	m_XFdlg.m_pXFoil = m_pXFoil;
-    m_XFdlg.m_pXFoilPoints = &m_pXFoilPoints; //Send the reference to dialog
+    m_XFdlg.m_pXFoilPoints = &m_pXFoilPoints; //Send the reference to dialog - JS/RA
 	m_XFdlg.InitDialog();
 	m_XFdlg.show();
 	m_XFdlg.StartAnalysis();
@@ -2550,7 +2550,7 @@ void QXDirect::OnExportCurXFoilResults()
     MainFrame *pMainFrame = (MainFrame*)m_pMainFrame;
     QString FileName,  OutString, strong;
 
-    //Export is available only after analysis
+    //Export is available only after analysis - JS/RA
     if(m_pXFoilPoints.size() == 0){
         QMessageBox::warning(pMainFrame, tr("Not available"), "Analize XFoil before !");
         return;
@@ -2583,11 +2583,11 @@ void QXDirect::OnExportCurXFoilResults()
 
     out << (pMainFrame->m_VersionName);
     out << ("\n");
-    //Get the foil name of the first xfoil. All of them have the same name.
+    //Get the foil name of the first xfoil. All of them have the same name. - JS/RA
     strong = m_pXFoilPoints.front()->m_FoilName+ "\n";
     out << (strong);
 
-    //Exports the result for each OpPoint
+    //Exports the result for each OpPoint - JS/RA
     std::list<XFoil *>::const_iterator cii;
     for(cii=m_pXFoilPoints.begin(); cii!=m_pXFoilPoints.end(); cii++)
     {

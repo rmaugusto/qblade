@@ -179,7 +179,7 @@ bool XFoilAnalysisDlg::AlphaLoop()
 
 	QString strange;
 
-    //Clean the current list but release memory before
+    //Clean the current list but release memory before - JS/RA
     while(m_pXFoilPoints->size() > 0){
         XFoil * memTmp  = m_pXFoilPoints->front();
         m_pXFoilPoints->erase(m_pXFoilPoints->begin());
@@ -249,7 +249,7 @@ bool XFoilAnalysisDlg::AlphaLoop()
 			m_Iterations = 0;
 			AddOpPoint();// only if converged ???
 
-            //Push XFoil with current state cloned in the list
+            //Push XFoil with current state cloned in the list - JS/RA
             m_pXFoilPoints->push_back(m_pXFoil->clone());
 
 		}
