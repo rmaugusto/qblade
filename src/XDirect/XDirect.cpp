@@ -6459,4 +6459,13 @@ void QXDirect::OnRenameFoil()
 	pMainFrame->OnRenameCurFoil();
 }
 
-
+//JS/RA
+void QXDirect::clearXFoilPoints()
+{
+    //Clean the current list but release memory before - JS/RA
+    while(m_pXFoilPoints.size() > 0){
+        XFoil * memTmp  = m_pXFoilPoints.front();
+        m_pXFoilPoints.erase(m_pXFoilPoints.begin());
+        delete memTmp;
+    }
+}

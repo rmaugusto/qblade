@@ -13480,6 +13480,7 @@ void XFoil::CreateXBL(double xs[IVX][3],int &nside1, int &nside2)
 		xs[iblte[1]+iblw][1] = xs[iblte[2]+iblw][2];
 }
 
+//JS/RA
 XFoil * XFoil::clone(){
     XFoil * c = new XFoil();
     int i = 0;

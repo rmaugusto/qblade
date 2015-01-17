@@ -465,23 +465,23 @@ LIBS += -fopenmp
 
 # add the proper include path
 win32: LIBS += -L$$PWD/libs_windows
-else:unix:contains(QMAKE_HOST.arch, x86   ): LIBS += -L$$PWD/libs_unix_32bit
-else:unix:contains(QMAKE_HOST.arch, x86_64): LIBS += -L$$PWD/libs_unix_64bit
+else:linux-g++:contains(QMAKE_HOST.arch, x86   ): LIBS += -L$$PWD/libs_unix_32bit
+else:linux-g++:contains(QMAKE_HOST.arch, x86_64): LIBS += -L$$PWD/libs_unix_64bit
 
 # this includes QGLViewer on all platforms for debug or release
 #LIBS += -L$$PWD/QGLViewer
 win32:     CONFIG(release, debug|release): LIBS += -lQGLViewer2
 else:win32:CONFIG(debug,   debug|release): LIBS += -lQGLViewerd2
-else:unix: LIBS += -lQGLViewer
-INCLUDEPATH += $$PWD/QGLViewer_headers
-DEPENDPATH  += $$PWD/QGLViewer_headers
+else:linux-g++: LIBS += -lQGLViewer
+INCLUDEPATH += $$PWD/QGLViewer
+DEPENDPATH  += $$PWD/QGLViewer
 
 # this includes gsl on all platforms
 #LIBS += -L$$PWD/gsl/
 win32: LIBS += -llibgsl
-else:unix: LIBS += -lgsl -lgslcblas
+else:linux-g++: LIBS += -lgsl -lgslcblas
 INCLUDEPATH += $$PWD/gsl
 DEPENDPATH  += $$PWD/gsl
 
 # include libGLU
-unix: LIBS += -lGLU
+linux-g++: LIBS += -lGLU

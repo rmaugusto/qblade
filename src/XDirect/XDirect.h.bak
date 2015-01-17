@@ -174,7 +174,6 @@ private slots:
 	void OnCpGraph();
 	void OnExportCurXFoilResults();
     /**
-     * JS/RA
      * @brief addCurXFoilResults Responsible to aggregate current OpPoint result to the exportation
      * @param cur_pXFoil
      * @param out
@@ -183,11 +182,6 @@ private slots:
      * @param type
      */
     void addCurXFoilResults(XFoil * cur_pXFoil,QTextStream & out, QString & strong, QString & OutString ,int & type);
-    /**
-     * JS/RA
-     * @brief cleanXFoilPoints Responsible to clean the current list of XFoils and release the memory
-     */
-    void clearXFoilPoints();
 	void OnCtPlot();
 	void OnDbPlot();
 	void OnDtPlot();

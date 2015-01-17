@@ -27,7 +27,7 @@
 #include "Params.h"
 #include "Miarex/ArcBall.h"
 #include "Miarex/GLLightDlg.h"
-#include "QGLViewer/qglviewer.h"
+#include <qglviewer.h>
 
 class GLWidget : public QGLViewer
 {
