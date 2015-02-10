@@ -145,6 +145,10 @@ public:
         //void OnBem();
         /////////end new code DM//////////
 
+        void CreateNoiseToolbar();
+        void CreateNoiseMenus();
+        void CreateNoiseActions();
+
         ////////////new code JW//////////////
         void CreateDMSToolbar();
         void CreateDMSActions();
@@ -238,7 +242,7 @@ public:
 
 public:
         ////////////new code DM////////////////
-        QAction *On360ViewAct, *OnBladeViewAct, *OnRotorViewAct, *OnTurbineViewAct, *OnCharacteristicViewAct;
+        QAction *OnNoiseViewAct,*On360ViewAct, *OnBladeViewAct, *OnRotorViewAct, *OnTurbineViewAct, *OnCharacteristicViewAct;
         QAction *RotorGraphAct, *BladeGraphAct, *ShowAllRotorCurvesAct, *HideAllRotorCurvesAct, *IsolateCurrentBladeCurveAct, *CompareCurrentBladeCurveAct, *HideAllPolarsAct, *ShowAllPolarsAct;
         QAction *SingleGraphAct, *EditCurrentBladeAct, *EditCurrentTurbineAct, *BEMGraphDlg, *AboutBEMAct, *MainWindAct, *ParamWindAct, *MainPitchAct, *ParamNoneAct, *ParamPitchAct, *MainRotAct, *ParamRotAct;
         QAction *DeleteCurrentBladeAct, *DeleteCurrent360PolarAct, *DeleteCurrentTurbineAct, *DeleteCurrentRotorSimAct, *DeleteCurrentCharSimAct, *DeleteCurrentTurbineSimAct, *ImportPolarAct, *ExportPolarAct, *Export360PolarAct, *ExportBladeGeomAct, *ExportBladeTableAct, *LoadCylindricFoilAct, *Edit360PolarAct;

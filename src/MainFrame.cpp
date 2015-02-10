@@ -812,6 +812,8 @@ void MainFrame::CreateActions()
         CreateBEMActions();
         /////////////////////end new code DM/////////////////////
 
+        CreateNoiseActions();
+
         AboutFASTAct = new QAction(tr("&About FAST and Aerodyn"), this);
         AboutFASTAct->setStatusTip(tr("More information about FAST and AeroDyn"));
         connect(AboutFASTAct, SIGNAL(triggered()), this, SLOT(AboutFASTAerodyn()));
@@ -966,6 +968,10 @@ void MainFrame::CreateAFoilActions()
 	AFoilClearImage = new QAction(tr("Clear background image") +"\tCtrl+Shift+I", this);
 
 	connect(AFoilClearImage, SIGNAL(triggered()), pAFoil, SLOT(OnClearBackImage()));
+}
+
+void MainFrame::CreateNoiseMenus(){
+
 }
 
 //
@@ -1678,6 +1684,7 @@ void MainFrame::CreateBEMActions()
     connect(ExportBladeTableAct, SIGNAL(triggered()), pBEM, SLOT(OnExportBladeTable()));
 
 }
+
 
 void MainFrame::CreateBEMMenus()
 {
@@ -2665,7 +2672,9 @@ void MainFrame::CreateMainToolbar()
 	m_pctrlMainToolBar->addSeparator();
 	m_pctrlMainToolBar->addAction(On360ViewAct);
 	m_pctrlMainToolBar->addSeparator();
-	m_pctrlMainToolBar->addAction(OnBladeViewAct);
+    m_pctrlMainToolBar->addAction(OnNoiseViewAct);
+    m_pctrlMainToolBar->addSeparator();
+    m_pctrlMainToolBar->addAction(OnBladeViewAct);
     m_pctrlMainToolBar->addSeparator();
 	m_pctrlMainToolBar->addAction(OnRotorViewAct);
 	m_pctrlMainToolBar->addAction(OnCharacteristicViewAct);
@@ -2698,11 +2707,17 @@ void MainFrame::CreateToolbars()
 	/////////new code DM////////////
 	CreateBEMToolbar();
 	//////////end new code DM///////////
-	/////////new code JW////////////
+    CreateNoiseToolbar();
+    /////////new code JW////////////
 	CreateDMSToolbar();
 	//////////end new code JW///////////
 }
 
+void MainFrame::CreateNoiseToolbar(){
+
+
+
+}
 
 void MainFrame::CreateXDirectToolbar()
 {
@@ -3248,6 +3263,19 @@ void MainFrame::CreateXDirectMenus()
 
 	//End XDirect polar Context Menu
 }
+
+
+void MainFrame::CreateNoiseActions()
+{
+
+    OnNoiseViewAct = new QAction(QIcon(":/images/OnStoreFoil.png"), tr("Noise"), this);
+    OnNoiseViewAct->setCheckable(true);
+    OnNoiseViewAct->setStatusTip(tr("Noise"));
+    connect(OnNoiseViewAct, SIGNAL(triggered()), pBEM, SLOT(On360View()));
+
+
+}
+
 
 
 void MainFrame::CreateXInverseActions()
