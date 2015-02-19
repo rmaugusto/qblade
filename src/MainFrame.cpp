@@ -53,6 +53,7 @@
 #include <QtWidgets>
 #include "TwoDWidget.h"
 #include "StoreAssociatedComboBox.h"
+#include "Noise/noisewidget.h"
 
 
 ////////////////////////////////////////new code DM//////////////////////
@@ -209,6 +210,8 @@ MainFrame::MainFrame(QWidget *parent, Qt::WindowFlags flags)
 	QXDirect *pXDirect   = (QXDirect*)m_pXDirect;
 	QXInverse *pXInverse = (QXInverse*)m_pXInverse;
 	QMiarex *pMiarex     = (QMiarex*)m_pMiarex;
+    NoiseWidget *pNoiseW = (NoiseWidget*)m_pNoiseWidget;
+
         /////////////new code DM////////////
         QBEM *pBEM = (QBEM *) m_pBEM;
         ////////////end new code DM/////////
@@ -230,6 +233,7 @@ MainFrame::MainFrame(QWidget *parent, Qt::WindowFlags flags)
 		pXDirect->LoadSettings(&settings);
 		pMiarex->LoadSettings(&settings);
 		pXInverse->LoadSettings(&settings);
+        pNoiseW->LoadSettings(&settings);
                 ///////////new code DM////////////
 				pBEM->LoadSettings(&settings);
                 /////////////end new code DM///////
@@ -803,6 +807,7 @@ void MainFrame::CreateActions()
 	CreateXDirectActions();
 	CreateXInverseActions();
 	CreateMiarexActions();
+    CreateNoiseActions();
 
         ////////////////////////new code DM///////////////////////////////
         AboutBEMAct = new QAction(tr("&About QBlade"), this);
@@ -1293,6 +1298,8 @@ void MainFrame::CreateDockWindows()
 
 	setCentralWidget(m_centralWidget);
 
+    m_pNoiseWidget = new NoiseWidget(this);
+
 	m_pAFoil  = new QAFoil(this);
 	QAFoil *pAFoil = (QAFoil*)m_pAFoil;
 	pAFoil->setAttribute(Qt::WA_DeleteOnClose, false);
@@ -1479,6 +1486,14 @@ void MainFrame::CreateBEMToolbar()
 	//// NM end
 }
 
+void MainFrame::CreateNoiseActions(){
+
+    OnNoiseViewAct = new QAction(QIcon(":/images/Noise-Icon.png"), tr("Noise module"), this);
+    OnNoiseViewAct->setCheckable(true);
+    OnNoiseViewAct->setStatusTip(tr("This is the noise module"));
+    connect(OnNoiseViewAct, SIGNAL(triggered()), static_cast<NoiseWidget *>(m_pNoiseWidget), SLOT(OnNoiseView()));
+
+}
 
 void MainFrame::CreateBEMActions()
 {
@@ -2662,8 +2677,10 @@ void MainFrame::CreateMainToolbar()
 	m_pctrlMainToolBar->addAction(OnAFoilAct);
 //	m_pctrlMainToolBar->addAction(OnXInverseAct);
 	m_pctrlMainToolBar->addAction(OnXDirectAct);
-	m_pctrlMainToolBar->addSeparator();
-	m_pctrlMainToolBar->addAction(On360ViewAct);
+    m_pctrlMainToolBar->addSeparator();
+    m_pctrlMainToolBar->addAction(On360ViewAct);
+    m_pctrlMainToolBar->addSeparator();
+    m_pctrlMainToolBar->addAction(OnNoiseViewAct);
 	m_pctrlMainToolBar->addSeparator();
 	m_pctrlMainToolBar->addAction(OnBladeViewAct);
     m_pctrlMainToolBar->addSeparator();
@@ -4783,12 +4800,28 @@ void MainFrame::OnAFoil()
         OnXDirectAct->setChecked(false);
         OnMiarexAct->setChecked(false);
         OnXInverseAct->setChecked(false);
+        OnNoiseViewAct->setChecked(false);
         ////////end new code DM//////////	
 
 	SetCentralWidget();
 	SetMenus();
 	QAFoil *pAFoil = (QAFoil*)m_pAFoil;
 	pAFoil->SetParams();
+}
+
+void MainFrame::OnNoise()
+{
+
+    OnRotorViewAct->setChecked(g_mainFrame->m_iView==BEMSIMVIEW);
+    OnTurbineViewAct->setChecked(g_mainFrame->m_iView==TURBINEVIEW);
+    On360ViewAct->setChecked(g_mainFrame->m_iView==POLARVIEW);
+    OnBladeViewAct->setChecked(g_mainFrame->m_iView==BLADEVIEW);
+    OnCharacteristicViewAct->setChecked(g_mainFrame->m_iView==CHARSIMVIEW);
+    OnNoiseViewAct->setChecked(g_mainFrame->m_iView==NOISE_2DVIEW);
+
+    SetMenus();
+
+
 }
 
 void MainFrame::OnBEM()
@@ -4809,7 +4842,7 @@ void MainFrame::OnBEM()
 		g_qbem->m_BEMToolBar->setState(BEMToolbar::TURBINEVIEW_STATE);
 		break;
 	case POLARVIEW:
-		g_qbem->m_BEMToolBar->setState(BEMToolbar::POLARVIEW_STATE);
+        g_qbem->m_BEMToolBar->setState(BEMToolbar::POLARVIEW_STATE);
 		break;
 	}
 	
@@ -4821,7 +4854,8 @@ void MainFrame::OnBEM()
 	On360ViewAct->setChecked(g_mainFrame->m_iView==POLARVIEW);
 	OnBladeViewAct->setChecked(g_mainFrame->m_iView==BLADEVIEW);
 	OnCharacteristicViewAct->setChecked(g_mainFrame->m_iView==CHARSIMVIEW);
-	
+    OnNoiseViewAct->setChecked(g_mainFrame->m_iView==NOISE_2DVIEW);
+
 	g_qbem->UpdateWings();
 	SetMenus();
 }
@@ -5177,6 +5211,7 @@ void MainFrame::OnMiarex()
         OnXDirectAct->setChecked(false);
         OnMiarexAct->setChecked(true);
         OnXInverseAct->setChecked(false);
+        OnNoiseViewAct->setChecked(false);
         ////////end new code DM//////////
 
 	pMiarex->SetControls();
@@ -5549,6 +5584,12 @@ void MainFrame::OnSaveViewToImageFile()
 			pXInverse->PaintView(painter);
 			break;
 		}
+        case NOISE:
+        {
+            NoiseWidget *pNoiseW = (NoiseWidget*)m_pNoiseWidget;
+            pNoiseW->PaintView(painter);
+            break;
+        }
                 ////////////new code DM//////////
                 case BEM:
                 { 
@@ -5887,6 +5928,7 @@ void MainFrame::OnXDirect()
         OnXDirectAct->setChecked(true);
         OnMiarexAct->setChecked(false);
         OnXInverseAct->setChecked(false);
+        OnNoiseViewAct->setChecked(false);
         ////////end new code DM//////////
 
 	SetCentralWidget();
@@ -5922,6 +5964,7 @@ void MainFrame::OnXInverse()
         OnXDirectAct->setChecked(false);
         OnMiarexAct->setChecked(false);
         OnXInverseAct->setChecked(true);
+        OnNoiseViewAct->setChecked(false);
         ////////end new code DM//////////
 
 	SetCentralWidget();

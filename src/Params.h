@@ -14,6 +14,11 @@
 #define INVERSEDESIGN  3
 #define MIAREX         4
 
+////////////// NOISE APP //////////////
+#define NOISE           6
+#define NOISE_2DVIEW        61
+
+
 //GLVIEW
 #define GLMIAREXVIEW  3
 #define GLBODYVIEW  5

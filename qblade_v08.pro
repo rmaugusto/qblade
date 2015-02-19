@@ -203,7 +203,9 @@ SOURCES += src/MainFrame.cpp \
     src/XLLT/QLLTSimulation.cpp \
     src/XLLT/VortexNode.cpp \
     src/XLLT/VortexLine.cpp \
-    src/XLLT/QLLTCreatorDialog.cpp
+    src/XLLT/QLLTCreatorDialog.cpp \
+    src/Noise/noisetest.cpp \
+    src/Noise/noisewidget.cpp
 
 HEADERS += src/MainFrame.h \
     src/Params.h \
@@ -405,7 +407,9 @@ HEADERS += src/MainFrame.h \
     src/XLLT/QLLTSimulation.h \
     src/XLLT/VortexNode.h \
     src/XLLT/VortexLine.h \
-    src/XLLT/QLLTCreatorDialog.h
+    src/XLLT/QLLTCreatorDialog.h \
+    src/Noise/noisetest.h \
+    src/Noise/noisewidget.h
 
 TRANSLATIONS = translations/xflr5v6.ts \
     translations/xflr5v6_de.ts \

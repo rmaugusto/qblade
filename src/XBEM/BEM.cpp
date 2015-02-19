@@ -12870,7 +12870,8 @@ void QBEM::onModuleChanged() {
 		g_mainFrame->OnTurbineViewAct->setChecked(false);
 		g_mainFrame->On360ViewAct->setChecked(false);
 		g_mainFrame->OnBladeViewAct->setChecked(false);
-		g_mainFrame->OnCharacteristicViewAct->setChecked(false);		
+        g_mainFrame->OnCharacteristicViewAct->setChecked(false);
+        g_mainFrame->OnNoiseViewAct->setChecked(false);
 	}
 }
 

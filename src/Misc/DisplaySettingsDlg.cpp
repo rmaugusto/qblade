@@ -24,6 +24,7 @@
 #include "../Miarex/Miarex.h"
 #include "../XDirect/XDirect.h"
 #include "../XInverse/XInverse.h"
+#include "../Noise/noisewidget.h"
 #include "../Graph/GraphDlg.h"
 #include <QApplication>
 #include <QGroupBox>
@@ -195,6 +196,7 @@ void DisplaySettingsDlg::reject()
 	QXDirect *pXDirect   = (QXDirect*)pMainFrame->m_pXDirect;
 	QMiarex *pMiarex     = (QMiarex*)pMainFrame->m_pMiarex;
 	QXInverse *pXInverse = (QXInverse*)pMainFrame->m_pXInverse;
+    NoiseWidget *pNoiseW = (NoiseWidget*)pMainFrame->m_pNoiseWidget;
 
 	pXDirect->m_pCpGraph->CopySettings(&m_MemGraph);
 	pXDirect->m_pCpGraph->SetInverted(true);
@@ -233,6 +235,8 @@ void DisplaySettingsDlg::reject()
         ///////////end new code DM/////////
 
 
+        pNoiseW->m_Noise2dGraph.CopySettings(&m_MemGraph);
+
         /////new code JW////////
         QDMS *pDMS = (QDMS *) pMainFrame->m_pDMS;
 
@@ -258,6 +262,7 @@ void DisplaySettingsDlg::OnGraphSettings()
 	QXDirect *pXDirect   = (QXDirect*)pMainFrame->m_pXDirect;
 	QMiarex *pMiarex     = (QMiarex*)pMainFrame->m_pMiarex;
 	QXInverse *pXInverse = (QXInverse*)pMainFrame->m_pXInverse;
+    NoiseWidget *pNoiseW = (NoiseWidget*)pMainFrame->m_pNoiseWidget;
 
 	GraphDlg dlg;
 
@@ -309,8 +314,9 @@ void DisplaySettingsDlg::OnGraphSettings()
 	dlg.m_GraphArray[40] = &pDMS->m_CharGraph2;
 	dlg.m_GraphArray[41] = &pDMS->m_CharGraph3;
 	dlg.m_GraphArray[42] = &pDMS->m_CharGraph4;
+    dlg.m_GraphArray[43] = &pNoiseW->m_Noise2dGraph;
 
-	dlg.m_NGraph = 43;
+    dlg.m_NGraph = 44;
 	/////////////end new code DM/////////////
 
 

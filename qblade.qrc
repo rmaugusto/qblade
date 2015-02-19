@@ -50,5 +50,6 @@
         <file>images/dfg.png</file>
         <file>images/qblade600.png</file>
         <file>images/vblade.png</file>
+        <file>images/Noise-Icon.png</file>
     </qresource>
 </RCC>

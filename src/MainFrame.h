@@ -71,6 +71,7 @@ public slots:
 	void OnXInverse();
 	void OnXInverseMixed();
 	void OnMiarex();
+    void OnNoise();
         ////////////////////new code DM////////////////
         void OnBEM();
         void AboutQBlade();
@@ -140,6 +141,7 @@ public:
         ////////////new code DM//////////////
         void CreateBEMToolbar();
         void CreateBEMActions();
+        void CreateNoiseActions();
         void CreateBEMMenus();
         void CreateMainToolbar();
         //void OnBem();
@@ -238,7 +240,7 @@ public:
 
 public:
         ////////////new code DM////////////////
-        QAction *On360ViewAct, *OnBladeViewAct, *OnRotorViewAct, *OnTurbineViewAct, *OnCharacteristicViewAct;
+        QAction *OnNoiseViewAct,*On360ViewAct, *OnBladeViewAct, *OnRotorViewAct, *OnTurbineViewAct, *OnCharacteristicViewAct;
         QAction *RotorGraphAct, *BladeGraphAct, *ShowAllRotorCurvesAct, *HideAllRotorCurvesAct, *IsolateCurrentBladeCurveAct, *CompareCurrentBladeCurveAct, *HideAllPolarsAct, *ShowAllPolarsAct;
         QAction *SingleGraphAct, *EditCurrentBladeAct, *EditCurrentTurbineAct, *BEMGraphDlg, *AboutBEMAct, *MainWindAct, *ParamWindAct, *MainPitchAct, *ParamNoneAct, *ParamPitchAct, *MainRotAct, *ParamRotAct;
         QAction *DeleteCurrentBladeAct, *DeleteCurrent360PolarAct, *DeleteCurrentTurbineAct, *DeleteCurrentRotorSimAct, *DeleteCurrentCharSimAct, *DeleteCurrentTurbineSimAct, *ImportPolarAct, *ExportPolarAct, *Export360PolarAct, *ExportBladeGeomAct, *ExportBladeTableAct, *LoadCylindricFoilAct, *Edit360PolarAct;
@@ -262,6 +264,7 @@ public:
 	void *m_pXDirect;
 	void *m_pMiarex;
 	void *m_pAFoil;
+    void *m_pNoiseWidget;
 	void *m_pStabView;
 	static QPointer<MainFrame> _self;
 
