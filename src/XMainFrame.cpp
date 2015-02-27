@@ -37,7 +37,7 @@ void MainFrame::setIApp (int iApp) {
 	}
 	
 	if (iApp == XFOILANALYSIS || iApp == DIRECTDESIGN || iApp == INVERSEDESIGN || iApp == MIAREX
-                                    || iApp == BEM || iApp == DMS || iApp == NOISE) {
+                                    || iApp == BEM || iApp == DMS || iApp == NOISE_MODULE) {
 		setCurrentModule(NULL);  // is needed, because these modules are not of class Module
 	}
 }
@@ -59,7 +59,6 @@ void MainFrame::onModuleChanged () {
 		OnXDirectAct->setChecked(false);
 		OnMiarexAct->setChecked(false);
 		OnXInverseAct->setChecked(false);
-        OnNoiseViewAct->setChecked(false);
 	}
 }
 

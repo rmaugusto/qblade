@@ -48,6 +48,7 @@ public:
 	void *m_pXDirect, *m_pMiarex, *m_pAFoil, *m_pXInverse;
 	void *m_pBEM;
 	void *m_pDMS;
+    void *m_pNoise;
 };
 
 #endif

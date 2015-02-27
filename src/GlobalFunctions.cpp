@@ -234,6 +234,17 @@ bool GLscreenMessage(int iApp, int iView, GLWidget *glWidget){
             tip = "Click 'New' to create a new LLT Simulation";
         }
     }
+    if (iApp == NOISE_MODULE){
+
+            if (!missing) glWidget->renderText(xdist,ydist+i,strong,font);
+            if (!missing) i+= dist;
+            missing = true;
+            glWidget->renderText(xdist,ydist+i,"- No NOISE Simulation in Database",font);
+            i+=dist;
+            giveMsg = true;
+            tip = "Click 'NOISE' to create a new LLT Simulation";
+
+    }
     if (iApp == BEM || iApp == QFEMMODULE || iApp == QLLTMODULE){
         if (iView == BLADEVIEW || iView == QFEMLOADINGVIEW || iView == QFEMSTRUCTVIEW || iView == QLLTGLVIEW){
             if (!isBlade){
@@ -394,6 +405,8 @@ bool TwoDscreenMessage(int iApp, int iView, QPainter &painter, TwoDWidget *twodw
             tip = "Create a new Windfield in the Windfield Module";
         }
     }
+    if (iApp == NOISE_MODULE && iView == NOISE_BPMTE_VIEW){
+    }
     if ((iApp == QFEMMODULE && iView == QFEMGRAPHVIEW) || iApp == FASTMODULE){
         if (!isStruct){
             if (!missing) painter.drawText(xdist, ydist+i,strong);
@@ -512,7 +525,7 @@ bool TwoDscreenMessage(int iApp, int iView, QPainter &painter, TwoDWidget *twodw
                 tip = "Create a new Blade in the VAWT Blade Design Module";
             }
     }
-    if (iApp != DIRECTDESIGN &&  iApp != INVERSEDESIGN && iApp != XFOILANALYSIS){
+    if (iApp != DIRECTDESIGN &&  iApp != INVERSEDESIGN && iApp != XFOILANALYSIS && iApp != NOISE_MODULE){
             if (!is360Polar){
                 if (!missing) painter.drawText(xdist, ydist+i,strong);
                 if (!missing) i+=dist;

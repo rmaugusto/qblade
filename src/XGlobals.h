@@ -25,11 +25,12 @@
 class QDMS;
 class QFEMModule;
 class QLLTModule;
+class NoiseModule;
 
 
 extern QDMS *g_qdms;								/**< global pointer to the QDMS module **/
 extern QFEMModule *g_QFEMModule;					/**< global pointer to the QFEMModule **/
 extern QLLTModule *g_QLLTModule;					/**< global pointer to the QLLTModule **/
-
+extern NoiseModule *g_NoiseModule;
 
 #endif // XGLOBALS_H

@@ -45,6 +45,7 @@ public:
 	
 protected:
 	GraphArrangement getGraphArrangement () { return m_graphArrangement; }
+    void setGraphArrangement(GraphArrangement ga){m_graphArrangement = ga;}
 	
 	virtual void setContextMenuGraphType (NewGraph::GraphType graphType) = 0;
 	

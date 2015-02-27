@@ -71,7 +71,6 @@ public slots:
 	void OnXInverse();
 	void OnXInverseMixed();
 	void OnMiarex();
-    void OnNoise();
         ////////////////////new code DM////////////////
         void OnBEM();
         void AboutQBlade();
@@ -82,6 +81,8 @@ public slots:
 		void onViewChanged (int newView, int newApp);
         void OnHAWTView();
         void OnVAWTView();
+        void OnNoiseView();
+
         //////////////////////end new code JW//////////
 	/////////////// new NM ///////////////
 	void onModuleChanged ();  // will hide associated modules if no longer active
@@ -141,8 +142,8 @@ public:
         ////////////new code DM//////////////
         void CreateBEMToolbar();
         void CreateBEMActions();
-        void CreateNoiseActions();
         void CreateBEMMenus();
+        void CreateNoiseMenus();
         void CreateMainToolbar();
         //void OnBem();
         /////////end new code DM//////////
@@ -240,12 +241,12 @@ public:
 
 public:
         ////////////new code DM////////////////
-        QAction *OnNoiseViewAct,*On360ViewAct, *OnBladeViewAct, *OnRotorViewAct, *OnTurbineViewAct, *OnCharacteristicViewAct;
+        QAction *On360ViewAct, *OnBladeViewAct, *OnRotorViewAct, *OnTurbineViewAct, *OnCharacteristicViewAct;
         QAction *RotorGraphAct, *BladeGraphAct, *ShowAllRotorCurvesAct, *HideAllRotorCurvesAct, *IsolateCurrentBladeCurveAct, *CompareCurrentBladeCurveAct, *HideAllPolarsAct, *ShowAllPolarsAct;
         QAction *SingleGraphAct, *EditCurrentBladeAct, *EditCurrentTurbineAct, *BEMGraphDlg, *AboutBEMAct, *MainWindAct, *ParamWindAct, *MainPitchAct, *ParamNoneAct, *ParamPitchAct, *MainRotAct, *ParamRotAct;
         QAction *DeleteCurrentBladeAct, *DeleteCurrent360PolarAct, *DeleteCurrentTurbineAct, *DeleteCurrentRotorSimAct, *DeleteCurrentCharSimAct, *DeleteCurrentTurbineSimAct, *ImportPolarAct, *ExportPolarAct, *Export360PolarAct, *ExportBladeGeomAct, *ExportBladeTableAct, *LoadCylindricFoilAct, *Edit360PolarAct;
         QAction *ExportCurrentRotorAct, *ExportCurrentRotorAeroDynAct, *HAWTToolbarView, *VAWTToolbarView, *AboutFASTAct;  // new code NM
-        QMenu *BEMCtxMenu, *TurbineCtxMenu, *PolarCtxMenu, *CharCtxMenu, *BEMViewMenu, *BEMBladeMenu, *BEM360PolarMenu, *BEMTurbine, *currentBladeMenu, *currentBladeMenu2, *currentTurbineMenu, *current360PolarMenu, *currentBEMGraphMenu, *AboutBEMMenu;
+        QMenu *BEMCtxMenu, *TurbineCtxMenu, *PolarCtxMenu, *CharCtxMenu, *NoiseViewMenu, *BEMViewMenu, *BEMBladeMenu, *BEM360PolarMenu, *BEMTurbine, *currentBladeMenu, *currentBladeMenu2, *currentTurbineMenu, *current360PolarMenu, *currentBEMGraphMenu, *AboutBEMMenu;
         /////////////end new code DM////////////
 
 
@@ -264,7 +265,6 @@ public:
 	void *m_pXDirect;
 	void *m_pMiarex;
 	void *m_pAFoil;
-    void *m_pNoiseWidget;
 	void *m_pStabView;
 	static QPointer<MainFrame> _self;
 

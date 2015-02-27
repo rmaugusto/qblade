@@ -23,7 +23,7 @@ class NewGraph : public QObject
 	Q_OBJECT
 	
 public:
-    enum GraphType {None, FastSimulation, BladeGraph, QFEMSimulation, QLLTSimulation};
+    enum GraphType {None, FastSimulation, BladeGraph, QFEMSimulation, QLLTSimulation, NoiseGraph};
 	
 	NewGraph(QString nameInSettings, GraphType graphType, TwoDWidgetInterface *twoDInterface);
 	~NewGraph();

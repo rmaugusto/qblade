@@ -32,6 +32,7 @@ WindFieldModule *g_windFieldModule;
 FASTModule *g_fastModule;
 QFEMModule *g_QFEMModule;
 QLLTModule *g_QLLTModule;
+NoiseModule *g_NoiseModule;
 
 
 Serializer g_serializer;

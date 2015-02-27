@@ -15,8 +15,9 @@
 #define MIAREX         4
 
 ////////////// NOISE APP //////////////
-#define NOISE           6
-#define NOISE_2DVIEW        61
+#define NOISE_MODULE                   6
+#define NOISE_BPMTE_VIEW        61
+#define NOISE_Q3D_VIEW        62
 
 
 //GLVIEW
