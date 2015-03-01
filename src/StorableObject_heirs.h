@@ -18,6 +18,7 @@
 #include "Objects/OpPoint.h"
 #include "QFem/BladeStructureLoading.h"
 #include "XLLT/QLLTSimulation.h"
+#include "Noise/noisesimulation.h"
 
 
 #endif // STORABLEOBJECT_HEIRS_H

@@ -19,6 +19,7 @@
 #include "../QFem/BladeStructure.h"
 #include "../XUnsteadyBEM/FASTModule.h"
 #include "../XLLT/QLLTModule.h"
+#include "../Noise/noisemodule.h"
 #include "../XGlobals.h" //TODO remove this line when QLLTStore implemented
 
 
@@ -86,7 +87,10 @@ void NewGraph::setGraphType(NewGraph::GraphType graphType) {
     case QLLTSimulation:
         disconnect(&g_QLLTHAWTSimulationStore, SIGNAL(objectListChanged(bool)), this, SLOT(updateGraph()));
         break;
-	}
+    case NoiseSimulationGraph:
+        disconnect(&g_NoiseSimulationStore, SIGNAL(objectListChanged(bool)), this, SLOT(updateGraph()));
+        break;
+    }
 	
 	m_graphType = graphType;
 	
@@ -379,7 +383,15 @@ void NewGraph::reloadCurves() {
             }
         }
         break;
-	}
+    case NoiseSimulationGraph:
+        for (int i = 0; i < g_NoiseSimulationStore.size(); ++i) {
+            curve = g_NoiseSimulationStore.at(i)->newCurve(m_xAxisTitle, m_yAxisTitle, m_graphType);
+            if (curve) {
+                m_curves.append(curve);
+            }
+        }
+        break;
+    }
 }
 
 void NewGraph::updateGraph() {

@@ -43,3 +43,7 @@ NoiseToolBar::NoiseToolBar(QMainWindow *parent, NoiseModule *module) :
 
 
 }
+
+NoiseToolBar::~NoiseToolBar(){
+
+}

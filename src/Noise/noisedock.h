@@ -27,6 +27,7 @@ class NoiseDock : public ScrolledDock
     Q_OBJECT
 public:
     explicit NoiseDock(const QString &title, QMainWindow *parent, Qt::WindowFlags flags, NoiseModule *module);
+    ~NoiseDock();
     void initView();
 
 signals:

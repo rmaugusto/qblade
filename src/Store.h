@@ -199,6 +199,7 @@ extern OpPointStore g_oppointStore;                 /**< global store for Operat
 extern BladeStructureLoadingStore g_bladestructureloadingStore;   /**< global store for a static loading of a BladeStructure object */
 extern QLLTVAWTSimulationStore g_QLLTVAWTSimulationStore;
 extern QLLTHAWTSimulationStore g_QLLTHAWTSimulationStore;
+extern NoiseSimulationStore g_NoiseSimulationStore;
 
 
 

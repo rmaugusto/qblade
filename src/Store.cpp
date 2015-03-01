@@ -259,4 +259,5 @@ OpPointStore g_oppointStore (true, &g_polarStore);
 BladeStructureLoadingStore g_bladestructureloadingStore (true, &g_bladeStructureStore);
 QLLTVAWTSimulationStore g_QLLTVAWTSimulationStore(false, &g_verticalRotorStore);
 QLLTHAWTSimulationStore g_QLLTHAWTSimulationStore(false, &g_rotorStore);
+NoiseSimulationStore g_NoiseSimulationStore(false, &g_rotorStore);
 

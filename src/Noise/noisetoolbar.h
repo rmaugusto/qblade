@@ -16,6 +16,7 @@ class NoiseToolBar : public QToolBar
     Q_OBJECT
 public:
     explicit NoiseToolBar(QMainWindow *parent, NoiseModule *module);
+    ~NoiseToolBar();
 
 private:
     NoiseModule *m_module;

@@ -32,3 +32,7 @@ void NoiseDock::OnClickX(){
     setFloating( !isFloating() );
 
 }
+
+NoiseDock::~NoiseDock(){
+
+}

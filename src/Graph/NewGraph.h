@@ -23,7 +23,7 @@ class NewGraph : public QObject
 	Q_OBJECT
 	
 public:
-    enum GraphType {None, FastSimulation, BladeGraph, QFEMSimulation, QLLTSimulation, NoiseGraph};
+    enum GraphType {None, FastSimulation, BladeGraph, QFEMSimulation, QLLTSimulation, NoiseSimulationGraph};
 	
 	NewGraph(QString nameInSettings, GraphType graphType, TwoDWidgetInterface *twoDInterface);
 	~NewGraph();
@@ -70,7 +70,7 @@ public:
 	double getXTickSize () { return m_xAxis.getTickSize(); }
 	double getYTickSize () { return m_yAxis.getTickSize(); }
 	bool getNoAutoResize () { return m_noAutoResize; }
-	
+
 	void reloadCurves ();
 	void drawGraph (QPainter &painter);
     void exportGraph (QString fileName, int fileType);

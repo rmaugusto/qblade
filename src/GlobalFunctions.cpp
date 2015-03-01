@@ -160,6 +160,7 @@ bool GLscreenMessage(int iApp, int iView, GLWidget *glWidget){
     bool isLoad = g_bladestructureloadingStore.size();
     bool isWind = g_windFieldStore.size();  
     bool isLLT = g_QLLTHAWTSimulationStore.size();
+    bool isNoise = g_NoiseSimulationStore.size();
 
     int why1 = 0.02*glWidget->rect().width();
     int why2 = 0.015*glWidget->rect().width();

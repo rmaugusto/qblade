@@ -19,6 +19,7 @@ class CDMSData;
 class OpPoint;
 class BladeStructureLoading;
 class QLLTSimulation;
+class NoiseSimulation;
 
 typedef Store<WindField> WindFieldStore;
 typedef Store<CBlade> RotorStore;
@@ -39,6 +40,7 @@ typedef Store<OpPoint> OpPointStore;
 typedef Store<BladeStructureLoading> BladeStructureLoadingStore;
 typedef Store<QLLTSimulation> QLLTHAWTSimulationStore;
 typedef Store<QLLTSimulation> QLLTVAWTSimulationStore;
+typedef Store<NoiseSimulation> NoiseSimulationStore;
 
 
 

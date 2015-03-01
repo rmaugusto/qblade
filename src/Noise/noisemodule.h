@@ -13,6 +13,7 @@
 #include "../MainFrame.h"
 #include "noisetoolbar.h"
 #include "noisedock.h"
+#include "noisesimulation.h"
 
 class NoiseToolBar;
 class NoiseDock;

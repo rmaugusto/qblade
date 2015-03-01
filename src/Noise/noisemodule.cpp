@@ -14,11 +14,13 @@ NoiseModule::NoiseModule(QMainWindow *mainWindow, QToolBar *toolbar)
 
     setGraphArrangement(Single);
 
-    m_graph[0] = new NewGraph ("NoiseGraphOne", NewGraph::NoiseGraph, this);
-    m_graph[1] = new NewGraph ("NoiseGraphTwo", NewGraph::NoiseGraph, this);
-    m_graph[2] = new NewGraph ("NoiseGraphThree", NewGraph::NoiseGraph, this);
-    m_graph[3] = new NewGraph ("NoiseGraphFour", NewGraph::NoiseGraph, this);
+    m_graph[0] = new NewGraph ("NoiseGraphOne", NewGraph::NoiseSimulationGraph, this);
+    m_graph[1] = new NewGraph ("NoiseGraphTwo", NewGraph::NoiseSimulationGraph, this);
+    m_graph[2] = new NewGraph ("NoiseGraphThree", NewGraph::NoiseSimulationGraph, this);
+    m_graph[3] = new NewGraph ("NoiseGraphFour", NewGraph::NoiseSimulationGraph, this);
 
+
+    m_graph[0]->setTitle("UHUHUH");
 
     registrateAtToolbar(tr("NOISE"), tr("NOISE"), ":/images/Noise-Icon.png", toolbar);
     g_mainFrame->NoiseViewMenu->addAction(m_activationAction);
