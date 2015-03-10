@@ -14,9 +14,9 @@ NoiseSimulation::NoiseSimulation() :
 NewCurve* NoiseSimulation::newCurve (QString xAxis, QString yAxis, NewGraph::GraphType graphType){
 
     NewCurve *curve = new NewCurve (this);
+    curve->addPoint(0.0,0.0);
+    curve->addPoint(1.0,1.0);
     curve->addPoint(5.0,5.0);
-    curve->addPoint(10.0,10.0);
-    curve->addPoint(15.0,15.0);
 //    curve->setAllPoints(m_results[xAxisIndex].data(),
 //                        m_results[yAxisIndex].data(),
 //                        m_results[0].size());  // numberOfRows is the same for all results

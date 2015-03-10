@@ -207,7 +207,8 @@ SOURCES += src/MainFrame.cpp \
     src/Noise/noisemodule.cpp \
     src/Noise/noisetoolbar.cpp \
     src/Noise/noisedock.cpp \
-    src/Noise/noisesimulation.cpp
+    src/Noise/noisesimulation.cpp \
+    src/Noise/noisesimulationdialog.cpp
 
 HEADERS += src/MainFrame.h \
     src/Params.h \
@@ -413,7 +414,8 @@ HEADERS += src/MainFrame.h \
     src/Noise/noisemodule.h \
     src/Noise/noisetoolbar.h \
     src/Noise/noisedock.h \
-    src/Noise/noisesimulation.h
+    src/Noise/noisesimulation.h \
+    src/Noise/noisesimulationdialog.h
 
 TRANSLATIONS = translations/xflr5v6.ts \
     translations/xflr5v6_de.ts \
@@ -493,3 +495,6 @@ DEPENDPATH  += $$PWD/gsl
 
 # include libGLU
 linux-g++: LIBS += -lGLU
+
+FORMS += \
+    src/Noise/noisesimulationdialog.ui

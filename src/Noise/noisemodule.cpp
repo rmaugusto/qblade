@@ -6,12 +6,12 @@
 #include "../GLWidget.h"
 #include "../Objects/Polar.h"
 #include "../GlobalFunctions.h"
+#include "../Store.h"
 
 NoiseModule::NoiseModule(QMainWindow *mainWindow, QToolBar *toolbar)
 {
 
     m_DockWidth = 220;
-
     setGraphArrangement(Single);
 
     m_graph[0] = new NewGraph ("NoiseGraphOne", NewGraph::NoiseSimulationGraph, this);
@@ -27,43 +27,17 @@ NoiseModule::NoiseModule(QMainWindow *mainWindow, QToolBar *toolbar)
     m_NoiseToolBar = new NoiseToolBar(mainWindow, this);
     m_NoiseDock = new NoiseDock (tr("Noise"), mainWindow, 0, this);
 
-
-
 }
 
 void NoiseModule::onRedraw () {
-
-    render();
-
+    //NOT IMPLEMENTED
 }
 
 NoiseModule::~NoiseModule() {
 }
 
 void NoiseModule::configureGL() {
-    // set background
-
-    //qDebug() << "configure gl";
-
-    glClearColor(g_mainFrame->m_BackgroundColor.redF(),
-                 g_mainFrame->m_BackgroundColor.greenF(),
-                 g_mainFrame->m_BackgroundColor.blueF(),
-                 0.0);
-    glEnable(GL_DEPTH_TEST);
-
-    glDepthFunc(GL_LESS);  // accept fragment if it is closer to the camera than the former one
-    glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);  // polygons are filled from both sides
-    glEnable(GL_POLYGON_OFFSET_FILL);
-    glPolygonOffset(1.0, 0);
-    glLineWidth(3.0);
-    // disable smooth functions that otherwise make rendering worse
-
-//    glEnable(GL_POLYGON_SMOOTH);
-    glEnable(GL_POINT_SMOOTH);
-    glEnable(GL_LINE_SMOOTH);
-
-    glDisable(GL_LIGHTING);
-    glDisable(GL_LIGHT0);
+    //NOT IMPLEMENTED
 }
 
 
@@ -78,15 +52,12 @@ void NoiseModule::OnCenterScene()
 
 
 void NoiseModule::render(){
-
-    if (GLscreenMessage(NOISE_MODULE,NOISE_BPMTE_VIEW,m_glWidget)) return;
-    if (TwoDView) return;
-
+    //NOT IMPLEMENTED
 }
 
 void NoiseModule::UpdateView()
 {
-    m_glWidget->updateGL();
+    //NOT IMPLEMENTED
 }
 
 
@@ -114,8 +85,8 @@ void NoiseModule::hideAll(){
 
 }
 
-void NoiseModule::setContextMenuGraphType(NewGraph::GraphType graphType){
-
+void NoiseModule::setContextMenuGraphType(NewGraph::GraphType){
+    //NOT IMPLEMENTED
 }
 
 void NoiseModule::onActivationActionTriggered(){
@@ -124,8 +95,7 @@ void NoiseModule::onActivationActionTriggered(){
 
     g_mainFrame->m_iApp = NOISE_MODULE;
 
-    if (GLView) OnGLView();
-    else OnTwoDView();
+    OnTwoDView();
 
     m_NoiseToolBar->show();
     m_NoiseDock->show();
@@ -134,6 +104,13 @@ void NoiseModule::onActivationActionTriggered(){
 
 
     OnCenterScene();
+
+    NoiseSimulation * ns = new NoiseSimulation();
+    g_NoiseSimulationStore.add(ns);
+
+
+    m_graph[0]->reloadCurves();
+
 }
 
 void NoiseModule::onModuleChanged (){
@@ -151,12 +128,7 @@ void NoiseModule::onModuleChanged (){
 
 void NoiseModule::OnGLView()
 {
-    GLView = true;
-    TwoDView = false;
-
-    g_mainFrame->m_iView = NOISE_Q3D_VIEW;
-
-    setGLView();
+    //NOT IMPLEMENTED
 }
 
 void NoiseModule::OnTwoDView()

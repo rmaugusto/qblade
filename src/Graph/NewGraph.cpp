@@ -390,6 +390,7 @@ void NewGraph::reloadCurves() {
                 m_curves.append(curve);
             }
         }
+
         break;
     }
 }

@@ -18,6 +18,9 @@
 class NoiseToolBar;
 class NoiseDock;
 
+/**
+ * @brief This class is responsible to create a Noise module
+ */
 class NoiseModule : public ModuleBase, public DualModule
 {
 
@@ -48,9 +51,6 @@ private:
     void setContextMenuGraphType(NewGraph::GraphType graphType);
     void OnCenterScene();
 
-
-    void GLCreateRotorMesh();
-    void GLCreateWakeMesh();
     void render();
 
 

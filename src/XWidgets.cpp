@@ -115,7 +115,7 @@ template class RenameDialog<CDMSData>;
 template class RenameDialog<OpPoint>;
 template class RenameDialog<BladeStructureLoading>;
 template class RenameDialog<QLLTSimulation>;
-
+template class RenameDialog<NoiseSimulation>;
 
 
 

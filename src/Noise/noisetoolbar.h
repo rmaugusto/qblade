@@ -20,9 +20,7 @@ public:
 
 private:
     NoiseModule *m_module;
-
     QAction *TwoDView, *GLView;
-
 
 signals:
 

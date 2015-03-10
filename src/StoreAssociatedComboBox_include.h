@@ -19,6 +19,7 @@ class CDMSData;
 class OpPoint;
 class BladeStructureLoading;
 class QLLTSimulation;
+class NoiseSimulation;
 
 typedef StoreAssociatedComboBox<WindField> WindFieldComboBox;
 typedef StoreAssociatedComboBox<CBlade> RotorComboBox;
@@ -37,6 +38,7 @@ typedef StoreAssociatedComboBox<CFoil> FoilComboBox;
 typedef StoreAssociatedComboBox<OpPoint> OpPointComboBox;
 typedef StoreAssociatedComboBox<BladeStructureLoading> BladeStructureLoadingComboBox;
 typedef StoreAssociatedComboBox<QLLTSimulation> LLTSimulationComboBox;
+typedef StoreAssociatedComboBox<NoiseSimulation> NoiseSimulationComboBox;
 
 
 

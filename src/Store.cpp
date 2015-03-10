@@ -237,7 +237,7 @@ template class Store<CDMSData>;
 template class Store<OpPoint>;
 template class Store<BladeStructureLoading>;
 template class Store<QLLTSimulation>;
-
+template class Store<NoiseSimulation>;
 
 WindFieldStore g_windFieldStore (false);
 AirfoilStore g_foilStore (false);

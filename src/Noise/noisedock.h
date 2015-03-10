@@ -21,6 +21,13 @@
 #include "../ScrolledDock.h"
 #include "../XGlobals.h"
 #include "NoiseModule.h"
+#include "noisesimulationdialog.h"
+
+#include "../XGlobals.h"
+#include "../GLWidget.h"
+#include "../TwoDWidget.h"
+
+class NoiseSimulation;
 
 class NoiseDock : public ScrolledDock
 {
