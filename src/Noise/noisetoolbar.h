@@ -5,24 +5,25 @@
 #include <QToolBar>
 #include <QComboBox>
 #include "NoiseModule.h"
-#include "../StoreAssociatedComboBox_include.h"
 
 class NoiseModule;
 
 class NoiseToolBar : public QToolBar
 {
-    friend class NoiseModule;
-    friend class NoiseDock;
     Q_OBJECT
 public:
     explicit NoiseToolBar(QMainWindow *parent, NoiseModule *module);
     ~NoiseToolBar();
 
 private:
-    NoiseModule *m_module;
-    QAction *TwoDView, *GLView;
+    NoiseModule *m_Module;
+    QAction *BpmteViewAction, *Q3dViewAction;
 
 signals:
+
+private slots:
+    void OnQ3dView();
+    void OnBpmteView();
 
 public slots:
 

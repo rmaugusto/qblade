@@ -22,6 +22,7 @@
 #include "../XGlobals.h"
 #include "NoiseModule.h"
 #include "noisesimulationdialog.h"
+#include "../StoreAssociatedComboBox_include.h"
 
 #include "../XGlobals.h"
 #include "../GLWidget.h"
@@ -43,11 +44,21 @@ public slots:
 
 private:
 
-    NoiseModule *m_module;
-
+    NoiseModule *m_Module;
+    QPushButton *m_newButton;
+    QPushButton *m_editCopyButton;
+    QPushButton *m_deleteButton;
+    QPushButton *m_renameButton;
+    QLabel * m_simulationsLabel;
+    NoiseSimulationComboBox * m_NoiseSimulationComboBox;
 
 private slots:
-    void OnClickX();
+    void onRenameButtonClicked();
+    void onEditCopyButtonClicked ();
+    void onDeleteButtonClicked();
+    void onNewButtonClicked ();
+
+
 };
 
 #endif // NOISEDOCK_H

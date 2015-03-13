@@ -10,8 +10,12 @@ class NoiseModule;
 
 class NoiseSimulation : public StorableObject, public ShowAsGraphInterface
 {
-    friend class NoiseModule;
     Q_OBJECT
+
+private:
+    QStringList m_availableVariables;
+    QVector< QVector <double> >  m_results;
+
 public:
     explicit NoiseSimulation();
     ~NoiseSimulation();

@@ -11,6 +11,7 @@
 #include "../Miarex/GLLightDlg.h"
 #include "../XBEM/360Polar.h"
 #include "../MainFrame.h"
+#include "noisewarningdialog.h"
 #include "noisetoolbar.h"
 #include "noisedock.h"
 #include "noisesimulation.h"
@@ -24,7 +25,6 @@ class NoiseDock;
 class NoiseModule : public ModuleBase, public DualModule
 {
 
-    friend class TwoDWidgetInterface;
     Q_OBJECT
 
 public:
@@ -32,27 +32,45 @@ public:
     NoiseModule(QMainWindow *mainWindow, QToolBar *toolbar);
     ~NoiseModule ();
 
-    QStringList getAvailableGraphVariables();  // override from TwoDWidgetInterface
-    virtual void onRedraw ();  // override from GLModule
+    /**
+     * @brief getAvailableGraphVariables override from TwoDWidgetInterface
+     * @return
+     */
+    QStringList getAvailableGraphVariables();
+    /**
+     * @brief onRedraw override from GLModule
+     */
+    virtual void onRedraw ();
+    /**
+     * @brief addMainMenuEntries
+     */
     virtual void addMainMenuEntries();
-    virtual void initView();  // override from Module
+    /**
+     * @brief initView
+     */
+    virtual void initView();
 
 private:
 
-    int m_DockWidth;
-    bool GLView, TwoDView;
+    static const int DOCK_WIDTH = 220;
 
     NoiseToolBar* m_NoiseToolBar;
     NoiseDock* m_NoiseDock;
+    QToolBar * m_MainToolBar;
+    QMainWindow *m_MainWindow;
+    NoiseSimulation *m_CurNoiseSimulation = NULL;
+    bool m_firstActivation = true;
 
     virtual void configureGL ();  // override from GLModule
     void showAll();
     void hideAll();
     void setContextMenuGraphType(NewGraph::GraphType graphType);
     void OnCenterScene();
-
     void render();
+    void initComponents();
 
+public:
+    void reloadAllGraphics();
 
 public slots:
     virtual void onActivationActionTriggered();  // override from ModuleBase
@@ -60,8 +78,9 @@ public slots:
     void UpdateView();
 
 private slots:
-    void OnGLView();
-    void OnTwoDView();
+    void OnQ3dView();
+    void OnBpmteView();
+    void OnSelChangeNoiseSimulation(int simulationName);
 };
 
 #endif // NOISEMODULE_H

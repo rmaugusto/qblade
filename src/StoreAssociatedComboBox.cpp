@@ -126,4 +126,5 @@ template class StoreAssociatedComboBox<CFoil>;
 template class StoreAssociatedComboBox<OpPoint>;
 template class StoreAssociatedComboBox<BladeStructureLoading>;
 template class StoreAssociatedComboBox<QLLTSimulation>;
+template class StoreAssociatedComboBox<NoiseSimulation>;
 

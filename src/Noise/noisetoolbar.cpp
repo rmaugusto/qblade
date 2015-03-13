@@ -1,40 +1,46 @@
 #include "noisetoolbar.h"
+
+#include "../Store.h"
+#include "../StoreAssociatedComboBox.h"
+#include "noisesimulation.h"
+
 #include <QAction>
 #include <QGroupBox>
 #include <QGridLayout>
-#include "../Store.h"
-#include "../StoreAssociatedComboBox.h"
 #include <QMainWindow>
 
 
 NoiseToolBar::NoiseToolBar(QMainWindow *parent, NoiseModule *module) :
     QToolBar(parent)
 {
-    m_module = module;
+    m_Module = module;
 
-    GLView = new QAction(QIcon(":/images/3dview.png"), tr("3D OpenGL View NOISE"), this);
-    GLView->setCheckable(true);
-    GLView->setStatusTip(tr("3D OpenGL View NOISE"));
+    BpmteViewAction = new QAction(QIcon(":/images/graph.png"), tr("Plot BPMTE Results in a Graph"), this);
+    BpmteViewAction->setCheckable(true);
+    BpmteViewAction->setStatusTip(tr("Plot BPMTE Results in a Graph"));
 
-    TwoDView = new QAction(QIcon(":/images/graph.png"), tr("Plot Results in a Graph NOISE"), this);
-    TwoDView->setCheckable(true);
-    TwoDView->setStatusTip(tr("Plot Results in a Graph"));
+    Q3dViewAction = new QAction(QIcon(":/images/3dview.png"), tr("Plot Q3D Results in a Graph - NOT IMPLEMENTED YET"), this);
+    Q3dViewAction->setCheckable(true);
+    Q3dViewAction->setStatusTip(tr("Plot Q3D Results in a Graph - NOT IMPLEMENTED YET"));
+    Q3dViewAction->setEnabled(false);
 
-    connect (GLView, SIGNAL(triggered(bool)), m_module, SLOT(OnGLView()));
-    connect (TwoDView, SIGNAL(triggered(bool)), m_module, SLOT(OnTwoDView()));
+    connect (Q3dViewAction, SIGNAL(triggered(bool)), m_Module, SLOT(OnQ3dView()));
+    connect (BpmteViewAction, SIGNAL(triggered(bool)), m_Module, SLOT(OnBpmteView()));
 
+    connect (Q3dViewAction, SIGNAL(triggered(bool)), this, SLOT(OnQ3dView()));
+    connect (BpmteViewAction, SIGNAL(triggered(bool)), this, SLOT(OnBpmteView()));
 
-    addAction(GLView);
-    addAction(TwoDView);
-    addSeparator();
+    addAction(BpmteViewAction);
+    addAction(Q3dViewAction);
+//    addSeparator();
 
-//    QGroupBox *groupBox = new QGroupBox (tr("LLT Simulation"));
-//    m_LLTSimulationComboBox = new LLTSimulationComboBox(&g_QLLTHAWTSimulationStore);
-//    m_LLTSimulationComboBox->setSizeAdjustPolicy(QComboBox::AdjustToContents);
-//    m_LLTSimulationComboBox->setMinimumWidth(170);
-//    connect (m_LLTSimulationComboBox, SIGNAL(valueChanged(int)), m_module, SLOT(OnSelChangeLLTSimulation()));
+//    QGroupBox *groupBox = new QGroupBox (tr("Noise Simulation"));
+//    m_NoiseSimulationComboBox = new NoiseSimulationComboBox(&g_NoiseSimulationStore);
+//    m_NoiseSimulationComboBox->setSizeAdjustPolicy(QComboBox::AdjustToContents);
+//    m_NoiseSimulationComboBox->setMinimumWidth(170);
+//    connect (m_NoiseSimulationComboBox, SIGNAL(valueChanged(int)), m_Module, SLOT(OnSelChangeNoiseSimulation()));
 //    QGridLayout *grid = new QGridLayout ();
-//    grid->addWidget(m_LLTSimulationComboBox, 0, 0);
+//    grid->addWidget(m_NoiseSimulationComboBox, 0, 0);
 //    groupBox->setLayout(grid);
 //    addWidget(groupBox);
 
@@ -46,4 +52,16 @@ NoiseToolBar::NoiseToolBar(QMainWindow *parent, NoiseModule *module) :
 
 NoiseToolBar::~NoiseToolBar(){
 
+}
+
+void NoiseToolBar::OnQ3dView()
+{
+    Q3dViewAction->setChecked(true);
+    BpmteViewAction->setChecked(false);
+}
+
+void NoiseToolBar::OnBpmteView()
+{
+    Q3dViewAction->setChecked(false);
+    BpmteViewAction->setChecked(true);
 }
