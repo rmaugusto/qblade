@@ -499,14 +499,17 @@ OpPoint* QXDirect::AddOpPoint(CPolar *pPolar, bool bStoreOpp)
 
 	return pNewPoint;
 }
-
+std::list<XFoil *> QXDirect::GetXFoilPoints() const
+{
+    return m_pXFoilPoints;
+}
 
 void QXDirect::SetControls()
 {
-	MainFrame* pMainFrame = (MainFrame*)m_pMainFrame;
+    MainFrame* pMainFrame = (MainFrame*)m_pMainFrame;
 
-	if(m_bPolar) m_pctrlMiddleControls->setCurrentIndex(1);
-	else         m_pctrlMiddleControls->setCurrentIndex(0);
+    if(m_bPolar) m_pctrlMiddleControls->setCurrentIndex(1);
+    else         m_pctrlMiddleControls->setCurrentIndex(0);
 
 	if(m_pCurPolar)
 	{

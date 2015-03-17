@@ -85,14 +85,16 @@ public:
 	QXDirect(QWidget *parent = NULL);
 	~QXDirect();
 
+    std::list<XFoil *> GetXFoilPoints() const;
+
 public slots:
-	void UpdateView();
+    void UpdateView();
 
 
 private slots:
-	void OnXFoilAdvanced();
+    void OnXFoilAdvanced();
 
-	void OnCouplePolarGraphs();
+    void OnCouplePolarGraphs();
 	void OnAllPolarGraphs();
 	void OnSinglePolarGraph();
 	void OnAllPolarGraphsSetting();
