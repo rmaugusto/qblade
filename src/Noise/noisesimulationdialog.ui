@@ -7,7 +7,7 @@
     <x>0</x>
     <y>0</y>
     <width>766</width>
-    <height>726</height>
+    <height>768</height>
    </rect>
   </property>
   <property name="sizePolicy">
@@ -75,7 +75,7 @@
          <widget class="QWidget" name="widgetGridBPM" native="true">
           <layout class="QGridLayout" name="gridBPM">
            <item row="4" column="1">
-            <widget class="QLineEdit" name="lineEdit_7"/>
+            <widget class="QLineEdit" name="textOriginalAirfoilChordLength"/>
            </item>
            <item row="4" column="0">
             <widget class="QLabel" name="label">
@@ -145,16 +145,16 @@
             </widget>
            </item>
            <item row="0" column="1">
-            <widget class="QLineEdit" name="lineEdit_9"/>
+            <widget class="QLineEdit" name="textAoa"/>
            </item>
            <item row="1" column="1">
-            <widget class="QLineEdit" name="lineEdit_10"/>
+            <widget class="QLineEdit" name="textChordBased"/>
            </item>
            <item row="2" column="1">
-            <widget class="QLineEdit" name="lineEdit_11"/>
+            <widget class="QLineEdit" name="textOriginalFlow"/>
            </item>
            <item row="5" column="1">
-            <widget class="QLineEdit" name="lineEdit_12"/>
+            <widget class="QLineEdit" name="textOriginalFlowVelocity"/>
            </item>
            <item row="0" column="2">
             <widget class="QLabel" name="label_19">
@@ -192,7 +192,7 @@
             </widget>
            </item>
            <item row="3" column="1">
-            <widget class="QComboBox" name="comboBox">
+            <widget class="QComboBox" name="comboTypeTransition">
              <item>
               <property name="text">
                <string>Fully turbulent</string>
@@ -212,7 +212,7 @@
          <widget class="QWidget" name="widgetGridXFoilCalc" native="true">
           <layout class="QGridLayout" name="widgetGridXFoil">
            <item row="1" column="0" colspan="3">
-            <widget class="QGroupBox" name="">
+            <widget class="QGroupBox" name="groupBox">
              <property name="minimumSize">
               <size>
                <width>0</width>
@@ -242,7 +242,7 @@
              </property>
              <layout class="QHBoxLayout" name="horizontalLayout_2">
               <item>
-               <widget class="QCheckBox" name="checkBox_8">
+               <widget class="QCheckBox" name="checkLinear">
                 <property name="minimumSize">
                  <size>
                   <width>0</width>
@@ -261,7 +261,7 @@
                </widget>
               </item>
               <item>
-               <widget class="QCheckBox" name="checkBox_10">
+               <widget class="QCheckBox" name="checkNewtons">
                 <property name="minimumSize">
                  <size>
                   <width>0</width>
@@ -274,7 +274,7 @@
                </widget>
               </item>
               <item>
-               <widget class="QCheckBox" name="checkBox_9">
+               <widget class="QCheckBox" name="checkLagranges">
                 <property name="minimumSize">
                  <size>
                   <width>0</width>
@@ -287,7 +287,7 @@
                </widget>
               </item>
               <item>
-               <widget class="QCheckBox" name="checkBox_7">
+               <widget class="QCheckBox" name="checkSpline">
                 <property name="minimumSize">
                  <size>
                   <width>0</width>
@@ -310,7 +310,7 @@
             </widget>
            </item>
            <item row="3" column="1">
-            <widget class="QLineEdit" name="lineEdit_15"/>
+            <widget class="QLineEdit" name="textEddyConvectionMach"/>
            </item>
            <item row="3" column="0">
             <widget class="QLabel" name="label_28">
@@ -323,7 +323,7 @@
             </widget>
            </item>
            <item row="2" column="1">
-            <widget class="QLineEdit" name="lineEdit_14"/>
+            <widget class="QLineEdit" name="textDScalingFactor"/>
            </item>
            <item row="2" column="0">
             <widget class="QLabel" name="label_25">
@@ -343,7 +343,7 @@
             </widget>
            </item>
            <item row="0" column="1">
-            <widget class="QLineEdit" name="lineEdit_13"/>
+            <widget class="QLineEdit" name="textDChordStation"/>
            </item>
            <item row="0" column="0">
             <widget class="QLabel" name="label_24">
@@ -384,7 +384,7 @@
          </widget>
         </item>
         <item row="1" column="1">
-         <widget class="QLineEdit" name="lineEdit_2"/>
+         <widget class="QLineEdit" name="textDirectivityGreek"/>
         </item>
         <item row="2" column="0">
          <widget class="QLabel" name="label_7">
@@ -400,7 +400,7 @@
          </widget>
         </item>
         <item row="2" column="1">
-         <widget class="QLineEdit" name="lineEdit_3"/>
+         <widget class="QLineEdit" name="textDirectivityPhi"/>
         </item>
         <item row="3" column="1">
          <widget class="QLabel" name="label_6">
@@ -521,36 +521,18 @@
          </widget>
         </item>
         <item row="1" column="0">
-         <widget class="QLabel" name="label_12">
-          <property name="layoutDirection">
-           <enum>Qt::LeftToRight</enum>
-          </property>
+         <widget class="QCheckBox" name="checkBox_4">
           <property name="text">
-           <string>Low frequency: </string>
-          </property>
-          <property name="alignment">
-           <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+           <string>Low frequency</string>
           </property>
          </widget>
         </item>
         <item row="1" column="1">
-         <widget class="QLineEdit" name="lineEdit_6"/>
-        </item>
-        <item row="2" column="0">
-         <widget class="QLabel" name="label_11">
-          <property name="layoutDirection">
-           <enum>Qt::LeftToRight</enum>
-          </property>
+         <widget class="QCheckBox" name="checkBox_5">
           <property name="text">
-           <string>High frequency: </string>
-          </property>
-          <property name="alignment">
-           <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+           <string>High frequency</string>
           </property>
          </widget>
-        </item>
-        <item row="2" column="1">
-         <widget class="QLineEdit" name="lineEdit_5"/>
         </item>
        </layout>
       </widget>
@@ -587,7 +569,7 @@
          </widget>
         </item>
         <item row="1" column="1">
-         <widget class="QLineEdit" name="lineEdit"/>
+         <widget class="QLineEdit" name="textLengthWetted"/>
         </item>
         <item row="2" column="0">
          <widget class="QLabel" name="label_4">
@@ -603,7 +585,7 @@
          </widget>
         </item>
         <item row="2" column="1">
-         <widget class="QLineEdit" name="lineEdit_4"/>
+         <widget class="QLineEdit" name="textDistanceObserver"/>
         </item>
        </layout>
       </widget>
@@ -614,31 +596,41 @@
         <string/>
        </property>
        <layout class="QGridLayout" name="gridLayout_2">
-        <item row="5" column="0">
-         <widget class="QCheckBox" name="checkBox_6">
+        <item row="0" column="0">
+         <widget class="QLabel" name="label_14">
+          <property name="text">
+           <string>Select acoustic weighting:</string>
+          </property>
+         </widget>
+        </item>
+        <item row="4" column="0">
+         <widget class="QRadioButton" name="radioButton_2">
           <property name="text">
            <string>C-Weighting</string>
           </property>
          </widget>
         </item>
         <item row="2" column="0">
-         <widget class="QCheckBox" name="checkBox_5">
+         <widget class="QRadioButton" name="radioButton">
+          <property name="text">
+           <string>A-Weighting</string>
+          </property>
+         </widget>
+        </item>
+        <item row="3" column="0">
+         <widget class="QRadioButton" name="radioButton_3">
           <property name="text">
            <string>B-Weighting</string>
           </property>
          </widget>
         </item>
-        <item row="0" column="0">
-         <widget class="QLabel" name="label_14">
-          <property name="text">
-           <string>Select acoustic weighting (only one option here):</string>
-          </property>
-         </widget>
-        </item>
         <item row="1" column="0">
-         <widget class="QCheckBox" name="checkBox_4">
+         <widget class="QRadioButton" name="radioButton_4">
           <property name="text">
-           <string>A-Weighting</string>
+           <string>None</string>
+          </property>
+          <property name="checked">
+           <bool>true</bool>
           </property>
          </widget>
         </item>
@@ -670,24 +662,33 @@
           </property>
          </widget>
         </item>
-        <item row="1" column="0">
+        <item row="2" column="0">
          <widget class="QCheckBox" name="checkBox">
           <property name="text">
            <string>Suction side of airfoil (attached flow)</string>
           </property>
-         </widget>
-        </item>
-        <item row="2" column="0">
-         <widget class="QCheckBox" name="checkBox_2">
-          <property name="text">
-           <string>Pressure side of airfoil (attached flow)</string>
+          <property name="checked">
+           <bool>true</bool>
           </property>
          </widget>
         </item>
         <item row="3" column="0">
+         <widget class="QCheckBox" name="checkBox_2">
+          <property name="text">
+           <string>Pressure side of airfoil (attached flow)</string>
+          </property>
+          <property name="checked">
+           <bool>true</bool>
+          </property>
+         </widget>
+        </item>
+        <item row="1" column="0">
          <widget class="QCheckBox" name="checkBox_3">
           <property name="text">
            <string>Separated flow on the suction side (high Reynolds flow)</string>
+          </property>
+          <property name="checked">
+           <bool>true</bool>
           </property>
          </widget>
         </item>
@@ -701,34 +702,28 @@
  <tabstops>
   <tabstop>textSimulationName</tabstop>
   <tabstop>listOpPoints</tabstop>
-  <tabstop>lineEdit_6</tabstop>
-  <tabstop>lineEdit_5</tabstop>
-  <tabstop>lineEdit</tabstop>
-  <tabstop>lineEdit_4</tabstop>
-  <tabstop>checkBox_4</tabstop>
-  <tabstop>checkBox_5</tabstop>
-  <tabstop>checkBox_6</tabstop>
+  <tabstop>textLengthWetted</tabstop>
+  <tabstop>textDistanceObserver</tabstop>
   <tabstop>checkBox</tabstop>
   <tabstop>checkBox_2</tabstop>
-  <tabstop>checkBox_3</tabstop>
   <tabstop>deltaSourceXFoil</tabstop>
   <tabstop>deltaSourceBPM</tabstop>
   <tabstop>deltaSourceImport</tabstop>
-  <tabstop>lineEdit_9</tabstop>
-  <tabstop>lineEdit_10</tabstop>
-  <tabstop>lineEdit_11</tabstop>
-  <tabstop>comboBox</tabstop>
-  <tabstop>lineEdit_7</tabstop>
-  <tabstop>lineEdit_12</tabstop>
-  <tabstop>lineEdit_13</tabstop>
-  <tabstop>checkBox_8</tabstop>
-  <tabstop>checkBox_10</tabstop>
-  <tabstop>checkBox_9</tabstop>
-  <tabstop>checkBox_7</tabstop>
-  <tabstop>lineEdit_14</tabstop>
-  <tabstop>lineEdit_15</tabstop>
-  <tabstop>lineEdit_2</tabstop>
-  <tabstop>lineEdit_3</tabstop>
+  <tabstop>textAoa</tabstop>
+  <tabstop>textChordBased</tabstop>
+  <tabstop>textOriginalFlow</tabstop>
+  <tabstop>comboTypeTransition</tabstop>
+  <tabstop>textOriginalAirfoilChordLength</tabstop>
+  <tabstop>textOriginalFlowVelocity</tabstop>
+  <tabstop>textDChordStation</tabstop>
+  <tabstop>checkLinear</tabstop>
+  <tabstop>checkNewtons</tabstop>
+  <tabstop>checkLagranges</tabstop>
+  <tabstop>checkSpline</tabstop>
+  <tabstop>textDScalingFactor</tabstop>
+  <tabstop>textEddyConvectionMach</tabstop>
+  <tabstop>textDirectivityGreek</tabstop>
+  <tabstop>textDirectivityPhi</tabstop>
  </tabstops>
  <resources>
   <include location="../../qblade.qrc"/>

@@ -101,7 +101,7 @@ void NoiseSimulationDialog::loadComponents()
 
             if(pXFoil){
 
-                QString strItem = QString("Alpha = %1 (%2)")
+                QString strItem = QString("Alpha = %1\370 (%2 rad)")
                                                .arg(pXFoil->alfa*180./PI,5,'f',2).arg(pXFoil->alfa,5,'f',5);
 
                QListWidgetItem *item = new QListWidgetItem(NULL,QListWidgetItem::UserType);
