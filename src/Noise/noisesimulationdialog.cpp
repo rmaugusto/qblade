@@ -30,14 +30,50 @@ NoiseSimulationDialog::~NoiseSimulationDialog()
     delete ui;
 }
 
+void NoiseSimulationDialog::readWindowParams(NoiseParameter *nParam)
+{
+
+    //TODO: VERIFICAR SE ESSE CAMPO É INPUT MESMO OU CALCULO
+    //param->setReynoldsBasedDisplacement(  );
+
+    param->setChordBasedReynolds( ui->textChordBasedReynold->text().toDouble() );
+    param->setDistanceObsever( ui->textDistanceObserver->text().toDouble() );
+    param->setOriginalChordLength( ui->textOriginalAirfoilChordLength->text().toDouble() );
+    param->setDStarChordStation( ui->textDChordStation->text().toDouble() );
+    param->setDStarScalingFactor( ui->textDScalingFactor->text().toDouble() );
+    param->setOriginalMach( ui->textOriginalMachFlow->text().toDouble() );
+    param->setOriginalVelocity( ui->textOriginalFlowVelocity->text().toDouble() );
+    param->setEddyConvectionMach( ui->textEddyConvectionMach->text().toDouble() );
+    param->setWettedLength( ui->textLengthWetted->text().toDouble() );
+
+    param->setDirectivityGreek( ui->textDirectivityGreek->text().toDouble() );
+    param->setDirectivityPhi( ui->textDirectivityPhi->text().toDouble() );
+    param->setHighFreq( ui->checkHighFrequency->isChecked() );
+    param->setLowFreq( ui->checkLowFrequency->isChecked() );
+    nParam->setInterpolationLinear( ui->checkLinear->isChecked() );
+    nParam->setInterpolationLagranges( ui->checkLagranges->isChecked() );
+    nParam->setInterpolationNewtons( ui->checkNewtons->isChecked() );
+    nParam->setInterpolationSpline( ui->checkSpline->isChecked() );
+
+    param->setSeparatedFlow( ui->checkBoxSourceSPLa->isChecked() );
+    param->setSuctionSide( ui->checkBoxSourceSPLs->isChecked() );
+    param->setPressureSide( ui->checkBoxSourceSPLs->isChecked() );
+
+}
+
 void NoiseSimulationDialog::on_NoiseSimulationDialog_accepted()
 {
 
+    NoiseSimulation * nSim = new NoiseSimulation();
+    NoiseCalculation * nCalc = new NoiseCalculation();
+    NoiseParameter *nParam = new NoiseParameter();
 
-    NoiseSimulation * ns = new NoiseSimulation();
-    ns->setName(ui->textSimulationName->text());
-    g_NoiseSimulationStore.add(ns);
+    readWindowParams(nParam);
 
+    nCalc->setNoiseParam(nParam);
+    nSim->setNoiseCalculation(nCalc);
+    nSim->setName(ui->textSimulationName->text());
+    g_NoiseSimulationStore.add(nSim);
 
 }
 

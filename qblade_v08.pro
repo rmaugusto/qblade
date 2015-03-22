@@ -209,7 +209,10 @@ SOURCES += src/MainFrame.cpp \
     src/Noise/noisedock.cpp \
     src/Noise/noisesimulation.cpp \
     src/Noise/noisesimulationdialog.cpp \
-    src/Noise/noisewarningdialog.cpp
+    src/Noise/noisewarningdialog.cpp \
+    src/Noise/noisecalculation.cpp \
+    src/Noise/noiseoppoint.cpp \
+    src/Noise/noiseparameter.cpp
 
 HEADERS += src/MainFrame.h \
     src/Params.h \
@@ -417,7 +420,10 @@ HEADERS += src/MainFrame.h \
     src/Noise/noisedock.h \
     src/Noise/noisesimulation.h \
     src/Noise/noisesimulationdialog.h \
-    src/Noise/noisewarningdialog.h
+    src/Noise/noisewarningdialog.h \
+    src/Noise/noisecalculation.h \
+    src/Noise/noiseoppoint.h \
+    src/Noise/noiseparameter.h
 
 TRANSLATIONS = translations/xflr5v6.ts \
     translations/xflr5v6_de.ts \

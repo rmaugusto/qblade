@@ -1,9 +1,21 @@
 #include "noisesimulation.h"
 #include "../Graph/NewCurve.h"
 
+
+NoiseCalculation *NoiseSimulation::NoiseCalculation() const
+{
+    return m_NoiseCalculation;
+}
+
+void NoiseSimulation::setNoiseCalculation(NoiseCalculation *NoiseCalculation)
+{
+    m_NoiseCalculation = NoiseCalculation;
+}
 NoiseSimulation::NoiseSimulation() :
     StorableObject (QString("test"))
 {
+
+    m_NoiseCalculation = NULL;
 
     m_pen.setWidth(1);
     m_pen.setStyle(Qt::SolidLine);
@@ -81,5 +93,8 @@ NoiseSimulation* NoiseSimulation::newBySerialize() {
 }
 
 NoiseSimulation::~NoiseSimulation(){
+
+    if(m_NoiseCalculation)
+        delete m_NoiseCalculation;
 
 }

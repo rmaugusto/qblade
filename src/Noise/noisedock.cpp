@@ -122,6 +122,11 @@ void NoiseDock::onNewButtonClicked()
     NoiseSimulationDialog * dialog = new NoiseSimulationDialog();
     dialog->exec();
     delete dialog;
+
+    NoiseSimulation * ns = m_NoiseSimulationComboBox->currentObject();
+
+    ns->NoiseCalculation()->calculate();
+
 }
 
 void NoiseDock::onRenameButtonClicked()

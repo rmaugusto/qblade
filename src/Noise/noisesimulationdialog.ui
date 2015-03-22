@@ -7,7 +7,7 @@
     <x>0</x>
     <y>0</y>
     <width>766</width>
-    <height>768</height>
+    <height>709</height>
    </rect>
   </property>
   <property name="sizePolicy">
@@ -74,65 +74,11 @@
         <item>
          <widget class="QWidget" name="widgetGridBPM" native="true">
           <layout class="QGridLayout" name="gridBPM">
-           <item row="4" column="1">
-            <widget class="QLineEdit" name="textOriginalAirfoilChordLength"/>
+           <item row="1" column="1">
+            <widget class="QLineEdit" name="textChordBasedReynold"/>
            </item>
-           <item row="4" column="0">
-            <widget class="QLabel" name="label">
-             <property name="text">
-              <string>Original airfoil Chord length, C:</string>
-             </property>
-             <property name="alignment">
-              <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
-             </property>
-            </widget>
-           </item>
-           <item row="2" column="0">
-            <widget class="QLabel" name="label_16">
-             <property name="text">
-              <string>Original flow Mach Number, M:</string>
-             </property>
-             <property name="alignment">
-              <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
-             </property>
-            </widget>
-           </item>
-           <item row="4" column="2">
-            <widget class="QLabel" name="label_13">
-             <property name="text">
-              <string>m</string>
-             </property>
-            </widget>
-           </item>
-           <item row="5" column="0">
-            <widget class="QLabel" name="label_3">
-             <property name="text">
-              <string>Original flow velocity, U:</string>
-             </property>
-             <property name="alignment">
-              <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
-             </property>
-            </widget>
-           </item>
-           <item row="3" column="0">
-            <widget class="QLabel" name="label_15">
-             <property name="text">
-              <string>Type of transition:</string>
-             </property>
-             <property name="alignment">
-              <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
-             </property>
-            </widget>
-           </item>
-           <item row="1" column="0">
-            <widget class="QLabel" name="label_17">
-             <property name="text">
-              <string>Chord based Reynolds number, Rc:</string>
-             </property>
-             <property name="alignment">
-              <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
-             </property>
-            </widget>
+           <item row="0" column="1">
+            <widget class="QLineEdit" name="textAoa"/>
            </item>
            <item row="0" column="0">
             <widget class="QLabel" name="label_18">
@@ -143,18 +89,6 @@
               <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
              </property>
             </widget>
-           </item>
-           <item row="0" column="1">
-            <widget class="QLineEdit" name="textAoa"/>
-           </item>
-           <item row="1" column="1">
-            <widget class="QLineEdit" name="textChordBased"/>
-           </item>
-           <item row="2" column="1">
-            <widget class="QLineEdit" name="textOriginalFlow"/>
-           </item>
-           <item row="5" column="1">
-            <widget class="QLineEdit" name="textOriginalFlowVelocity"/>
            </item>
            <item row="0" column="2">
             <widget class="QLabel" name="label_19">
@@ -184,14 +118,17 @@
              </property>
             </widget>
            </item>
-           <item row="5" column="2">
-            <widget class="QLabel" name="label_23">
+           <item row="1" column="0">
+            <widget class="QLabel" name="label_17">
              <property name="text">
-              <string>[m/s]</string>
+              <string>Chord based Reynolds number, Rc:</string>
+             </property>
+             <property name="alignment">
+              <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
              </property>
             </widget>
            </item>
-           <item row="3" column="1">
+           <item row="2" column="1">
             <widget class="QComboBox" name="comboTypeTransition">
              <item>
               <property name="text">
@@ -203,6 +140,16 @@
                <string>Transaction flow</string>
               </property>
              </item>
+            </widget>
+           </item>
+           <item row="2" column="0">
+            <widget class="QLabel" name="label_15">
+             <property name="text">
+              <string>Type of transition:</string>
+             </property>
+             <property name="alignment">
+              <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+             </property>
             </widget>
            </item>
           </layout>
@@ -539,14 +486,14 @@
          </widget>
         </item>
         <item row="1" column="0">
-         <widget class="QCheckBox" name="checkBox_4">
+         <widget class="QCheckBox" name="checkLowFrequency">
           <property name="text">
            <string>Low frequency</string>
           </property>
          </widget>
         </item>
         <item row="1" column="1">
-         <widget class="QCheckBox" name="checkBox_5">
+         <widget class="QCheckBox" name="checkHighFrequency">
           <property name="text">
            <string>High frequency</string>
           </property>
@@ -604,6 +551,45 @@
         </item>
         <item row="2" column="1">
          <widget class="QLineEdit" name="textDistanceObserver"/>
+        </item>
+        <item row="3" column="0">
+         <widget class="QLabel" name="label_3">
+          <property name="text">
+           <string>Original flow velocity, U:</string>
+          </property>
+          <property name="alignment">
+           <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+          </property>
+         </widget>
+        </item>
+        <item row="3" column="1">
+         <widget class="QLineEdit" name="textOriginalFlowVelocity"/>
+        </item>
+        <item row="4" column="1">
+         <widget class="QLineEdit" name="textOriginalAirfoilChordLength"/>
+        </item>
+        <item row="4" column="0">
+         <widget class="QLabel" name="label">
+          <property name="text">
+           <string>Original airfoil Chord length, C:</string>
+          </property>
+          <property name="alignment">
+           <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+          </property>
+         </widget>
+        </item>
+        <item row="5" column="1">
+         <widget class="QLineEdit" name="textOriginalMachFlow"/>
+        </item>
+        <item row="5" column="0">
+         <widget class="QLabel" name="label_16">
+          <property name="text">
+           <string>Original flow Mach Number, M:</string>
+          </property>
+          <property name="alignment">
+           <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+          </property>
+         </widget>
         </item>
        </layout>
       </widget>
@@ -681,11 +667,7 @@
   <tabstop>deltaSourceBPM</tabstop>
   <tabstop>deltaSourceImport</tabstop>
   <tabstop>textAoa</tabstop>
-  <tabstop>textChordBased</tabstop>
-  <tabstop>textOriginalFlow</tabstop>
-  <tabstop>comboTypeTransition</tabstop>
-  <tabstop>textOriginalAirfoilChordLength</tabstop>
-  <tabstop>textOriginalFlowVelocity</tabstop>
+  <tabstop>textChordBasedReynold</tabstop>
   <tabstop>textDChordStation</tabstop>
   <tabstop>checkLinear</tabstop>
   <tabstop>checkNewtons</tabstop>

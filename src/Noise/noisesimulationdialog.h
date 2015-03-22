@@ -2,6 +2,7 @@
 #define NOISESIMULATIONDIALOG_H
 
 #include "../XDirect/XDirect.h"
+#include "noisecalculation.h"
 
 #include <QDialog>
 
@@ -25,6 +26,7 @@ public:
      * @brief loadComponents Load the components data
      */
     void loadComponents();
+    void readWindowParams(NoiseParameter *nParam);
 private slots:
     void on_NoiseSimulationDialog_accepted();
 
