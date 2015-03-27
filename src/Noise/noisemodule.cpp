@@ -10,6 +10,8 @@
 
 NoiseModule::NoiseModule(QMainWindow *mainWindow, QToolBar *toolbar)
 {
+    m_firstActivation = true;
+    m_CurNoiseSimulation = NULL;
     m_MainToolBar = toolbar;
     m_MainWindow = mainWindow;
     initComponents();

@@ -4,12 +4,19 @@
 #include "../XDirect/XDirect.h"
 #include "noisecalculation.h"
 #include "noisesimulation.h"
+#include "noiseoppoint.h"
 
 #include <QDialog>
+#include <QMetaType>
 
 namespace Ui{
     class NoiseSimulationDialog;
 }
+
+class ListItemNoiseOpPoint : public NoiseOpPoint
+{
+};
+Q_DECLARE_METATYPE(ListItemNoiseOpPoint)
 
 class NoiseSimulationDialog : public QDialog
 {
@@ -27,6 +34,8 @@ public:
      * @brief loadComponents Load the components data
      */
     void loadComponents();
+
+    NoiseSimulation * GetNoiseSimulation();
 private slots:
 
     void on_deltaSourceXFoil_toggled(bool checked);
@@ -36,7 +45,7 @@ private slots:
     void on_buttonOK_clicked();
 
     void on_buttonCancel_clicked();
-    void finished(int result);
+    void closeEvent(QCloseEvent * event);
 
 private:
     bool validateDoubleValue(QLineEdit * txt);

@@ -21,6 +21,7 @@ NoiseSimulationDialog::NoiseSimulationDialog(QWidget *parent, NoiseSimulation *s
     m_NSCreated = false;
     m_NS = sim;
 
+    //If it is a new simulation
     if(!m_NS){
 
         NoiseSimulation * nSim = new NoiseSimulation();
@@ -33,11 +34,15 @@ NoiseSimulationDialog::NoiseSimulationDialog(QWidget *parent, NoiseSimulation *s
         m_NS = nSim;
         m_NSCreated = true;
 
+    }else{
+        //Can not edit simulation name here
+        ui->textSimulationName->setEnabled(false);
     }
 
     pXDirect = (QXDirect *) g_mainFrame->m_pXDirect;
 
     initComponents();
+    readCalculationParams();
 
 }
 
@@ -49,6 +54,8 @@ NoiseSimulationDialog::~NoiseSimulationDialog()
 void NoiseSimulationDialog::readWindowParams()
 {
     NoiseParameter *param = m_NS->Calculation()->NoiseParam();
+
+    m_NS->setName(ui->textSimulationName->text());
 
     param->setWettedLength( ui->textWettedLength->text().toDouble() );
     param->setDistanceObsever( ui->textDistanceObsever->text().toDouble() );
@@ -77,8 +84,20 @@ void NoiseSimulationDialog::readWindowParams()
     param->setSuctionSide( ui->checkBoxSourceSPLs->isChecked() );
     param->setPressureSide( ui->checkBoxSourceSPLs->isChecked() );
 
-    m_NS->setName(ui->textSimulationName->text());
+    param->OpPoints().clear();
 
+    for (int i = 0; i < ui->listOpPoints->count(); ++i) {
+
+        //TODO: ARRUMAR A OBTENCAO DO OPPOINT
+        //Recover NoiseOpPoint from checked list item
+        QListWidgetItem * pLstItem = ui->listOpPoints->item(i);
+        QVariant pQv = pLstItem->data(Qt::UserRole);
+        ListItemNoiseOpPoint pLinopp = pQv.value<ListItemNoiseOpPoint>();
+        NoiseOpPoint * nop = new NoiseOpPoint(pLinopp.Reynolds(),pLinopp.Alpha(),pLinopp.DStar());
+
+        //Add NoiseOpPoint to parameters
+        param->OpPoints().push_back(nop);
+    }
 
 }
 
@@ -190,19 +209,40 @@ void NoiseSimulationDialog::loadComponents()
 
             if(pXFoil){
 
-                QString strItem = QString("Alpha = %1\370 (%2 rad)")
+                ListItemNoiseOpPoint linop;
+                QVariant      qv;
+                QString strItem = QString("Alpha = %1° (%2 rad)")
                                                .arg(pXFoil->alfa*180./PI,5,'f',2).arg(pXFoil->alfa,5,'f',5);
 
-               QListWidgetItem *item = new QListWidgetItem(NULL,QListWidgetItem::UserType);
+                QListWidgetItem *item = new QListWidgetItem(NULL,QListWidgetItem::UserType);
                 item->setText(strItem);
                 item->setFlags(Qt::ItemIsSelectable | Qt::ItemIsUserCheckable | Qt::ItemIsEnabled);
+
                 item->setCheckState(Qt::Unchecked );
+
+                for (unsigned int x = 0; x < m_NS->Calculation()->NoiseParam()->OpPoints().size() ; ++x) {
+                    NoiseOpPoint * npp = m_NS->Calculation()->NoiseParam()->OpPoints().at(x);
+                    if(npp->Alpha() == pXFoil->alfa){
+                        item->setCheckState(Qt::Checked );
+                    }
+                }
+
+                linop.setAlpha(pXFoil->alfa);
+                linop.setDStar(pXFoil->reinf);
+                qv.setValue(linop);
+                item->setData(Qt::UserRole,qv);
+
                 ui->listOpPoints->insertItem( ui->listOpPoints->count(),item);
 
             }
 
         }
     }
+}
+
+NoiseSimulation *NoiseSimulationDialog::GetNoiseSimulation()
+{
+    return m_NS;
 }
 
 void NoiseSimulationDialog::showEvent(QShowEvent *sw)
@@ -222,9 +262,33 @@ bool NoiseSimulationDialog::validateInputs()
     if(!validateDoubleValue(ui->textDStarChordStation)) return false;
     if(!validateDoubleValue(ui->textDStarScalingFactor)) return false;
     if(!validateDoubleValue(ui->textEddyConvectionMach)) return false;
-    if(!validateDoubleValue(ui->textChordBasedReynold)) return false;
+
+    if(ui->deltaSourceBPM->isChecked()){
+        if(!validateDoubleValue(ui->textChordBasedReynold)) return false;
+        if(!validateDoubleValue(ui->textAoa )) return false;
+    }
+
     if(!validateDoubleValue(ui->textDirectivityGreek)) return false;
     if(!validateDoubleValue(ui->textDirectivityPhi)) return false;
+
+    //Validate if there is at least one checked OpPoint when XFoil
+    //is selected
+    if(ui->deltaSourceXFoil->isChecked()){
+        bool checkedItemFound = false;
+        for (unsigned int i = 0; i < ui->listOpPoints->count(); ++i) {
+
+            QListWidgetItem * pLstItem = ui->listOpPoints->item(i);
+            if(pLstItem->checkState() == Qt::Checked){
+                checkedItemFound = true;
+                break;
+            }
+        }
+
+        if(!checkedItemFound){
+            QMessageBox::warning(this, tr("Warning"), tr("Select an OpPoint."));
+            return false;
+        }
+    }
 
     return true;
 
@@ -258,9 +322,16 @@ void NoiseSimulationDialog::on_buttonCancel_clicked()
     reject();
 }
 
-void NoiseSimulationDialog::finished(int result)
+void NoiseSimulationDialog::closeEvent(QCloseEvent *event)
 {
-int d=3;
+    //If it is a new simulation free
+    if(m_NSCreated){
+        delete m_NS;
+    }
 
+    reject();
 
 }
+
+
+

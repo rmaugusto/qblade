@@ -723,6 +723,13 @@
   <tabstop>listOpPoints</tabstop>
   <tabstop>textWettedLength</tabstop>
   <tabstop>textDistanceObsever</tabstop>
+  <tabstop>textOriginalVelocity</tabstop>
+  <tabstop>textOriginalChordLength</tabstop>
+  <tabstop>textOriginalMach</tabstop>
+  <tabstop>textDStarChordStation</tabstop>
+  <tabstop>textDStarScalingFactor</tabstop>
+  <tabstop>textEddyConvectionMach</tabstop>
+  <tabstop>checkBoxSourceSPLa</tabstop>
   <tabstop>checkBoxSourceSPLs</tabstop>
   <tabstop>checkBoxSourceSPLp</tabstop>
   <tabstop>deltaSourceXFoil</tabstop>
@@ -730,12 +737,17 @@
   <tabstop>deltaSourceImport</tabstop>
   <tabstop>textAoa</tabstop>
   <tabstop>textChordBasedReynold</tabstop>
+  <tabstop>comboTransitionType</tabstop>
   <tabstop>checkLinear</tabstop>
   <tabstop>checkNewtons</tabstop>
   <tabstop>checkLagranges</tabstop>
   <tabstop>checkSpline</tabstop>
+  <tabstop>checkLowFrequency</tabstop>
+  <tabstop>checkHighFrequency</tabstop>
   <tabstop>textDirectivityGreek</tabstop>
   <tabstop>textDirectivityPhi</tabstop>
+  <tabstop>buttonOK</tabstop>
+  <tabstop>buttonCancel</tabstop>
  </tabstops>
  <resources>
   <include location="../../qblade.qrc"/>

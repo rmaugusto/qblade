@@ -64,6 +64,8 @@ NewCurve* NoiseSimulation::newCurve (QString xAxis, QString yAxis, NewGraph::Gra
         return curve;
     }
 
+    return NULL;
+
 }
 
 QStringList NoiseSimulation::getAvailableVariables (NewGraph::GraphType graphType){

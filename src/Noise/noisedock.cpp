@@ -56,7 +56,7 @@ NoiseDock::NoiseDock(const QString & title, QMainWindow * parent, Qt::WindowFlag
     m_renameButton = new QPushButton (tr("Rename"));
     connect(m_renameButton, SIGNAL(clicked()), this, SLOT(onRenameButtonClicked()));
     grid->addWidget (m_renameButton, 2, 1);
-    m_editCopyButton = new QPushButton (tr("Edit/Copy"));
+    m_editCopyButton = new QPushButton (tr("Edit"));
     connect(m_editCopyButton, SIGNAL(clicked()), this, SLOT(onEditCopyButtonClicked()));
     grid->addWidget (m_editCopyButton, 3, 0);
     m_deleteButton = new QPushButton (tr("Delete"));
@@ -120,12 +120,14 @@ void NoiseDock::onDeleteButtonClicked()
 void NoiseDock::onNewButtonClicked()
 {
     NoiseSimulationDialog * dialog = new NoiseSimulationDialog();
-    dialog->exec();
+    int result = dialog->exec();
+
+    if(result == QDialog::Accepted){
+        NoiseSimulation * ns  = dialog->GetNoiseSimulation();
+        ns->Calculation()->calculate();
+    }
+
     delete dialog;
-
-    NoiseSimulation * ns = m_NoiseSimulationComboBox->currentObject();
-
-    ns->Calculation()->calculate();
 
 }
 
@@ -139,6 +141,17 @@ void NoiseDock::onRenameButtonClicked()
 void NoiseDock::onEditCopyButtonClicked()
 {
     if(m_NoiseSimulationComboBox->currentIndex() != -1){
+
+        NoiseSimulationDialog * dialog = new NoiseSimulationDialog(NULL,m_NoiseSimulationComboBox->currentObject());
+        int result = dialog->exec();
+
+        if(result == QDialog::Accepted){
+            NoiseSimulation * ns  = dialog->GetNoiseSimulation();
+            ns->Calculation()->calculate();
+        }
+
+        delete dialog;
+
     }
 }
 

@@ -58,8 +58,8 @@ private:
     NoiseDock* m_NoiseDock;
     QToolBar * m_MainToolBar;
     QMainWindow *m_MainWindow;
-    NoiseSimulation *m_CurNoiseSimulation = NULL;
-    bool m_firstActivation = true;
+    NoiseSimulation *m_CurNoiseSimulation;
+    bool m_firstActivation;
 
     virtual void configureGL ();  // override from GLModule
     void showAll();
