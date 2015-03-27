@@ -3,6 +3,7 @@
 
 #include "../XDirect/XDirect.h"
 #include "noisecalculation.h"
+#include "noisesimulation.h"
 
 #include <QDialog>
 
@@ -15,7 +16,7 @@ class NoiseSimulationDialog : public QDialog
     Q_OBJECT
 
 public:
-    explicit NoiseSimulationDialog(QWidget *parent = 0);
+    explicit NoiseSimulationDialog(QWidget *parent = 0,NoiseSimulation * sim=0);
     ~NoiseSimulationDialog();
 
     /**
@@ -26,16 +27,26 @@ public:
      * @brief loadComponents Load the components data
      */
     void loadComponents();
-    void readWindowParams(NoiseParameter *nParam);
 private slots:
-    void on_NoiseSimulationDialog_accepted();
 
     void on_deltaSourceXFoil_toggled(bool checked);
 
     void on_deltaSourceBPM_toggled(bool checked);
 
+    void on_buttonOK_clicked();
+
+    void on_buttonCancel_clicked();
+    void finished(int result);
+
 private:
+    bool validateDoubleValue(QLineEdit * txt);
+    void readCalculationParams();
+    void readWindowParams();
+    bool validateInputs();
+
     Ui::NoiseSimulationDialog *ui;
+    NoiseSimulation * m_NS;
+    bool m_NSCreated;
     void showEvent(QShowEvent * sw);
     QXDirect *pXDirect;
 };

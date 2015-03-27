@@ -2,12 +2,12 @@
 #include "../Graph/NewCurve.h"
 
 
-NoiseCalculation *NoiseSimulation::NoiseCalculation() const
+NoiseCalculation *NoiseSimulation::Calculation() const
 {
     return m_NoiseCalculation;
 }
 
-void NoiseSimulation::setNoiseCalculation(NoiseCalculation *NoiseCalculation)
+void NoiseSimulation::setCalculation(NoiseCalculation *NoiseCalculation)
 {
     m_NoiseCalculation = NoiseCalculation;
 }

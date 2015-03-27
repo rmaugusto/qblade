@@ -4,18 +4,19 @@
 #include <QDebug>
 #include <QtGlobal>
 #include <list>
-#include <noiseoppoint.h>
+#include "noiseoppoint.h"
 
 namespace Noise{
 
     enum DeltaSource { XFoilCalculation, OriginalBPM, ImportData };
     enum TransitionType { FullyTurbulent, TransitionFlow };
+    enum AirfoilSide { PressureSide, SuctionSide };
 
-    const unsigned short IVX = 302;	//300 = number of nodes along bl on one side of airfoil and wake
-    const unsigned short ISX = 3;	//number of airfoil sides
+    const unsigned short IIVX = 302;	//300 = number of nodes along bl on one side of airfoil and wake
+    const unsigned short IISX = 3;	//number of airfoil sides
 
-    typedef double ArrChordStations[Noise::IVX][Noise::ISX];
-    typedef double TwoDArrDStars[Noise::IVX][Noise::ISX];
+    typedef double ArrChordStations[Noise::IIVX][Noise::IISX];
+    typedef double TwoDArrDStars[Noise::IIVX][Noise::IISX];
 
 }
 
@@ -50,7 +51,7 @@ public:
      * @brief setDeltaSouce Delta* source
      * @param DeltaSouce
      */
-    void setDeltaSouce( Noise::DeltaSource &DeltaSouce);
+    void setDeltaSouce(Noise::DeltaSource DeltaSouce);
 
     double WettedLength() ;
     void setWettedLength(double WettedLength);
@@ -168,17 +169,6 @@ public:
     void setAoa(double Aoa);
 
     /**
-     * @brief ChordBasedReynolds Chord based Reynolds number
-     * @return
-     */
-    double ChordBasedReynolds() ;
-    /**
-     * @brief setChordBasedReynolds Chord based Reynolds number
-     * @param ChordBasedReynolds
-     */
-    void setChordBasedReynolds(double ChordBasedReynolds);
-
-    /**
      * @brief OriginalMach Original flow Mach Number
      * @return
      */
@@ -198,7 +188,7 @@ public:
      * @brief setTransition type of transition
      * @param Transition
      */
-    void setTransition( Noise::TransitionType &Transition);
+    void setTransition( Noise::TransitionType Transition);
 
     /**
      * @brief OriginalChordLength Original airfoil Chord length
@@ -258,18 +248,16 @@ private:
     bool m_InterpolationSpline;
     double m_DStarScalingFactor;
     double m_EddyConvectionMach;
-    double m_ChordBasedReynolds;
     double m_OriginalMach;
     double m_OriginalChordLength;
     double m_OriginalVelocity;
-    double m_ReynoldsBasedDisplacement;
 
     //Original BPM correlations
     double m_Aoa;
     Noise::TransitionType m_Transition;
 
-    double m_ChordStations[Noise::IVX][Noise::ISX];
-    double m_DStars[Noise::IVX][Noise::ISX];
+    double m_ChordStations[Noise::IIVX][Noise::IISX];
+    double m_DStars[Noise::IIVX][Noise::IISX];
 
 };
 

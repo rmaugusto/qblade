@@ -125,7 +125,7 @@ void NoiseDock::onNewButtonClicked()
 
     NoiseSimulation * ns = m_NoiseSimulationComboBox->currentObject();
 
-    ns->NoiseCalculation()->calculate();
+    ns->Calculation()->calculate();
 
 }
 

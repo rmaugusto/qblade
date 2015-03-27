@@ -30,8 +30,8 @@ public:
     QStringList getAvailableVariables (NewGraph::GraphType graphType);
     QString getObjectName () { return m_objectName; }
 
-    NoiseCalculation *NoiseCalculation() const;
-    void setNoiseCalculation(NoiseCalculation *NoiseCalculation);
+    NoiseCalculation *Calculation() const;
+    void setCalculation(NoiseCalculation *NoiseCalculation);
 
 signals:
     void updateProgress ();  // emited to increase progress dialog

@@ -3,6 +3,28 @@
 NoiseParameter::NoiseParameter()
 {
 
+    m_WettedLength=1;
+    m_DistanceObsever=1.22;
+    m_OriginalVelocity=0;
+    m_OriginalChordLength=1;
+    m_OriginalMach=0.21;
+    m_DStarChordStation=0.98;
+    m_DStarScalingFactor=1;
+    m_EddyConvectionMach=1;
+    m_DirectivityGreek = 90;
+    m_DirectivityPhi=90;
+    //TODO: LER DO OPPOINT
+    //m_ChordBasedReynolds = 1;
+    m_HighFreq = true;
+    m_LowFreq = true;
+    m_InterpolationLinear =true;
+    m_InterpolationLagranges=false;
+    m_InterpolationNewtons=false;
+    m_InterpolationSpline=false;
+    m_SeparatedFlow=true;
+    m_SuctionSide=true;
+    m_PressureSide=true;
+
 }
 
 NoiseParameter::~NoiseParameter()
@@ -32,7 +54,7 @@ Noise::DeltaSource NoiseParameter::DeltaSouce()
     return m_DeltaSouce;
 }
 
-void NoiseParameter::setDeltaSouce( Noise::DeltaSource &DeltaSouce)
+void NoiseParameter::setDeltaSouce( Noise::DeltaSource DeltaSouce)
 {
     m_DeltaSouce = DeltaSouce;
 }
@@ -189,30 +211,21 @@ void NoiseParameter::setAoa(double Aoa)
 {
     m_Aoa = Aoa;
 }
-double NoiseParameter::ChordBasedReynolds()
-{
-    return m_ChordBasedReynolds;
-}
-
-void NoiseParameter::setChordBasedReynolds(double ChordBasedReynolds)
-{
-    m_ChordBasedReynolds = ChordBasedReynolds;
-}
-double NoiseParameter::OriginalMach()
-{
-    return m_OriginalMach;
-}
 
 void NoiseParameter::setOriginalMach(double OriginalMach)
 {
     m_OriginalMach = OriginalMach;
+}
+double NoiseParameter::OriginalMach()
+{
+    return m_OriginalMach;
 }
 Noise::TransitionType NoiseParameter::Transition()
 {
     return m_Transition;
 }
 
-void NoiseParameter::setTransition( Noise::TransitionType &Transition)
+void NoiseParameter::setTransition(Noise::TransitionType Transition)
 {
     m_Transition = Transition;
 }
@@ -243,14 +256,5 @@ Noise::ArrChordStations& NoiseParameter::ChordStations()
 Noise::TwoDArrDStars& NoiseParameter::DStars()
 {
     return m_DStars;
-}
-double NoiseParameter::ReynoldsBasedDisplacement() const
-{
-    return m_ReynoldsBasedDisplacement;
-}
-
-void NoiseParameter::setReynoldsBasedDisplacement(double ReynoldsBasedDisplacement)
-{
-    m_ReynoldsBasedDisplacement = ReynoldsBasedDisplacement;
 }
 

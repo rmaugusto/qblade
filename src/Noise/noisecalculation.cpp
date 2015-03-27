@@ -10,8 +10,10 @@ NoiseCalculation::NoiseCalculation()
 
 NoiseCalculation::~NoiseCalculation()
 {
-    if(m_NoiseParameter)
+    if(m_NoiseParameter){
         delete m_NoiseParameter;
+        m_NoiseParameter = 0;
+    }
 }
 
 NoiseParameter *NoiseCalculation::NoiseParam() const
@@ -37,7 +39,7 @@ double NoiseCalculation::getDStarInterpolated(bool top)
     int side = top ? 1 : 2;
 
     //Find closest station assuming crescent order on chordStation
-    for(int i =0;i<Noise::IVX;i++){
+    for(int i =0;i<Noise::IIVX;i++){
 
         //Current chord
         double ccur = this->NoiseParam()->ChordStations()[i][side];
@@ -119,11 +121,73 @@ double NoiseCalculation::getSt2(NoiseOpPoint* nop)
 
 }
 
-double NoiseCalculation::getBPMThickness()
+double NoiseCalculation::getBPMThickness(NoiseOpPoint * nop, Noise::AirfoilSide as)
 {
 
-    m_NoiseParameter->OriginalChordLength();
-    ///m_NoiseParameter->();
+    double dStarCF = 0;
+    double dStarCT = 0;
+    double dStar = 0;
+    double bpm = 0;
+
+
+    if(m_NoiseParameter->Transition() == Noise::FullyTurbulent){
+
+        if(nop->Reynolds() > 300000){
+            dStarCF = pow(10,(3.411-1.5397*log10(nop->Reynolds())+0.1059* pow(log10(nop->Reynolds()),2)));
+        }else{
+            dStarCF = 0.0601*(pow(nop->Reynolds(),-0.114));
+        }
+        dStar = dStarCF * m_NoiseParameter->OriginalChordLength();
+
+    }else{
+
+        dStarCT = pow(10,(3.0187-1.5397*log10(nop->Reynolds())+0.1059* pow(log10(nop->Reynolds()),2)));
+        dStar = dStarCT * m_NoiseParameter->OriginalChordLength();
+
+    }
+
+    if(nop->AlphaDeg() == 0){
+
+        bpm = dStar;
+
+    }else{
+        double corFactor = 0;
+
+        if(as==Noise::PressureSide){
+            corFactor = pow(10,(-0.0432*nop->AlphaDeg()+0.00113*pow(nop->AlphaDeg(),2)));
+            bpm = corFactor * dStar;
+        }else{
+
+            if(m_NoiseParameter->Transition() == Noise::FullyTurbulent){
+
+                if(nop->AlphaDeg() < 5){
+                    corFactor = pow(10,(0.0679 * nop->AlphaDeg()));
+                }else if(nop->AlphaDeg() >= 5 && nop->AlphaDeg() <= 12.5){
+                    corFactor = 0.381*(pow(10,(0.1516*nop->AlphaDeg())));
+                }else{
+                    corFactor = 14.296*(pow(10,(0.0258*nop->AlphaDeg())));
+                }
+
+            }else{
+
+                if(nop->AlphaDeg() < 7.5){
+                    corFactor = pow(10,(0.0679*nop->AlphaDeg()));
+                }else if(nop->AlphaDeg() >= 7.5 && nop->AlphaDeg() <= 12.5){
+                    corFactor = 0.0162*(pow(10,(0.3066*nop->AlphaDeg())));
+                }else{
+                    corFactor = 54.42*(pow(10,(0.0258*nop->AlphaDeg())));
+                }
+
+            }
+
+            bpm = corFactor * dStar;
+
+        }
+
+    }
+
+
+    return bpm;
 
 }
 
@@ -191,14 +255,14 @@ void NoiseCalculation::preCalcSPLa(NoiseOpPoint* nop)
         qDebug() << "SPLa Need to calculate SPLs and SPLp";
         qDebug() << "SPLa dL: " << getDL();
         m_SplaFirstTerm = 10*log10((pow(m_NoiseParameter->OriginalMach(),5)*m_NoiseParameter->WettedLength()*getDL()*m_DStarFinalS/pow(m_NoiseParameter->DistanceObsever(),2)));
+        m_ChordBasedReynolds = nop->Reynolds() * 3;
 
-
-        if(m_NoiseParameter->ChordBasedReynolds() < 95200){
+        if(m_ChordBasedReynolds < 95200){
             m_SplaAo = 0.57;
-        }else if(m_NoiseParameter->ChordBasedReynolds() > 857000){
+        }else if(m_ChordBasedReynolds > 857000){
             m_SplaAo = 1.13;
         }else{
-            m_SplaAo = (-0.000000000000957*(pow((m_NoiseParameter->ChordBasedReynolds()-857000),2))+1.13);
+            m_SplaAo = (-0.000000000000957*(pow((m_ChordBasedReynolds-857000),2))+1.13);
         }
 
         if(m_SplaAo < 0.204){
@@ -219,6 +283,8 @@ void NoiseCalculation::preCalcSPLa(NoiseOpPoint* nop)
 
         m_SplaAr = (-20-m_SplaAMin)/(m_SplaAMax-m_SplaAMin);
 
+
+        qDebug() << "SPLA ChordBasedReynolds " << m_ChordBasedReynolds;
         qDebug() << "SPLA Ao " << m_SplaAo;
         qDebug() << "SPLA aMin " << m_SplaAMin;
         qDebug() << "SPLA aMax " << m_SplaAMax;
@@ -240,9 +306,9 @@ void NoiseCalculation::preCalcSPLa(NoiseOpPoint* nop)
     m_SplaK1 = getK1(nop);
 
     m_SplaK2 = 0;
-    if(nop->AlphaDeg() < (m_SplaGamma-m_SwAlpha1)){
+    if(nop->AlphaDeg() < (m_SwAlpha1-m_SplaGamma)){
         m_SplaK2 = m_SplaK1 - 1000;
-    }else if(nop->AlphaDeg() > (m_SplaGamma+m_SwAlpha1)){
+    }else if(nop->AlphaDeg() > (m_SwAlpha1+m_SplaGamma)){
         m_SplaK2 = m_SplaK1 - 12;
     }else{
         m_SplaK2 = m_SplaK1 + (sqrt( pow(m_SplaBeta,2)-pow((m_SplaBeta/m_SplaGamma),2)* pow((nop->AlphaDeg()-m_SwAlpha1),2)  )+m_SplaBetaZero);
@@ -300,14 +366,15 @@ void NoiseCalculation::preCalcSPLp(NoiseOpPoint *nop)
     m_SplpK1 = getK1(nop);
     m_SplpK13 = m_SplpK1-3;
     m_SplpDeltaK1 = 0;
+    m_ReynoldsBasedDisplacement = 1.225 * m_NoiseParameter->OriginalVelocity() * m_DStarFinalP / 0.0000178;
 
-    if(m_NoiseParameter->ReynoldsBasedDisplacement() > 5000){
+    if(m_ReynoldsBasedDisplacement > 5000){
         m_SplpDeltaK1 = 0;
     }else{
-        //TODO: ARRUMAR O Delta K1
-        m_SplpDeltaK1 = ( nop->AlphaDeg() *(1.43*log10(m_NoiseParameter->ReynoldsBasedDisplacement())-5.29));
+        m_SplpDeltaK1 = ( nop->AlphaDeg() *(1.43*log10(m_ReynoldsBasedDisplacement)-5.29));
     }
 
+    qDebug() << "Reynolds Based Displacement: " << m_ReynoldsBasedDisplacement;
     qDebug() << "SPLp st1: " << m_SplpSt1;
     qDebug() << "SPLp k1: " << m_SplpK1;
     qDebug() << "SPLp k1-3: " << m_SplpK13;
@@ -514,12 +581,12 @@ void NoiseCalculation::calculate()
 
         if( m_NoiseParameter->DeltaSouce() == Noise::XFoilCalculation){
             //For XFoil model
-            m_DStarFinalS = m_DStarInterpolatedS * m_NoiseParameter->OriginalChordLength();
-            m_DStarFinalP = m_DStarInterpolatedP * m_NoiseParameter->OriginalChordLength();
+            m_DStarFinalS = m_DStarInterpolatedS * m_NoiseParameter->OriginalChordLength() * m_NoiseParameter->DStarScalingFactor();
+            m_DStarFinalP = m_DStarInterpolatedP * m_NoiseParameter->OriginalChordLength() * m_NoiseParameter->DStarScalingFactor();
         }else if( m_NoiseParameter->DeltaSouce() == Noise::OriginalBPM){
-            //For XFoil model
-            m_DStarFinalS = getBPMThickness();
-            m_DStarFinalP = m_DStarFinalS;
+            //For BPM model
+            m_DStarFinalS = getBPMThickness(nop,Noise::SuctionSide) * m_NoiseParameter->DStarScalingFactor();
+            m_DStarFinalP = getBPMThickness(nop,Noise::PressureSide) * m_NoiseParameter->DStarScalingFactor();
         }else{
             //NOT SUPPORTED YET
         }

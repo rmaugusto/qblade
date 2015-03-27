@@ -81,6 +81,7 @@ private:
     double m_SplaAMax;
     double m_SplaAMin;
     double m_SplaAo;
+    double m_ChordBasedReynolds;
 
     //For SPLs
     Noise::TwoDVector m_SPLsdB; //Store db of SPLs
@@ -106,6 +107,7 @@ private:
     double m_SplpK1;
     double m_SplpK13;
     double m_SplpDeltaK1;
+    double m_ReynoldsBasedDisplacement;
 
     //For SPL
     Noise::TwoDVector m_SPLdB; //Store db of SPL
@@ -118,7 +120,7 @@ private:
     double getDL();
     double getSt1();
     double getSt2(NoiseOpPoint *nop);
-    double getBPMThickness();
+    double getBPMThickness(NoiseOpPoint *nop, Noise::AirfoilSide as);
 
     void preCalcSPLa(NoiseOpPoint* nop);
     void preCalcSPLs(NoiseOpPoint* nop);
