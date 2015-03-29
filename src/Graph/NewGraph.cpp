@@ -112,7 +112,10 @@ void NewGraph::setGraphType(NewGraph::GraphType graphType) {
     case QLLTSimulation:
         connect(&g_QLLTHAWTSimulationStore, SIGNAL(objectListChanged(bool)), this, SLOT(updateGraph()));
         break;
-	}
+    case NoiseSimulationGraph:
+        connect(&g_NoiseSimulationStore, SIGNAL(objectListChanged(bool)), this, SLOT(updateGraph()));
+        break;
+    }
 }
 
 void NewGraph::drawGraph(QPainter &painter) {
@@ -385,9 +388,11 @@ void NewGraph::reloadCurves() {
         break;
     case NoiseSimulationGraph:
         for (int i = 0; i < g_NoiseSimulationStore.size(); ++i) {
-            curve = g_NoiseSimulationStore.at(i)->newCurve(m_xAxisTitle, m_yAxisTitle, m_graphType);
-            if (curve) {
-                m_curves.append(curve);
+            for (int j = 0; j < g_NoiseSimulationStore.at(i)->Calculation()->NoiseParam()->OpPoints().size(); ++j) {
+                curve = g_NoiseSimulationStore.at(i)->newCurve(m_xAxisTitle, m_yAxisTitle, m_graphType,j);
+                if (curve) {
+                    m_curves.append(curve);
+                }
             }
         }
 

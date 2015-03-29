@@ -4,6 +4,7 @@
 #include <QDebug>
 #include <QtGlobal>
 #include <list>
+#include <cmath>
 #include "noiseoppoint.h"
 
 namespace Noise{
@@ -39,7 +40,7 @@ public:
      * @param reynolds
      * @param alpha
      */
-    void addOpPoint(double reynolds, double alpha, double dStar);
+    void addOpPoint(double reynolds, double alpha);
     std::vector <NoiseOpPoint *> & OpPoints();
 
     /**
@@ -61,9 +62,13 @@ public:
 
     double DirectivityGreek() ;
     void setDirectivityGreek(double DirectivityGreek);
+    double DirectivityGreekDeg() ;
+    void setDirectivityGreekDeg(double DirectivityGreek);
 
     double DirectivityPhi() ;
     void setDirectivityPhi(double DirectivityPhi);
+    double DirectivityPhiDeg() ;
+    void setDirectivityPhiDeg(double DirectivityPhi);
 
     bool HighFreq() ;
     void setHighFreq(bool HighFreq);

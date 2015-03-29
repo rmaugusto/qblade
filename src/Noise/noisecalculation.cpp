@@ -51,6 +51,8 @@ double NoiseCalculation::getDStarInterpolated(bool top)
         //prev chord
         double prev_d = i==0?cd: this->NoiseParam()->DStars()[i-1][side];
 
+        //qDebug() << "i: " << i << " - " << ccur;
+
         if(ccur > this->NoiseParam()->DStarChordStation()){
             chordUpStream = ccur;
             chordDownStream = prev_ccur;
@@ -68,7 +70,7 @@ double NoiseCalculation::getDStarInterpolated(bool top)
     }
 
     if(!upDownFind){
-        qFatal("Can not find upstream and downstream. D* Interpolated will be zero !");
+        qWarning("Can not find upstream and downstream. D* Interpolated will be zero !");
         return 0;
     }
 
@@ -203,6 +205,46 @@ double NoiseCalculation::getK1(NoiseOpPoint* nop)
     }
 
     return k1;
+}
+Noise::TwoDVector NoiseCalculation::SPLdB() const
+{
+    return m_SPLdB;
+}
+
+Noise::TwoDVector NoiseCalculation::SPLdBAW() const
+{
+    return m_SPLdBAW;
+}
+
+Noise::TwoDVector NoiseCalculation::SPLdBBW() const
+{
+    return m_SPLdBBW;
+}
+
+
+
+Noise::TwoDVector NoiseCalculation::SPLdBCW() const
+{
+    return m_SPLdBCW;
+}
+
+Noise::TwoDVector NoiseCalculation::SPLpdB() const
+{
+    return m_SPLpdB;
+}
+
+Noise::TwoDVector NoiseCalculation::SPLadB() const
+{
+    return m_SPLadB;
+}
+double* NoiseCalculation::OASPL()
+{
+    return m_OASPL;
+}
+
+Noise::TwoDVector NoiseCalculation::SPLsdB() const
+{
+    return m_SPLsdB;
 }
 
 void NoiseCalculation::preCalcSPLa(NoiseOpPoint* nop)
@@ -560,7 +602,7 @@ void NoiseCalculation::calcSPLp(int posOpPoint,int posFreq)
 void NoiseCalculation::calculate()
 {
     if(!m_NoiseParameter){
-        qFatal("Parameter not defined !");
+        qWarning("Parameter not defined !");
         return;
     }
 
@@ -571,9 +613,10 @@ void NoiseCalculation::calculate()
 
         NoiseOpPoint * nop = m_NoiseParameter->OpPoints()[posOpPoint];
 
+        m_OASPL[posOpPoint] = 0;
+
         qDebug() << "======================== OpPoint ========================";
         qDebug() << "Alpha deg: " << nop->AlphaDeg();
-        qDebug() << "DStar: " << nop->DStar();
         qDebug() << "Reynolds: " << nop->Reynolds();
 
         m_DStarInterpolatedS = getDStarInterpolated(true);
@@ -625,8 +668,8 @@ void NoiseCalculation::calculate()
 
 
         //For each frequency
-        for (unsigned int posFreq = 0; posFreq < 3; ++posFreq) {
-        //for (unsigned int i = 0; i < Noise::FREQUENCY_TABLE_SIZE; ++i) {
+        //for (unsigned int posFreq = 0; posFreq < 3; ++posFreq) {
+        for (unsigned int posFreq = 0; posFreq < Noise::FREQUENCY_TABLE_SIZE; ++posFreq) {
 
             qDebug() << "==== Band Frequency ====";
             qDebug() << "Freq: [" << (posFreq+1) << "] " << Noise::CENTRAL_BAND_FREQUENCY[posFreq] ;
@@ -654,8 +697,12 @@ void NoiseCalculation::calculate()
 
             qDebug() << "SPLdb(" << m_SPLdB[posOpPoint][posFreq] << ") " << "SPLdbAW(" << m_SPLdBAW[posOpPoint][posFreq] << ") " << "SPLdbBW(" << m_SPLdBBW[posOpPoint][posFreq] << ") " << "SPLdbCW(" << m_SPLdBCW[posOpPoint][posFreq] << ") ";
 
+
+            m_OASPL[posOpPoint] += pow(10,(m_SPLdB[posOpPoint][posFreq]/10));
+
         }
 
+        m_OASPL[posOpPoint] = 10*log10(m_OASPL[posOpPoint]);
     }
 
 }

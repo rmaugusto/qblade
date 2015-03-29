@@ -49,6 +49,7 @@ private:
     QPushButton *m_editCopyButton;
     QPushButton *m_deleteButton;
     QPushButton *m_renameButton;
+    QPushButton *m_exportButton;
     QLabel * m_simulationsLabel;
     NoiseSimulationComboBox * m_NoiseSimulationComboBox;
 
@@ -57,6 +58,7 @@ private slots:
     void onEditCopyButtonClicked ();
     void onDeleteButtonClicked();
     void onNewButtonClicked ();
+    void onExportButtonClicked();
 
 
 };

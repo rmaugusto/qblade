@@ -6,6 +6,9 @@
 #include "../StoreAssociatedComboBox.h"
 
 #include <QMessageBox>
+#include <QTextStream>
+#include <QFileDialog>
+
 
 NoiseDock::NoiseDock(const QString & title, QMainWindow * parent, Qt::WindowFlags flags, NoiseModule *module) :
     ScrolledDock(title, parent, flags)
@@ -63,6 +66,9 @@ NoiseDock::NoiseDock(const QString & title, QMainWindow * parent, Qt::WindowFlag
     connect(m_deleteButton, SIGNAL(clicked()), this, SLOT(onDeleteButtonClicked()));
     grid->addWidget (m_deleteButton, 3, 1);
 
+    m_exportButton = new QPushButton (tr("Export"));
+    connect(m_exportButton, SIGNAL(clicked()), this, SLOT(onExportButtonClicked()));
+    grid->addWidget (m_exportButton, 4, 0,1,2);
 
 
 
@@ -70,24 +76,24 @@ NoiseDock::NoiseDock(const QString & title, QMainWindow * parent, Qt::WindowFlag
 
 //    groupBox = new QGroupBox ();
 //    vBox->addWidget (groupBox);
-    grid = new QGridLayout ();
-    groupBox->setLayout(grid);
+//    grid = new QGridLayout ();
+//    groupBox->setLayout(grid);
 
-    m_renameButton = new QPushButton (tr("Rename"));
-    connect(m_renameButton, SIGNAL(clicked()), this, SLOT(onRenameButtonClicked()));
-    grid->addWidget (m_renameButton, 0, 0);
+//    m_renameButton = new QPushButton (tr("Rename"));
+//    connect(m_renameButton, SIGNAL(clicked()), this, SLOT(onRenameButtonClicked()));
+//    grid->addWidget (m_renameButton, 0, 0);
 
-    m_editCopyButton = new QPushButton (tr("Edit/Copy"));
-    connect(m_editCopyButton, SIGNAL(clicked()), this, SLOT(onEditCopyButtonClicked()));
-    grid->addWidget (m_editCopyButton, 0, 1);
+//    m_editCopyButton = new QPushButton (tr("Edit/Copy"));
+//    connect(m_editCopyButton, SIGNAL(clicked()), this, SLOT(onEditCopyButtonClicked()));
+//    grid->addWidget (m_editCopyButton, 0, 1);
 
-    m_deleteButton = new QPushButton (tr("Delete"));
-    connect(m_deleteButton, SIGNAL(clicked()), this, SLOT(onDeleteButtonClicked()));
-    grid->addWidget (m_deleteButton, 1, 0);
+//    m_deleteButton = new QPushButton (tr("Delete"));
+//    connect(m_deleteButton, SIGNAL(clicked()), this, SLOT(onDeleteButtonClicked()));
+//    grid->addWidget (m_deleteButton, 1, 0);
 
-    m_newButton = new QPushButton (tr("New"));
-    connect(m_newButton, SIGNAL(clicked()), this, SLOT(onNewButtonClicked()));
-    grid->addWidget (m_newButton, 1, 1);
+//    m_newButton = new QPushButton (tr("New"));
+//    connect(m_newButton, SIGNAL(clicked()), this, SLOT(onNewButtonClicked()));
+//    grid->addWidget (m_newButton, 1, 1);
 
 
 
@@ -125,9 +131,42 @@ void NoiseDock::onNewButtonClicked()
     if(result == QDialog::Accepted){
         NoiseSimulation * ns  = dialog->GetNoiseSimulation();
         ns->Calculation()->calculate();
+        ns->simulate();
+        m_Module->reloadAllGraphics();
+        g_mainFrame->getTwoDWidget()->update();
     }
 
     delete dialog;
+
+}
+
+void NoiseDock::onExportButtonClicked()
+{
+
+    if(m_NoiseSimulationComboBox->currentIndex() != -1){
+
+        QString fileName;
+
+        fileName = m_NoiseSimulationComboBox->currentObject()->getName();
+        fileName.replace("/", " ");
+
+        fileName = QFileDialog::getSaveFileName(this, tr("Export Noise"),
+                            fileName+".txt",
+                            tr("Noise prediction (*.txt)"));
+        if(!fileName.length()) return;
+
+        QFile qFile(fileName);
+
+        if (!qFile.open(QIODevice::WriteOnly | QIODevice::Text)) return ;
+
+        QTextStream out(&qFile);
+
+        m_NoiseSimulationComboBox->currentObject()->exportCalculation(out);
+
+        qFile.close();
+
+
+    }
 
 }
 
@@ -162,6 +201,7 @@ NoiseDock::~NoiseDock(){
     delete m_editCopyButton;
     delete m_deleteButton;
     delete m_renameButton;
+    delete m_exportButton;
     delete m_simulationsLabel;
     delete m_NoiseSimulationComboBox;
 

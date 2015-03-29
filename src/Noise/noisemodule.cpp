@@ -29,6 +29,7 @@ NoiseModule::~NoiseModule() {
     delete m_graph[3];
     delete m_NoiseToolBar;
     delete m_NoiseDock;
+    delete m_twoDContextMenu;
 
 }
 
@@ -56,24 +57,33 @@ void NoiseModule::initComponents()
 {
 
     //Setup the graphics
-    setGraphArrangement(Single);
+    setGraphArrangement(Quad);
 
     m_graph[0] = new NewGraph ("NoiseGraphOne", NewGraph::NoiseSimulationGraph, this);
     m_graph[1] = new NewGraph ("NoiseGraphTwo", NewGraph::NoiseSimulationGraph, this);
     m_graph[2] = new NewGraph ("NoiseGraphThree", NewGraph::NoiseSimulationGraph, this);
     m_graph[3] = new NewGraph ("NoiseGraphFour", NewGraph::NoiseSimulationGraph, this);
 
+    m_graph[0]->setShownVariables("Freq [Hz]","SPL_alpha");
+    m_graph[1]->setShownVariables("Freq [Hz]","SPL_S");
+    m_graph[2]->setShownVariables("Freq [Hz]","SPL_P");
+    m_graph[3]->setShownVariables("Freq [Hz]","SPL (dB)");
 
-    m_graph[0]->setTitle("UHUHUH");
+    m_graph[0]->setNoAutoResize(false);
+    m_graph[1]->setNoAutoResize(false);
+    m_graph[2]->setNoAutoResize(false);
+    m_graph[3]->setNoAutoResize(false);
 
     //Create toolbar
     registrateAtToolbar(tr("Noise Prediction Module"), tr("Noise Prediction Module"), ":/images/Noise-Icon.png", m_MainToolBar);
     g_mainFrame->NoiseViewMenu->addAction(m_activationAction);
     m_NoiseToolBar = new NoiseToolBar(m_MainWindow, this);
 
-
     //Setup the dock
     m_NoiseDock = new NoiseDock (tr("Noise Prediction"), m_MainWindow, 0, this);
+
+    m_twoDContextMenu = new TwoDContextMenu (g_mainFrame, this);
+    setContextMenu(m_twoDContextMenu);
 
 
 }
@@ -81,6 +91,16 @@ void NoiseModule::initComponents()
 void NoiseModule::reloadAllGraphics()
 {
     m_graph[0]->reloadCurves();
+    m_graph[0]->updateGraph();
+
+    m_graph[1]->reloadCurves();
+    m_graph[1]->updateGraph();
+
+    m_graph[2]->reloadCurves();
+    m_graph[2]->updateGraph();
+
+    m_graph[3]->reloadCurves();
+    m_graph[3]->updateGraph();
 }
 
 void NoiseModule::UpdateView()

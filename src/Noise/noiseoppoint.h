@@ -8,7 +8,7 @@
 class NoiseOpPoint
 {
 public:
-    NoiseOpPoint(double reynolds,double alpha, double ds) : m_Reynolds(reynolds),m_Alpha(alpha), m_DStar(ds) {}
+    NoiseOpPoint(double reynolds,double alpha) : m_Reynolds(reynolds),m_Alpha(alpha) {}
     NoiseOpPoint();
     ~NoiseOpPoint();
 
@@ -18,8 +18,8 @@ public:
     double Alpha() const;
     void setAlpha(double Alpha);
 
-    double DStar() const;
-    void setDStar(double DStar);
+//    double DStar() const;
+//    void setDStar(double DStar);
 
     double AlphaDeg();
 
@@ -27,7 +27,7 @@ private:
     double m_Reynolds;
     //Alpha in radians
     double m_Alpha;
-    double m_DStar;
+//    double m_DStar;
 
 };
 

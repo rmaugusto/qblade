@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>788</width>
-    <height>660</height>
+    <width>787</width>
+    <height>663</height>
    </rect>
   </property>
   <property name="sizePolicy">
@@ -583,23 +583,17 @@
        <property name="title">
         <string/>
        </property>
-       <layout class="QFormLayout" name="formLayout">
-        <property name="fieldGrowthPolicy">
-         <enum>QFormLayout::AllNonFixedFieldsGrow</enum>
-        </property>
-        <item row="0" column="0" colspan="2">
-         <widget class="QLabel" name="label_5">
-          <property name="minimumSize">
-           <size>
-            <width>0</width>
-            <height>0</height>
-           </size>
+       <layout class="QGridLayout" name="gridLayout_2">
+        <item row="3" column="0">
+         <widget class="QLabel" name="label_7">
+          <property name="layoutDirection">
+           <enum>Qt::LeftToRight</enum>
           </property>
           <property name="text">
-           <string>Select Directivity Factors (a picture with the reference system appears whenthe user clicks on the defaults for change – see picture below)</string>
+           <string>φe:</string>
           </property>
-          <property name="wordWrap">
-           <bool>true</bool>
+          <property name="alignment">
+           <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
           </property>
          </widget>
         </item>
@@ -617,25 +611,74 @@
          </widget>
         </item>
         <item row="1" column="1">
-         <widget class="QLineEdit" name="textDirectivityGreek"/>
-        </item>
-        <item row="2" column="0">
-         <widget class="QLabel" name="label_7">
-          <property name="layoutDirection">
-           <enum>Qt::LeftToRight</enum>
+         <widget class="QLineEdit" name="textDirectivityGreek">
+          <property name="minimumSize">
+           <size>
+            <width>60</width>
+            <height>0</height>
+           </size>
           </property>
-          <property name="text">
-           <string>φe:</string>
-          </property>
-          <property name="alignment">
-           <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+          <property name="maximumSize">
+           <size>
+            <width>60</width>
+            <height>16777215</height>
+           </size>
           </property>
          </widget>
         </item>
-        <item row="2" column="1">
-         <widget class="QLineEdit" name="textDirectivityPhi"/>
-        </item>
         <item row="3" column="1">
+         <widget class="QLineEdit" name="textDirectivityPhi">
+          <property name="minimumSize">
+           <size>
+            <width>60</width>
+            <height>0</height>
+           </size>
+          </property>
+          <property name="maximumSize">
+           <size>
+            <width>60</width>
+            <height>16777215</height>
+           </size>
+          </property>
+         </widget>
+        </item>
+        <item row="1" column="2">
+         <widget class="QLabel" name="label_23">
+          <property name="minimumSize">
+           <size>
+            <width>300</width>
+            <height>0</height>
+           </size>
+          </property>
+          <property name="text">
+           <string>°</string>
+          </property>
+         </widget>
+        </item>
+        <item row="3" column="2">
+         <widget class="QLabel" name="label_26">
+          <property name="text">
+           <string>°</string>
+          </property>
+         </widget>
+        </item>
+        <item row="0" column="0" colspan="3">
+         <widget class="QLabel" name="label_5">
+          <property name="minimumSize">
+           <size>
+            <width>0</width>
+            <height>0</height>
+           </size>
+          </property>
+          <property name="text">
+           <string>Select Directivity Factors (a picture with the reference system appears whenthe user clicks on the defaults for change – see picture below)</string>
+          </property>
+          <property name="wordWrap">
+           <bool>true</bool>
+          </property>
+         </widget>
+        </item>
+        <item row="4" column="1" colspan="2">
          <widget class="QLabel" name="label_6">
           <property name="minimumSize">
            <size>

@@ -5,16 +5,14 @@ NoiseParameter::NoiseParameter()
 
     m_WettedLength=1;
     m_DistanceObsever=1.22;
-    m_OriginalVelocity=0;
+    m_OriginalVelocity=71.3;
     m_OriginalChordLength=1;
     m_OriginalMach=0.21;
     m_DStarChordStation=0.98;
     m_DStarScalingFactor=1;
     m_EddyConvectionMach=1;
-    m_DirectivityGreek = 90;
-    m_DirectivityPhi=90;
-    //TODO: LER DO OPPOINT
-    //m_ChordBasedReynolds = 1;
+    m_DirectivityGreek = 1.570797;
+    m_DirectivityPhi = 1.570797;
     m_HighFreq = true;
     m_LowFreq = true;
     m_InterpolationLinear =true;
@@ -24,6 +22,12 @@ NoiseParameter::NoiseParameter()
     m_SeparatedFlow=true;
     m_SuctionSide=true;
     m_PressureSide=true;
+    m_DeltaSouce = Noise::XFoilCalculation;
+
+    //reset all value
+    memset(m_ChordStations, 0, sizeof(m_ChordStations[0][0]) * Noise::IIVX * Noise::IISX);
+    memset(m_DStars, 0, sizeof(m_DStars[0][0]) * Noise::IIVX * Noise::IISX);
+
 
 }
 
@@ -38,9 +42,9 @@ NoiseParameter::~NoiseParameter()
 
 }
 
-void NoiseParameter::addOpPoint(double reynolds, double alpha, double dStar)
+void NoiseParameter::addOpPoint(double reynolds, double alpha)
 {
-    m_OpPoints.push_back(new NoiseOpPoint(reynolds,alpha,dStar));
+    m_OpPoints.push_back(new NoiseOpPoint(reynolds,alpha));
 }
 
 std::vector<NoiseOpPoint *> &NoiseParameter::OpPoints()
@@ -85,6 +89,16 @@ void NoiseParameter::setDirectivityGreek(double DirectivityGreek)
 {
     m_DirectivityGreek = DirectivityGreek;
 }
+
+double NoiseParameter::DirectivityGreekDeg()
+{
+    return m_DirectivityGreek * (180 / M_PI);
+}
+
+void NoiseParameter::setDirectivityGreekDeg(double DirectivityGreek)
+{
+    m_DirectivityGreek =  DirectivityGreek * (M_PI / 180);
+}
 double NoiseParameter::DirectivityPhi()
 {
     return m_DirectivityPhi;
@@ -93,6 +107,16 @@ double NoiseParameter::DirectivityPhi()
 void NoiseParameter::setDirectivityPhi(double DirectivityPhi)
 {
     m_DirectivityPhi = DirectivityPhi;
+}
+
+double NoiseParameter::DirectivityPhiDeg()
+{
+    return m_DirectivityPhi * (180 / M_PI);
+}
+
+void NoiseParameter::setDirectivityPhiDeg(double DirectivityPhi)
+{
+    m_DirectivityPhi =  DirectivityPhi * (M_PI / 180);
 }
 bool NoiseParameter::HighFreq()
 {

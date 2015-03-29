@@ -66,11 +66,9 @@ void NoiseSimulationDialog::readWindowParams()
     param->setDStarScalingFactor( ui->textDStarScalingFactor->text().toDouble() );
     param->setEddyConvectionMach( ui->textEddyConvectionMach->text().toDouble() );
 
-    //TODO: CARREGAR A LISTA DE OPPOINTS SELECIONADA
-    //param->setChordBasedReynolds( ui->textChordBasedReynold->text().toDouble() );
-
-    param->setDirectivityGreek( ui->textDirectivityGreek->text().toDouble() );
-    param->setDirectivityPhi( ui->textDirectivityPhi->text().toDouble() );
+    param->setDeltaSouce( ui->deltaSourceXFoil->isChecked() ? Noise::XFoilCalculation : Noise::OriginalBPM );
+    param->setDirectivityGreekDeg( ui->textDirectivityGreek->text().toDouble() );
+    param->setDirectivityPhiDeg( ui->textDirectivityPhi->text().toDouble() );
 
     param->setHighFreq( ui->checkHighFrequency->isChecked() );
     param->setLowFreq( ui->checkLowFrequency->isChecked() );
@@ -86,17 +84,27 @@ void NoiseSimulationDialog::readWindowParams()
 
     param->OpPoints().clear();
 
-    for (int i = 0; i < ui->listOpPoints->count(); ++i) {
+    if(param->DeltaSouce() ==  Noise::XFoilCalculation){
+        for (int i = 0; i < ui->listOpPoints->count(); ++i) {
+            //Recover NoiseOpPoint from checked list item
+            QListWidgetItem * pLstItem = ui->listOpPoints->item(i);
+            if(pLstItem->checkState() == Qt::Checked){
+                QVariant pQv = pLstItem->data(Qt::UserRole);
+                ListItemNoiseOpPoint pLinopp = pQv.value<ListItemNoiseOpPoint>();
+                NoiseOpPoint * nop = new NoiseOpPoint(pLinopp.Reynolds(),pLinopp.Alpha());
 
-        //TODO: ARRUMAR A OBTENCAO DO OPPOINT
-        //Recover NoiseOpPoint from checked list item
-        QListWidgetItem * pLstItem = ui->listOpPoints->item(i);
-        QVariant pQv = pLstItem->data(Qt::UserRole);
-        ListItemNoiseOpPoint pLinopp = pQv.value<ListItemNoiseOpPoint>();
-        NoiseOpPoint * nop = new NoiseOpPoint(pLinopp.Reynolds(),pLinopp.Alpha(),pLinopp.DStar());
+                //Add NoiseOpPoint to parameters
+                param->OpPoints().push_back(nop);
+            }
+        }
+    }else{
 
-        //Add NoiseOpPoint to parameters
+        //When BPM add only one OpPoint always
+        //Degree to radians
+        double aoa = ui->textAoa->text().toDouble()*(PI/180.);
+        NoiseOpPoint * nop = new NoiseOpPoint(ui->textChordBasedReynold->text().toDouble(),aoa);
         param->OpPoints().push_back(nop);
+
     }
 
 }
@@ -146,10 +154,16 @@ void NoiseSimulationDialog::readCalculationParams()
         ui->textDStarScalingFactor->setText(QString::number(param->DStarScalingFactor()));
         ui->textEddyConvectionMach->setText(QString::number(param->EddyConvectionMach()));
 
-        //TODO: LER DO OPPOINT
-        //ui->textChordBasedReynold->setText(QString::number(param->ChordBasedReynolds()));
-        ui->textDirectivityGreek->setText(QString::number(param->DirectivityGreek()));
-        ui->textDirectivityPhi->setText(QString::number(param->DirectivityPhi()));
+        if(param->DeltaSouce() == Noise::OriginalBPM){
+            if(param->OpPoints().size() > 0){
+                NoiseOpPoint * nop  = param->OpPoints().at(0);
+                ui->textChordBasedReynold->setText(QString::number( nop->Reynolds() ));
+                ui->textAoa->setText( QString::number( nop->AlphaDeg() ) );
+            }
+        }
+
+        ui->textDirectivityGreek->setText(QString::number(param->DirectivityGreekDeg()));
+        ui->textDirectivityPhi->setText(QString::number(param->DirectivityPhiDeg()));
 
 
         ui->checkHighFrequency->setChecked(param->HighFreq());
@@ -161,6 +175,12 @@ void NoiseSimulationDialog::readCalculationParams()
         ui->checkBoxSourceSPLa->setChecked(param->SeparatedFlow());
         ui->checkBoxSourceSPLs->setChecked(param->SuctionSide());
         ui->checkBoxSourceSPLs->setChecked(param->PressureSide());
+
+        if( param->DeltaSouce() == Noise::XFoilCalculation ){
+            ui->deltaSourceXFoil->setChecked(true);
+        }else{
+            ui->deltaSourceBPM->setChecked(true);
+        }
 
         ui->textSimulationName->setText( m_NS->getName() );
 
@@ -228,7 +248,10 @@ void NoiseSimulationDialog::loadComponents()
                 }
 
                 linop.setAlpha(pXFoil->alfa);
-                linop.setDStar(pXFoil->reinf);
+                linop.setReynolds(pXFoil->reinf1);
+
+                qDebug() << pXFoil->alfa << " - reinf: " << pXFoil->reinf1;
+
                 qv.setValue(linop);
                 item->setData(Qt::UserRole,qv);
 
@@ -271,11 +294,17 @@ bool NoiseSimulationDialog::validateInputs()
     if(!validateDoubleValue(ui->textDirectivityGreek)) return false;
     if(!validateDoubleValue(ui->textDirectivityPhi)) return false;
 
+    if(ui->textSimulationName->text().isEmpty()){
+        QMessageBox::warning(this, tr("Warning"), tr("Input simulation name."));
+        ui->textSimulationName->setFocus();
+        return false;
+    }
+
     //Validate if there is at least one checked OpPoint when XFoil
     //is selected
     if(ui->deltaSourceXFoil->isChecked()){
         bool checkedItemFound = false;
-        for (unsigned int i = 0; i < ui->listOpPoints->count(); ++i) {
+        for (int i = 0; i < ui->listOpPoints->count(); ++i) {
 
             QListWidgetItem * pLstItem = ui->listOpPoints->item(i);
             if(pLstItem->checkState() == Qt::Checked){
@@ -294,6 +323,67 @@ bool NoiseSimulationDialog::validateInputs()
 
 }
 
+void NoiseSimulationDialog::CreateXBL(XFoil * cur_pXFoil,double xs[IVX][3],int &nside1, int &nside2)
+{
+
+    int i;
+    //---- set up cartesian bl x-arrays for plotting
+    for(int is=1; is<= 2; is++){
+        for (int ibl=2; ibl<= cur_pXFoil->nbl[is]; ibl++){
+            i = cur_pXFoil->ipan[ibl][is];
+            xs[ibl][is] = cur_pXFoil->x[i];
+        }
+    }
+
+    nside1 = cur_pXFoil->nbl[2] + cur_pXFoil->iblte[1] - cur_pXFoil->iblte[2];
+    nside2 = cur_pXFoil->nbl[2];
+
+    for( int iblw=1; iblw <= cur_pXFoil->nbl[2]-cur_pXFoil->iblte[2]; iblw++)
+        xs[cur_pXFoil->iblte[1]+iblw][1] = xs[cur_pXFoil->iblte[2]+iblw][2];
+}
+
+void NoiseSimulationDialog::loadLinearInterpolate()
+{
+
+
+    double x[IVX][3];
+    int nside1, nside2, ibl;
+
+    std::list<XFoil *> lstOPs = pXDirect->GetXFoilPoints();
+    std::list<XFoil *>::const_iterator opIterator;
+
+
+    for(opIterator=lstOPs.begin(); opIterator!=lstOPs.end(); opIterator++)
+    {
+        XFoil * cur_pXFoil = (*opIterator);
+
+        CreateXBL(cur_pXFoil,x, nside1, nside2);
+        for (ibl=2; ibl<= nside1;ibl++)
+        {
+
+            m_NS->Calculation()->NoiseParam()->ChordStations()[ibl][1] = x[ibl][1];
+            m_NS->Calculation()->NoiseParam()->ChordStations()[ibl][1] = x[ibl][1];
+            m_NS->Calculation()->NoiseParam()->ChordStations()[ibl][1] = x[ibl][1];
+
+            m_NS->Calculation()->NoiseParam()->DStars()[ibl][1] = cur_pXFoil->dstr[ibl][1];
+            m_NS->Calculation()->NoiseParam()->DStars()[ibl][1] = cur_pXFoil->dstr[ibl][1];
+            m_NS->Calculation()->NoiseParam()->DStars()[ibl][1] = cur_pXFoil->dstr[ibl][1];
+
+        }
+        for (ibl=2; ibl<= nside2;ibl++)
+        {
+
+            m_NS->Calculation()->NoiseParam()->ChordStations()[ibl][2] = x[ibl][2];
+            m_NS->Calculation()->NoiseParam()->ChordStations()[ibl][2] = x[ibl][2];
+            m_NS->Calculation()->NoiseParam()->ChordStations()[ibl][2] = x[ibl][2];
+
+            m_NS->Calculation()->NoiseParam()->DStars()[ibl][2] = cur_pXFoil->dstr[ibl][2];
+            m_NS->Calculation()->NoiseParam()->DStars()[ibl][2] = cur_pXFoil->dstr[ibl][2];
+            m_NS->Calculation()->NoiseParam()->DStars()[ibl][2] = cur_pXFoil->dstr[ibl][2];
+        }
+    }
+}
+
 void NoiseSimulationDialog::on_buttonOK_clicked()
 {
 
@@ -304,6 +394,8 @@ void NoiseSimulationDialog::on_buttonOK_clicked()
 
         //If it is a new simulation add to the store
         if(m_NSCreated){
+
+            loadLinearInterpolate();
             g_NoiseSimulationStore.add( m_NS );
         }
 

@@ -72,7 +72,7 @@ public:
 	bool getNoAutoResize () { return m_noAutoResize; }
 
 	void reloadCurves ();
-	void drawGraph (QPainter &painter);
+    void drawGraph (QPainter &painter);
     void exportGraph (QString fileName, int fileType);
 	bool contains (QPoint point);
 	void translate (QPoint from, QPoint to);

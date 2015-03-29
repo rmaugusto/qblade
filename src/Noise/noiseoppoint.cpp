@@ -28,15 +28,6 @@ void NoiseOpPoint::setAlpha(double Alpha)
 {
     m_Alpha = Alpha;
 }
-double NoiseOpPoint::DStar() const
-{
-    return m_DStar;
-}
-
-void NoiseOpPoint::setDStar(double DStar)
-{
-    m_DStar = DStar;
-}
 
 double NoiseOpPoint::AlphaDeg()
 {

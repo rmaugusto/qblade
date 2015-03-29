@@ -46,6 +46,17 @@ public:
     void setNoiseParam(NoiseParameter *np);
 
     double getK1(NoiseOpPoint* nop);
+
+    Noise::TwoDVector SPLdB() const;
+    Noise::TwoDVector SPLdBAW() const;
+    Noise::TwoDVector SPLdBBW() const;
+    Noise::TwoDVector SPLdBCW() const;
+    Noise::TwoDVector SPLpdB() const;
+    Noise::TwoDVector SPLsdB() const;
+    Noise::TwoDVector SPLadB() const;
+
+    double* OASPL();
+
 private:
     NoiseParameter * m_NoiseParameter;
 
@@ -58,13 +69,13 @@ private:
     double m_SwAlpha1;
     double m_SwAlpha;
     bool m_AlphaBigSw;
+    double m_OASPL[Noise::FREQUENCY_TABLE_SIZE];
 
     //For SPLa
     Noise::TwoDVector m_SPLadB; //Store db of SPL alpha
     Noise::TwoDVector m_SPLadBAW; //Store db of SPL alpha + A-Weighting
     Noise::TwoDVector m_SPLadBBW; //Store db of SPL alpha + A-Weighting
     Noise::TwoDVector m_SPLadBCW; //Store db of SPL alpha + A-Weighting
-    double m_OaSPLa;
     double m_SplaFirstTerm;
     double m_SplaSt1;
     double m_SplaSt2;
@@ -88,7 +99,6 @@ private:
     Noise::TwoDVector m_SPLsdBAW; //Store db of SPLs + A-Weighting
     Noise::TwoDVector m_SPLsdBBW; //Store db of SPLs + B-Weighting
     Noise::TwoDVector m_SPLsdBCW; //Store db of SPLs + C-Weighting
-    double m_OaSPLs;
     double m_SplsFirstTerm;
     double m_SplsSt1;
     double m_SplsSt2;
@@ -101,7 +111,6 @@ private:
     Noise::TwoDVector m_SPLpdBAW; //Store db of SPLp + A-Weighting
     Noise::TwoDVector m_SPLpdBBW; //Store db of SPLp + B-Weighting
     Noise::TwoDVector m_SPLpdBCW; //Store db of SPLp + C-Weighting
-    double m_OaSPLp;
     double m_SplpFirstTerm;
     double m_SplpSt1;
     double m_SplpK1;

@@ -11,10 +11,13 @@
 #include "../Miarex/GLLightDlg.h"
 #include "../XBEM/360Polar.h"
 #include "../MainFrame.h"
+#include "../TwoDContextMenu.h"
 #include "noisewarningdialog.h"
 #include "noisetoolbar.h"
 #include "noisedock.h"
 #include "noisesimulation.h"
+#include "NewGraphLegend.h"
+
 
 class NoiseToolBar;
 class NoiseDock;
@@ -60,6 +63,7 @@ private:
     QMainWindow *m_MainWindow;
     NoiseSimulation *m_CurNoiseSimulation;
     bool m_firstActivation;
+    TwoDContextMenu *m_twoDContextMenu;
 
     virtual void configureGL ();  // override from GLModule
     void showAll();
