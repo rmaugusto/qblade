@@ -92,6 +92,9 @@ double NoiseSimulation::getPositiveNumber(double number)
 void NoiseSimulation::simulate()
 {
 
+    Calculation()->calculate();
+
+
     m_results.clear();
 
 
@@ -145,16 +148,23 @@ void NoiseSimulation::exportCalculation(QTextStream &out)
     out << endl;
     for (int i = 0; i < m_NoiseCalculation->NoiseParam()->OpPoints().size(); ++i) {
         out << "Alpha: " << m_NoiseCalculation->NoiseParam()->OpPoints()[i]->AlphaDeg() << ", Re = " << m_NoiseCalculation->NoiseParam()->OpPoints()[i]->Reynolds() << endl;
-        out << "OASPL: " << m_NoiseCalculation->OASPL()[i] << endl;
+        out << "OASPL: " << m_NoiseCalculation->OASPL()[i] << " dB" << endl;
+        out << "OASPL: " << m_NoiseCalculation->OASPLA()[i] << " dB(A)" << endl;
+        out << "OASPL: " << m_NoiseCalculation->OASPLB()[i] << " dB(B)" << endl;
+        out << "OASPL: " << m_NoiseCalculation->OASPLC()[i] << " dB(C)" << endl;
         out << endl;
-        out << "Freq [Hz]\t\tSPL (dB)\t\tSPL (dB(A))\t\tSPL (dB(B))\t\tSPL (dB(C))" << endl;
+        out << qSetFieldWidth(14)<< "Freq [Hz]" <<
+                            qSetFieldWidth(14) << "SPL (dB)" <<
+                            qSetFieldWidth(14) << "SPL (dB(A))" <<
+                            qSetFieldWidth(14) << "SPL (dB(B))" <<
+                            qSetFieldWidth(14) << "SPL (dB(C))" << endl;
 
         for (int j = 0; j < Noise::FREQUENCY_TABLE_SIZE; ++j) {
             out << Noise::CENTRAL_BAND_FREQUENCY[j]
-                   << "\t\t" << m_NoiseCalculation->SPLdB()[i][j]
-                   << "\t\t" << m_NoiseCalculation->SPLdBAW()[i][j]
-                   << "\t\t" << m_NoiseCalculation->SPLdBBW()[i][j]
-                   << "\t\t" << m_NoiseCalculation->SPLdBCW()[i][j]
+                   << qSetFieldWidth(14) << m_NoiseCalculation->SPLdB()[i][j]
+                   << qSetFieldWidth(14) << m_NoiseCalculation->SPLdBAW()[i][j]
+                   << qSetFieldWidth(14) << m_NoiseCalculation->SPLdBBW()[i][j]
+                   << qSetFieldWidth(14) << m_NoiseCalculation->SPLdBCW()[i][j]
                    << endl;
         }
 

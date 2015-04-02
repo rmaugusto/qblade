@@ -2,12 +2,15 @@
 #define NOISESIMULATION_H
 
 #include <QTextStream>
+#include <iomanip>
 
 #include "../Objects/CVector.h"
 #include "noisemodule.h"
 #include "../Graph/ShowAsGraphInterface.h"
 #include "../StorableObject.h"
 #include "noisecalculation.h"
+
+using namespace std;
 
 class NoiseModule;
 

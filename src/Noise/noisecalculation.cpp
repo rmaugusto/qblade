@@ -242,6 +242,22 @@ double* NoiseCalculation::OASPL()
     return m_OASPL;
 }
 
+double* NoiseCalculation::OASPLA()
+{
+    return m_OASPLA;
+}
+
+double* NoiseCalculation::OASPLB()
+{
+    return m_OASPLB;
+}
+
+double* NoiseCalculation::OASPLC()
+{
+    return m_OASPLC;
+}
+
+
 Noise::TwoDVector NoiseCalculation::SPLsdB() const
 {
     return m_SPLsdB;
@@ -614,6 +630,9 @@ void NoiseCalculation::calculate()
         NoiseOpPoint * nop = m_NoiseParameter->OpPoints()[posOpPoint];
 
         m_OASPL[posOpPoint] = 0;
+        m_OASPLA[posOpPoint] = 0;
+        m_OASPLB[posOpPoint] = 0;
+        m_OASPLC[posOpPoint] = 0;
 
         qDebug() << "======================== OpPoint ========================";
         qDebug() << "Alpha deg: " << nop->AlphaDeg();
@@ -699,10 +718,16 @@ void NoiseCalculation::calculate()
 
 
             m_OASPL[posOpPoint] += pow(10,(m_SPLdB[posOpPoint][posFreq]/10));
-
+            m_OASPLA[posOpPoint] += pow(10,(m_SPLdBAW[posOpPoint][posFreq]/10));
+            m_OASPLB[posOpPoint] += pow(10,(m_SPLdBBW[posOpPoint][posFreq]/10));
+            m_OASPLC[posOpPoint] += pow(10,(m_SPLdBCW[posOpPoint][posFreq]/10));
         }
 
-        m_OASPL[posOpPoint] = 10*log10(m_OASPL[posOpPoint]);
+        m_OASPL[posOpPoint] = 10*log10(m_OASPL[posOpPoint]);        
+        m_OASPLA[posOpPoint] = 10*log10(m_OASPLA[posOpPoint]);
+        m_OASPLB[posOpPoint] = 10*log10(m_OASPLB[posOpPoint]);
+        m_OASPLC[posOpPoint] = 10*log10(m_OASPLC[posOpPoint]);
+
     }
 
 }

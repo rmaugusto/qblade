@@ -130,10 +130,9 @@ void NoiseDock::onNewButtonClicked()
 
     if(result == QDialog::Accepted){
         NoiseSimulation * ns  = dialog->GetNoiseSimulation();
-        ns->Calculation()->calculate();
         ns->simulate();
-        m_Module->reloadAllGraphics();
-        g_mainFrame->getTwoDWidget()->update();
+        //m_Module->reloadAllGraphics();
+        //g_mainFrame->getTwoDWidget()->update();
     }
 
     delete dialog;

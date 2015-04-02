@@ -29,8 +29,8 @@
      </property>
      <property name="plainText">
       <string>Airfoil TE noise model from Brooks, Pope &amp; Marcolini, Airfoil Self-Noise and Prediction, 1989. 
-The original model was developed and validated for turbulent (tripped) flow up to Rec ≤ 1.5 × 106, M &lt; 0.21 and AOA up to 19.80, for NACA 0012 airfoil. 
-The IAG Wind tunnel data (Herrig &amp; Würz, 2008) showed good agreement with BPM prediction at Rec ~2.4 × 106 and M = 0.204, for peak Strouhal number and higher frequencies.</string>
+The original model was developed and validated for turbulent (tripped) flow up to Rec ≤ 1.5 × 10^6, M &lt; 0.21 and AOA up to 19.80°, for NACA 0012 airfoil. 
+The IAG Wind tunnel data (Herrig &amp; Würz, 2008) showed good agreement with BPM prediction at Rec ~2.4 × 10^6 and M = 0.204, for peak Strouhal number and higher frequencies.</string>
      </property>
      <property name="overwriteMode">
       <bool>false</bool>

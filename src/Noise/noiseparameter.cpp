@@ -10,7 +10,7 @@ NoiseParameter::NoiseParameter()
     m_OriginalMach=0.21;
     m_DStarChordStation=0.98;
     m_DStarScalingFactor=1;
-    m_EddyConvectionMach=1;
+    m_EddyConvectionMach=0.8;
     m_DirectivityGreek = 1.570797;
     m_DirectivityPhi = 1.570797;
     m_HighFreq = true;
