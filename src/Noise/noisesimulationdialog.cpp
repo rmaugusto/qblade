@@ -78,6 +78,12 @@ void NoiseSimulationDialog::readWindowParams()
     param->setInterpolationNewtons( ui->checkNewtons->isChecked() );
     param->setInterpolationSpline( ui->checkSpline->isChecked() );
 
+    if(ui->comboTransitionType->currentIndex() == 0){
+        param->setTransition( Noise::FullyTurbulent );
+    }else{
+        param->setTransition( Noise::TransitionFlow );
+    }
+
     param->setSeparatedFlow( ui->checkBoxSourceSPLa->isChecked() );
     param->setSuctionSide( ui->checkBoxSourceSPLs->isChecked() );
     param->setPressureSide( ui->checkBoxSourceSPLs->isChecked() );
@@ -147,7 +153,13 @@ void NoiseSimulationDialog::readCalculationParams()
 
         ui->textWettedLength->setText(QString::number(param->WettedLength()));
         ui->textDistanceObsever->setText(QString::number(param->DistanceObsever()));
-        ui->textOriginalVelocity->setText(QString::number(param->OriginalVelocity()));
+
+        //If it is a new simulation
+        if(m_NSCreated){
+            ui->textOriginalVelocity->setText("");
+        }else{
+            ui->textOriginalVelocity->setText(QString::number(param->OriginalVelocity()));
+        }
         ui->textOriginalChordLength->setText(QString::number(param->OriginalChordLength()));
         ui->textOriginalMach->setText(QString::number(param->OriginalMach()));
         ui->textDStarChordStation->setText(QString::number(param->DStarChordStation()));
@@ -175,6 +187,12 @@ void NoiseSimulationDialog::readCalculationParams()
         ui->checkBoxSourceSPLa->setChecked(param->SeparatedFlow());
         ui->checkBoxSourceSPLs->setChecked(param->SuctionSide());
         ui->checkBoxSourceSPLs->setChecked(param->PressureSide());
+
+        if(param->Transition() == Noise::FullyTurbulent){
+            ui->comboTransitionType->setCurrentIndex(0);
+        }else{
+            ui->comboTransitionType->setCurrentIndex(1);
+        }
 
         if( param->DeltaSouce() == Noise::XFoilCalculation ){
             ui->deltaSourceXFoil->setChecked(true);
@@ -213,12 +231,13 @@ void NoiseSimulationDialog::loadComponents()
     //Get all Operational Points and add to the list
     if(pXDirect){
 
-        std::list<XFoil *> lstOPs = pXDirect->GetXFoilPoints();
+        //std::list<XFoil *> lstOPs = pXDirect->GetXFoilPoints();
+        std::list<XFoil *> lstOPs;
         std::list<XFoil *>::const_iterator opIterator;
 
         //XFoil analisis is mandatory
         if(lstOPs.size() == 0){
-            QMessageBox::warning(NULL, tr("Not available"), "Analize XFoil before !");
+            QMessageBox::warning(NULL, tr("Not available"), "Load an airfoil and select TBL data source prior to running the Noise Module.");
             QMetaObject::invokeMethod(this, "close", Qt::QueuedConnection);
         }
 
@@ -349,7 +368,8 @@ void NoiseSimulationDialog::loadLinearInterpolate()
     double x[IVX][3];
     int nside1, nside2, ibl;
 
-    std::list<XFoil *> lstOPs = pXDirect->GetXFoilPoints();
+    //std::list<XFoil *> lstOPs = pXDirect->GetXFoilPoints();
+    std::list<XFoil *> lstOPs;
     std::list<XFoil *>::const_iterator opIterator;
 
 

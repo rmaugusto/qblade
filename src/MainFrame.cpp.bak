@@ -53,6 +53,7 @@
 #include <QtWidgets>
 #include "TwoDWidget.h"
 #include "StoreAssociatedComboBox.h"
+#include "Noise/noisemodule.h"
 
 
 ////////////////////////////////////////new code DM//////////////////////
@@ -209,6 +210,7 @@ MainFrame::MainFrame(QWidget *parent, Qt::WindowFlags flags)
 	QXDirect *pXDirect   = (QXDirect*)m_pXDirect;
 	QXInverse *pXInverse = (QXInverse*)m_pXInverse;
 	QMiarex *pMiarex     = (QMiarex*)m_pMiarex;
+
         /////////////new code DM////////////
         QBEM *pBEM = (QBEM *) m_pBEM;
         ////////////end new code DM/////////
@@ -258,6 +260,7 @@ MainFrame::MainFrame(QWidget *parent, Qt::WindowFlags flags)
 	g_windFieldModule = new WindFieldModule (this, m_pctrlMainToolBar);
 	g_fastModule = new FASTModule (this, m_pctrlMainToolBar);
     g_QLLTModule = new QLLTModule (this, m_pctrlMainToolBar);//new code JW
+    g_NoiseModule = new NoiseModule (this, m_pctrlMainToolBar);//new code JW
 
     BEMViewMenu->addSeparator();
     BEMViewMenu->addAction(saveViewToImageFileAct);
@@ -337,6 +340,7 @@ MainFrame::MainFrame(QWidget *parent, Qt::WindowFlags flags)
 MainFrame::~MainFrame() {
 	delete g_QFEMModule;
     delete g_QLLTModule;
+    delete g_NoiseModule;
 	delete g_windFieldModule;
 	delete g_fastModule;
 	delete g_qbem;
@@ -1293,6 +1297,7 @@ void MainFrame::CreateDockWindows()
 
 	setCentralWidget(m_centralWidget);
 
+
 	m_pAFoil  = new QAFoil(this);
 	QAFoil *pAFoil = (QAFoil*)m_pAFoil;
 	pAFoil->setAttribute(Qt::WA_DeleteOnClose, false);
@@ -1465,6 +1470,7 @@ void MainFrame::CreateMenus()
 	CreateXInverseMenus();
 	CreateMiarexMenus();
 	CreateAFoilMenus();
+    CreateNoiseMenus();
 }
 
 ///////////////new code DM/////////////
@@ -1478,7 +1484,6 @@ void MainFrame::CreateBEMToolbar()
 	g_qdms->m_DMSToolBar = new DMSToolbar (this);    
 	//// NM end
 }
-
 
 void MainFrame::CreateBEMActions()
 {
@@ -1676,6 +1681,14 @@ void MainFrame::CreateBEMActions()
     connect(Export360PolarAct, SIGNAL(triggered()), pBEM, SLOT(OnExport360PolarNREL()));
     connect(ImportPolarAct, SIGNAL(triggered()), pBEM, SLOT(OnImportPolar()));
     connect(ExportBladeTableAct, SIGNAL(triggered()), pBEM, SLOT(OnExportBladeTable()));
+
+}
+
+void MainFrame::CreateNoiseMenus(){
+
+    NoiseViewMenu = menuBar()->addMenu(tr("&Noise"));
+    //BEMViewMenu->addAction(OnXDirectAct);
+
 
 }
 
@@ -2660,12 +2673,13 @@ void MainFrame::CreateMainToolbar()
     m_pctrlMainToolBar->addAction(VAWTToolbarView);
 	m_pctrlMainToolBar->addSeparator();
 	m_pctrlMainToolBar->addAction(OnAFoilAct);
+    m_pctrlMainToolBar->addSeparator();
 //	m_pctrlMainToolBar->addAction(OnXInverseAct);
 	m_pctrlMainToolBar->addAction(OnXDirectAct);
-	m_pctrlMainToolBar->addSeparator();
-	m_pctrlMainToolBar->addAction(On360ViewAct);
-	m_pctrlMainToolBar->addSeparator();
-	m_pctrlMainToolBar->addAction(OnBladeViewAct);
+    m_pctrlMainToolBar->addSeparator();
+    m_pctrlMainToolBar->addAction(On360ViewAct);
+    m_pctrlMainToolBar->addSeparator();
+    m_pctrlMainToolBar->addAction(OnBladeViewAct);
     m_pctrlMainToolBar->addSeparator();
 	m_pctrlMainToolBar->addAction(OnRotorViewAct);
 	m_pctrlMainToolBar->addAction(OnCharacteristicViewAct);
@@ -3596,6 +3610,7 @@ void MainFrame::DeleteProject()
 	pXDirect->m_pCurPolar = NULL;
 	pXDirect->m_pCurOpp   = NULL;
 	pXDirect->SetFoil();
+    pXDirect->clearXFoilPoints(); //JS/RA
 
         ////new code DM ////
 
@@ -4687,6 +4702,8 @@ int MainFrame::LoadQBladeProject(QString PathName)
 		return 0;
 	}
 	QXDirect * pXDirect = (QXDirect*)m_pXDirect;
+
+    pXDirect->clearXFoilPoints(); //JS/RA
 	QString end;
 	//QFileInfo fileinfo(XFile);
 	end = PathName.right(4);
@@ -4806,7 +4823,7 @@ void MainFrame::OnBEM()
 		g_qbem->m_BEMToolBar->setState(BEMToolbar::TURBINEVIEW_STATE);
 		break;
 	case POLARVIEW:
-		g_qbem->m_BEMToolBar->setState(BEMToolbar::POLARVIEW_STATE);
+        g_qbem->m_BEMToolBar->setState(BEMToolbar::POLARVIEW_STATE);
 		break;
 	}
 	
@@ -4818,9 +4835,34 @@ void MainFrame::OnBEM()
 	On360ViewAct->setChecked(g_mainFrame->m_iView==POLARVIEW);
 	OnBladeViewAct->setChecked(g_mainFrame->m_iView==BLADEVIEW);
 	OnCharacteristicViewAct->setChecked(g_mainFrame->m_iView==CHARSIMVIEW);
-	
+
 	g_qbem->UpdateWings();
 	SetMenus();
+}
+
+void MainFrame::OnNoiseView(){
+
+//    VAWTToolbarView->setChecked(false);
+//    HAWTToolbarView->setChecked(false);
+
+//    OnBladeViewAct->setVisible(false);
+//    OnRotorViewAct->setVisible(false);
+//    OnCharacteristicViewAct->setVisible(false);
+//    OnTurbineViewAct->setVisible(false);
+
+//    OnBladeViewAct2->setVisible(false);
+//    OnRotorViewAct2->setVisible(false);
+//    OnCharacteristicViewAct2->setVisible(false);
+//    OnTurbineViewAct2->setVisible(false);
+
+//    g_QFEMModule->SetToolbarVisibility(false);
+//    g_QLLTModule->SetToolbarVisibility(false);
+//    g_windFieldModule->SetToolbarVisibility(false);
+//    g_fastModule->SetToolbarVisibility(false);
+
+
+    g_NoiseModule->SetToolbarVisibility(true);
+
 }
 
 void MainFrame::OnVAWTView(){
@@ -5080,6 +5122,7 @@ void MainFrame::OnInsertProject()
 	}
 	else if(m_iApp == XFOILANALYSIS)
 	{
+        pXDirect->clearXFoilPoints(); //JS/RA
 		if(pXDirect->m_bPolar) pXDirect->CreatePolarCurves();
 		else		         pXDirect->CreateOppCurves();
 		UpdateFoils();

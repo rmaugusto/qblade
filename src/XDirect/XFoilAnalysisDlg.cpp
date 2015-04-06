@@ -157,8 +157,7 @@ void XFoilAnalysisDlg::AddOpPoint()
 
 bool XFoilAnalysisDlg::AlphaLoop()
 {
-    QXDirect *pXDirect = (QXDirect*)s_pXDirect;
-    QString str;
+	QString str;
 	double alfa;
 
 	int ia, total;
@@ -180,8 +179,6 @@ bool XFoilAnalysisDlg::AlphaLoop()
 
 	QString strange;
 
-    //Clean the current list but release memory before - JS/RA
-    pXDirect->clearXFoilPoints();
 
 	for (ia=0; ia<=total; ia++)
 	{
@@ -245,10 +242,6 @@ bool XFoilAnalysisDlg::AlphaLoop()
 			ResetCurves();
 			m_Iterations = 0;
 			AddOpPoint();// only if converged ???
-
-            //Push XFoil with current state cloned in the list - JS/RA
-            m_pXFoilPoints->push_back(m_pXFoil->clone());
-
 		}
 		else
 		{

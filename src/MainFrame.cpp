@@ -3610,7 +3610,6 @@ void MainFrame::DeleteProject()
 	pXDirect->m_pCurPolar = NULL;
 	pXDirect->m_pCurOpp   = NULL;
 	pXDirect->SetFoil();
-    pXDirect->clearXFoilPoints(); //JS/RA
 
         ////new code DM ////
 
@@ -4702,8 +4701,6 @@ int MainFrame::LoadQBladeProject(QString PathName)
 		return 0;
 	}
 	QXDirect * pXDirect = (QXDirect*)m_pXDirect;
-
-    pXDirect->clearXFoilPoints(); //JS/RA
 	QString end;
 	//QFileInfo fileinfo(XFile);
 	end = PathName.right(4);
@@ -5122,7 +5119,6 @@ void MainFrame::OnInsertProject()
 	}
 	else if(m_iApp == XFOILANALYSIS)
 	{
-        pXDirect->clearXFoilPoints(); //JS/RA
 		if(pXDirect->m_bPolar) pXDirect->CreatePolarCurves();
 		else		         pXDirect->CreateOppCurves();
 		UpdateFoils();

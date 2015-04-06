@@ -13480,4 +13480,56 @@ void XFoil::CreateXBL(double xs[IVX][3],int &nside1, int &nside2)
 		xs[iblte[1]+iblw][1] = xs[iblte[2]+iblw][2];
 }
 
+//JS/RA
+XFoil * XFoil::clone(){
+    XFoil * c = new XFoil();
+    int i = 0;
 
+    c->lvconv	=	lvconv;
+    c->qinf	=	qinf;
+    c->m_FoilName	=	m_FoilName;
+    c->alfa	=	alfa;
+    c->reinf1	=	reinf1;
+    c->minf1 	=	minf1;
+    c->acrit	=	acrit;
+    c->tklam	=	tklam;
+    c->gamm1	=	gamm1;
+    c->minf	=	minf;
+    c->qinf	=	qinf;
+
+    for (i = 0; i < IVX; ++i) {
+        for (int k = 0; k < ISX; ++k) {
+            c->uedg[i][k]	=	uedg[i][k];
+            c->tau[i][k]	=	tau[i][k];
+            c->dis[i][k]	=	dis[i][k];
+            c->ctau[i][k]	=	ctau[i][k];
+            c->dstr[i][k]	=	dstr[i][k];
+            c->thet[i][k]	=	thet[i][k];
+            c->ctq[i][k]	=	ctq[i][k];
+            c->ipan[i][k]	=	ipan[i][k];
+        }
+    }
+
+    for (i = 0; i < IZX; ++i) {
+        c->x[i]	=	x[i];
+        c->y[i]	=	y[i];
+        c->cpi[i]	=	cpi[i];
+        c->cpv[i]	=	cpv[i];
+        c->qvis[i]  =   qvis[i];
+
+    }
+
+    for (i = 0; i < ISX; ++i) {
+        c->nbl[i]	=	nbl[i];
+        c->iblte[i]	=	iblte[i];
+        c->xstrip[i]	=	xstrip[i];
+        c->xoctr[i]	=	xoctr[i];
+        c->yoctr[i]	=	yoctr[i];
+    }
+
+    for (i = 0; i < IBX+1; ++i) {
+        c->qgamm[i]	=	qgamm[i];
+    }
+
+    return c;
+}

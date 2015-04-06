@@ -180,6 +180,8 @@ bool XFoilAnalysisDlg::AlphaLoop()
 
 	QString strange;
 
+    //Clean the current list but release memory before - JS/RA
+    pXDirect->clearXFoilPoints();
 
 	for (ia=0; ia<=total; ia++)
 	{

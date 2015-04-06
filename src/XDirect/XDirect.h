@@ -22,7 +22,6 @@
 #ifndef QXDIRECT_H
 #define QXDIRECT_H
 
-#include <list>
 #include <QPixmap>
 #include <QSettings>
 #include <QLabel>
@@ -85,16 +84,14 @@ public:
 	QXDirect(QWidget *parent = NULL);
 	~QXDirect();
 
-    std::list<XFoil *> GetXFoilPoints() const;
-
 public slots:
-    void UpdateView();
+	void UpdateView();
 
 
 private slots:
-    void OnXFoilAdvanced();
+	void OnXFoilAdvanced();
 
-    void OnCouplePolarGraphs();
+	void OnCouplePolarGraphs();
 	void OnAllPolarGraphs();
 	void OnSinglePolarGraph();
 	void OnAllPolarGraphsSetting();
@@ -175,21 +172,6 @@ private slots:
 	void OnQGraph();
 	void OnCpGraph();
 	void OnExportCurXFoilResults();
-    /**
-     * JS/RA
-     * @brief addCurXFoilResults Responsible to aggregate current OpPoint result to the exportation
-     * @param cur_pXFoil
-     * @param out
-     * @param strong
-     * @param OutString
-     * @param type
-     */
-    void addCurXFoilResults(XFoil * cur_pXFoil,QTextStream & out, QString & strong, QString & OutString ,int & type);
-    /**
-     * JS/RA
-     * @brief cleanXFoilPoints Responsible to clean the current list of XFoils and release the memory
-     */
-    void clearXFoilPoints();
 	void OnCtPlot();
 	void OnDbPlot();
 	void OnDtPlot();
@@ -404,8 +386,7 @@ private:
 //	CUFOListDlg m_UFOdlg;		// the foil management dialog box
 	XFoilAnalysisDlg m_XFdlg;	// the dialog class which manages the xfoil calculation and display output
 
-    XFoil *m_pXFoil;		// a pointer to the XFoil object
-    std::list<XFoil *> m_pXFoilPoints; //keep a copy of each XFoil calculated - JS/RA
+	XFoil *m_pXFoil;		// a pointer to the XFoil object
 };
 
 

@@ -55,10 +55,15 @@ public:
     Noise::TwoDVector SPLsdB() const;
     Noise::TwoDVector SPLadB() const;
 
-    double* OASPL();
-    double* OASPLA();
-    double* OASPLB();
-    double* OASPLC();
+
+    std::vector<double> OASPL();
+    std::vector<double> OASPLA();
+    std::vector<double> OASPLB();
+    std::vector<double> OASPLC();
+
+    std::vector<double> SPLALOG() const;
+    std::vector<double> SPLSLOG() const;
+    std::vector<double> SPLPLOG() const;
 
 private:
     NoiseParameter * m_NoiseParameter;
@@ -72,10 +77,13 @@ private:
     double m_SwAlpha1;
     double m_SwAlpha;
     bool m_AlphaBigSw;
-    double m_OASPL[Noise::FREQUENCY_TABLE_SIZE];
-    double m_OASPLA[Noise::FREQUENCY_TABLE_SIZE];
-    double m_OASPLB[Noise::FREQUENCY_TABLE_SIZE];
-    double m_OASPLC[Noise::FREQUENCY_TABLE_SIZE];
+    std::vector<double> m_OASPL;
+    std::vector<double> m_OASPLA;
+    std::vector<double> m_OASPLB;
+    std::vector<double> m_OASPLC;
+    std::vector<double> m_SPLALOG;
+    std::vector<double> m_SPLSLOG;
+    std::vector<double> m_SPLPLOG;
 
     //For SPLa
     Noise::TwoDVector m_SPLadB; //Store db of SPL alpha

@@ -35,7 +35,7 @@ NoiseDock::NoiseDock(const QString & title, QMainWindow * parent, Qt::WindowFlag
 
 
 
-    QGroupBox *groupBox = new QGroupBox ("Noise simulation");
+    QGroupBox *groupBox = new QGroupBox ("Trailing TE Noise");
     m_contentVBox->addWidget(groupBox);
 
     QGridLayout *grid = new QGridLayout ();
@@ -70,8 +70,9 @@ NoiseDock::NoiseDock(const QString & title, QMainWindow * parent, Qt::WindowFlag
     connect(m_exportButton, SIGNAL(clicked()), this, SLOT(onExportButtonClicked()));
     grid->addWidget (m_exportButton, 4, 0,1,2);
 
-
-
+    QLabel * labelPlotMessage = new QLabel("* Negative SPL contributions will not be plotted to graph");
+    labelPlotMessage->setWordWrap(true);
+    m_contentVBox->addWidget(labelPlotMessage);
 
 
 //    groupBox = new QGroupBox ();
@@ -131,7 +132,7 @@ void NoiseDock::onNewButtonClicked()
     if(result == QDialog::Accepted){
         NoiseSimulation * ns  = dialog->GetNoiseSimulation();
         ns->simulate();
-        //m_Module->reloadAllGraphics();
+        m_Module->reloadAllGraphics();
         //g_mainFrame->getTwoDWidget()->update();
     }
 
@@ -185,7 +186,8 @@ void NoiseDock::onEditCopyButtonClicked()
 
         if(result == QDialog::Accepted){
             NoiseSimulation * ns  = dialog->GetNoiseSimulation();
-            ns->Calculation()->calculate();
+            ns->simulate();
+            m_Module->reloadAllGraphics();
         }
 
         delete dialog;

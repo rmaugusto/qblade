@@ -17,7 +17,7 @@ NoiseSimulation::NoiseSimulation() :
 
     m_NoiseCalculation = NULL;
 
-    setShownInGraph(true);
+    setShownInGraph(false);
     setDrawCurve(true);
     setDrawPoints(true);
 
@@ -112,11 +112,14 @@ void NoiseSimulation::simulate()
         QVector <double> vetDbC;
 
         for (int i = 0; i < Noise::FREQUENCY_TABLE_SIZE; ++i) {
-            //vetFreq.append( Noise::CENTRAL_BAND_FREQUENCY[i] );
-            //vetA.append( sin(Noise::CENTRAL_BAND_FREQUENCY[i])*10 );
+
+            //Negative SPL contributions will not be plotted to graph
+            if( m_NoiseCalculation->SPLadB()[j][i] < 0 ){
+                continue;
+            }
 
             vetFreq.append( Noise::CENTRAL_BAND_FREQUENCY[i] );
-            vetA.append( getPositiveNumber(m_NoiseCalculation->SPLadB()[j][i]) );
+            vetA.append( m_NoiseCalculation->SPLadB()[j][i] );
             vetS.append( getPositiveNumber(m_NoiseCalculation->SPLsdB()[j][i]) );
             vetP.append( getPositiveNumber(m_NoiseCalculation->SPLpdB()[j][i]) );
             vetDb.append( m_NoiseCalculation->SPLdB()[j][i] );
@@ -149,19 +152,36 @@ void NoiseSimulation::exportCalculation(QTextStream &out)
     for (int i = 0; i < m_NoiseCalculation->NoiseParam()->OpPoints().size(); ++i) {
         out << "Alpha: " << m_NoiseCalculation->NoiseParam()->OpPoints()[i]->AlphaDeg() << ", Re = " << m_NoiseCalculation->NoiseParam()->OpPoints()[i]->Reynolds() << endl;
         out << "OASPL: " << m_NoiseCalculation->OASPL()[i] << " dB" << endl;
-        out << "OASPL: " << m_NoiseCalculation->OASPLA()[i] << " dB(A)" << endl;
-        out << "OASPL: " << m_NoiseCalculation->OASPLB()[i] << " dB(B)" << endl;
-        out << "OASPL: " << m_NoiseCalculation->OASPLC()[i] << " dB(C)" << endl;
+
+        out << "OASPL (A): " << m_NoiseCalculation->OASPLA()[i] << " dB(A)" << endl;
+        out << "OASPL (B): " << m_NoiseCalculation->OASPLB()[i] << " dB(B)" << endl;
+        out << "OASPL (C): " << m_NoiseCalculation->OASPLC()[i] << " dB(C)" << endl;
+
+        out << "SPL_a: " << m_NoiseCalculation->SPLALOG()[i] << "" << endl;
+        out << "SPL_s: " << m_NoiseCalculation->SPLSLOG()[i] << "" << endl;
+        out << "SPL_p: " << m_NoiseCalculation->SPLPLOG()[i] << "" << endl;
+
         out << endl;
         out << qSetFieldWidth(14)<< "Freq [Hz]" <<
                             qSetFieldWidth(14) << "SPL (dB)" <<
+
+                            qSetFieldWidth(14) << "SPLa" <<
+                            qSetFieldWidth(14) << "SPLs" <<
+                            qSetFieldWidth(14) << "SPLp" <<
+
                             qSetFieldWidth(14) << "SPL (dB(A))" <<
                             qSetFieldWidth(14) << "SPL (dB(B))" <<
-                            qSetFieldWidth(14) << "SPL (dB(C))" << endl;
+                            qSetFieldWidth(14) << "SPL (dB(C))" <<
+                            endl;
 
         for (int j = 0; j < Noise::FREQUENCY_TABLE_SIZE; ++j) {
             out << Noise::CENTRAL_BAND_FREQUENCY[j]
                    << qSetFieldWidth(14) << m_NoiseCalculation->SPLdB()[i][j]
+
+                   << qSetFieldWidth(14) << m_NoiseCalculation->SPLadB()[i][j]
+                   << qSetFieldWidth(14) << m_NoiseCalculation->SPLsdB()[i][j]
+                   << qSetFieldWidth(14) << m_NoiseCalculation->SPLpdB()[i][j]
+
                    << qSetFieldWidth(14) << m_NoiseCalculation->SPLdBAW()[i][j]
                    << qSetFieldWidth(14) << m_NoiseCalculation->SPLdBBW()[i][j]
                    << qSetFieldWidth(14) << m_NoiseCalculation->SPLdBCW()[i][j]

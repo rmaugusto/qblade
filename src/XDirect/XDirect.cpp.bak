@@ -499,14 +499,17 @@ OpPoint* QXDirect::AddOpPoint(CPolar *pPolar, bool bStoreOpp)
 
 	return pNewPoint;
 }
-
+std::list<XFoil *> QXDirect::GetXFoilPoints() const
+{
+    return m_pXFoilPoints;
+}
 
 void QXDirect::SetControls()
 {
-	MainFrame* pMainFrame = (MainFrame*)m_pMainFrame;
+    MainFrame* pMainFrame = (MainFrame*)m_pMainFrame;
 
-	if(m_bPolar) m_pctrlMiddleControls->setCurrentIndex(1);
-	else         m_pctrlMiddleControls->setCurrentIndex(0);
+    if(m_bPolar) m_pctrlMiddleControls->setCurrentIndex(1);
+    else         m_pctrlMiddleControls->setCurrentIndex(0);
 
 	if(m_pCurPolar)
 	{
@@ -1681,6 +1684,7 @@ void QXDirect::OnAnalyze()
     m_XFdlg.m_FoilName = g_pCurFoil->getName();
 	m_XFdlg.m_IterLim = m_IterLim;
 	m_XFdlg.m_pXFoil = m_pXFoil;
+    m_XFdlg.m_pXFoilPoints = &m_pXFoilPoints; //Send the reference to dialog - JS/RA
 	m_XFdlg.InitDialog();
 	m_XFdlg.show();
 	m_XFdlg.StartAnalysis();
@@ -2542,160 +2546,230 @@ void QXDirect::OnEditCurPolar()
 	UpdateView();
 }
 
+
 void QXDirect::OnExportCurXFoilResults()
 {
-	if(!m_pXFoil->lvconv) return;
-	if(!g_pCurFoil)		  return;
 
-	MainFrame *pMainFrame = (MainFrame*)m_pMainFrame;
-	QString FileName,  OutString, strong;
+    MainFrame *pMainFrame = (MainFrame*)m_pMainFrame;
+    QString FileName,  OutString, strong;
 
-	double x[IVX][3],Hk[IVX][3],UeVinf[IVX][3], Cf[IVX][3], Cd[IVX][3], AA0[IVX][3];
-	double RTheta[IVX][3], DStar[IVX][3], Theta[IVX][3];
-	double uei;
-	double que = 0.5*m_pXFoil->qinf*m_pXFoil->qinf;
-	double qrf = m_pXFoil->qinf;
-	int nside1, nside2, ibl;
-	int type = 1;
+    //Export is available only after analysis - JS/RA
+    if(m_pXFoilPoints.size() == 0){
+        QMessageBox::warning(pMainFrame, tr("Not available"), "Analize XFoil before !");
+        return;
+    }
+
+
+    int type = 1;
 
     FileName = g_pCurFoil->getName();
-	FileName.replace("/", " ");
+    FileName.replace("/", " ");
 
-	FileName = QFileDialog::getSaveFileName(this, tr("Export Current XFoil Results"),
-											pMainFrame->m_LastDirName,
-											tr("Text File (*.txt);;Comma Separated Values (*.csv)"));
+    FileName = QFileDialog::getSaveFileName(this, tr("Export Current XFoil Results"),
+                                            pMainFrame->m_LastDirName,
+                                            tr("Text File (*.txt);;Comma Separated Values (*.csv)"));
+    if(!FileName.length()) return;
+    int pos = FileName.lastIndexOf("/");
+    if(pos>0) pMainFrame->m_LastDirName = FileName.left(pos);
 
-	if(!FileName.length()) return;
-	int pos = FileName.lastIndexOf("/");
-	if(pos>0) pMainFrame->m_LastDirName = FileName.left(pos);
+    pos  = FileName.lastIndexOf(".csv");
+    if(pos>0) type = 2;
 
-	pos  = FileName.lastIndexOf(".csv");
-	if(pos>0) type = 2;
+    QFile DestFile(FileName);
 
-	QFile DestFile(FileName);
+    if (!DestFile.open(QIODevice::WriteOnly | QIODevice::Text)) return ;
 
-	if (!DestFile.open(QIODevice::WriteOnly | QIODevice::Text)) return ;
 
-	QTextStream out(&DestFile);
+    QTextStream out(&DestFile);
 
-	out << (pMainFrame->m_VersionName);
-	out << ("\n");
-	strong = m_pXFoil->m_FoilName+ "\n";
-	out << (strong);
 
-	if(type==1)
-		strong = QString("Alpha = %1,  Re = %2,  Ma= %3,  ACrit=%4\n\n")
-						 .arg(m_pXFoil->alfa*180./PI, 5, 'f',1)
-						 .arg(m_pXFoil->reinf1, 8, 'f',0)
-						 .arg(m_pXFoil->minf1, 6, 'f',4)
-						 .arg(m_pXFoil->acrit, 4, 'f',1);
-	else
-		strong = QString("Alpha =, %1,Re =, %3,Ma=, %3,ACrit =,%4\n\n")
-						 .arg(m_pXFoil->alfa*180./PI, 5, 'f',1)
-						 .arg(m_pXFoil->reinf1, 8, 'f',0)
-						 .arg(m_pXFoil->minf1, 6, 'f',4)
-						 .arg(m_pXFoil->acrit, 4, 'f',1);	out << (strong);
 
-	m_pXFoil->CreateXBL(x, nside1, nside2);
-	//write top first
-	m_pXFoil->FillHk(Hk, nside1, nside2);
-	for (ibl=2; ibl<= nside1;ibl++)
-	{
-		uei = m_pXFoil->uedg[ibl][1];
-		UeVinf[ibl][1] = uei * (1.0-m_pXFoil->tklam)
-						/ (1.0-m_pXFoil->tklam*(uei/m_pXFoil->qinf)*(uei/m_pXFoil->qinf));
-	}
-	for (ibl=2; ibl<= nside2;ibl++)
-	{
-		uei = m_pXFoil->uedg[ibl][2];
-		UeVinf[ibl][2] = uei * (1.0-m_pXFoil->tklam)
-						/ (1.0-m_pXFoil->tklam*(uei/m_pXFoil->qinf)*(uei/m_pXFoil->qinf));
-	}
-	//---- fill compressible ue arrays
-	for (ibl=2; ibl<= nside1;ibl++)	Cf[ibl][1] = m_pXFoil->tau[ibl][1] / que;
-	for (ibl=2; ibl<= nside2;ibl++)	Cf[ibl][2] = m_pXFoil->tau[ibl][2] / que;
+    out << (pMainFrame->m_VersionName);
+    out << ("\n");
+    //Get the foil name of the first xfoil. All of them have the same name. - JS/RA
+    strong = m_pXFoilPoints.front()->m_FoilName+ "\n";
+    out << (strong);
 
-	//---- fill compressible ue arrays
-	for (ibl=2; ibl<= nside1;ibl++)	Cd[ibl][1] = m_pXFoil->dis[ibl][1] / qrf/ qrf/ qrf;
-	for (ibl=2; ibl<= nside2;ibl++)	Cd[ibl][2] = m_pXFoil->dis[ibl][2] / qrf/ qrf/ qrf;
-	//NPlot
-	for (ibl=2; ibl< nside1;ibl++)	AA0[ibl][1] = m_pXFoil->ctau[ibl][1];
-	for (ibl=2; ibl< nside2;ibl++)	AA0[ibl][2] = m_pXFoil->ctau[ibl][2];
+    //Exports the result for each OpPoint - JS/RA
+    std::list<XFoil *>::const_iterator cii;
+    for(cii=m_pXFoilPoints.begin(); cii!=m_pXFoilPoints.end(); cii++)
+    {
+        addCurXFoilResults(*cii,out,strong,OutString,type);
+        out << endl << endl;
+    }
 
-	m_pXFoil->FillRTheta(RTheta, nside1, nside2);
-	for (ibl=2; ibl<= nside1; ibl++)
-	{
-		DStar[ibl][1] = m_pXFoil->dstr[ibl][1];
-		Theta[ibl][1] = m_pXFoil->thet[ibl][1];
-	}
-	for (ibl=2; ibl<= nside2; ibl++)
-	{
-		DStar[ibl][2] = m_pXFoil->dstr[ibl][2];
-		Theta[ibl][2] = m_pXFoil->thet[ibl][2];
-	}
 
-	out << tr("\nTop Side\n");
-	if(type==1) OutString = QString(tr("    x         Hk     Ue/Vinf      Cf        Cd     A/A0       D*       Theta      CTq\n"));
-	else        OutString = QString(tr("x,Hk,Ue/Vinf,Cf,Cd,A/A0,D*,Theta,CTq\n"));
-	out << (OutString);
-	for (ibl=2; ibl<nside1; ibl++)
-	{
-		if(type==1)
-			OutString = QString("%1  %2  %3  %4 %5 %6  %7  %8  %9\n")
-							.arg(x[ibl][1])
-							.arg(Hk[ibl][1],8,'f',5)
-							.arg(UeVinf[ibl][1],8,'f',5)
-							.arg(Cf[ibl][1],8,'f',5)
-							.arg(Cd[ibl][1],8,'f',5)
-							.arg(AA0[ibl][1],8,'f',5)
-							.arg(DStar[ibl][1],8,'f',5)
-							.arg(Theta[ibl][1],8,'f',5)
-							.arg(m_pXFoil->ctq[ibl][1],8,'f',5);
-		else
-			OutString = QString("%1, %2, %3, %4, %5, %6, %7, %8, %9\n")
-							.arg(x[ibl][1])
-							.arg(Hk[ibl][1],8,'f',5)
-							.arg(UeVinf[ibl][1],8,'f',5)
-							.arg(Cf[ibl][1],8,'f',5)
-							.arg(Cd[ibl][1],8,'f',5)
-							.arg(AA0[ibl][1],8,'f',5)
-							.arg(DStar[ibl][1],8,'f',5)
-							.arg(Theta[ibl][1],8,'f',5)
-							.arg(m_pXFoil->ctq[ibl][1],8,'f',5);
-		out << (OutString);
-	}
-	out << tr("\n\nBottom Side\n");
-	if(type==1) OutString = QString(tr("    x         Hk     Ue/Vinf      Cf        Cd     A/A0       D*       Theta      CTq\n"));
-	else        OutString = QString(tr("x,Hk,Ue/Vinf,Cf,Cd,A/A0,D*,Theta,CTq\n"));
-	out << (OutString);
-	for (ibl=2; ibl<nside2; ibl++)
-	{
-		if(type==1)
-			OutString = QString("%1  %2  %3  %4 %5 %6  %7  %8  %9\n")
-							.arg(x[ibl][2])
-							.arg(Hk[ibl][2],8,'f',5)
-							.arg(UeVinf[ibl][2],8,'f',5)
-							.arg(Cf[ibl][2],8,'f',5)
-							.arg(Cd[ibl][2],8,'f',5)
-							.arg(AA0[ibl][2],8,'f',5)
-							.arg(DStar[ibl][2],8,'f',5)
-							.arg(Theta[ibl][2],8,'f',5)
-							.arg(m_pXFoil->ctq[ibl][2],8,'f',5);
-		else
-			OutString = QString("%1, %2, %3, %4, %5, %6, %7, %8, %9\n")
-							.arg(x[ibl][2])
-							.arg(Hk[ibl][2],8,'f',5)
-							.arg(UeVinf[ibl][2],8,'f',5)
-							.arg(Cf[ibl][2],8,'f',5)
-							.arg(Cd[ibl][2],8,'f',5)
-							.arg(AA0[ibl][2],8,'f',5)
-							.arg(DStar[ibl][2],8,'f',5)
-							.arg(Theta[ibl][2],8,'f',5)
-							.arg(m_pXFoil->ctq[ibl][2],8,'f',5);
-		out << (OutString);
-	}
 
-	DestFile.close();
+    DestFile.close();
+    QMessageBox::information(pMainFrame, tr("Exported"), "XFoil results exported with success.");
+
+}
+
+void QXDirect::addCurXFoilResults(XFoil * cur_pXFoil,QTextStream & out, QString & strong, QString & OutString ,int & type)
+{
+
+    if(!cur_pXFoil->lvconv) return;
+    if(!g_pCurFoil)		  return;
+
+
+    double x[IVX][3],Hk[IVX][3],UeVinf[IVX][3], Cf[IVX][3], Cd[IVX][3], AA0[IVX][3];
+    double RTheta[IVX][3], DStar[IVX][3], Theta[IVX][3];
+    double uei;
+    double que = 0.5*cur_pXFoil->qinf*cur_pXFoil->qinf;
+    double qrf = cur_pXFoil->qinf;
+    int nside1, nside2, ibl,originalXPos;
+
+    if(type==1)
+        strong = QString("Alpha = %1,  Re = %2,  Ma= %3,  ACrit=%4\n\n")
+                         .arg(cur_pXFoil->alfa*180./PI, 5, 'f',1)
+                         .arg(cur_pXFoil->reinf1, 8, 'f',0)
+                         .arg(cur_pXFoil->minf1, 6, 'f',4)
+                         .arg(cur_pXFoil->acrit, 4, 'f',1);
+    else
+        strong = QString("Alpha =, %1,Re =, %3,Ma=, %3,ACrit =,%4\n\n")
+                         .arg(cur_pXFoil->alfa*180./PI, 5, 'f',1)
+                         .arg(cur_pXFoil->reinf1, 8, 'f',0)
+                         .arg(cur_pXFoil->minf1, 6, 'f',4)
+                         .arg(cur_pXFoil->acrit, 4, 'f',1);	out << (strong);
+
+    cur_pXFoil->CreateXBL(x, nside1, nside2);
+    //write top first
+    cur_pXFoil->FillHk(Hk, nside1, nside2);
+    for (ibl=2; ibl<= nside1;ibl++)
+    {
+        uei = cur_pXFoil->uedg[ibl][1];
+        UeVinf[ibl][1] = uei * (1.0-cur_pXFoil->tklam)
+                        / (1.0-cur_pXFoil->tklam*(uei/cur_pXFoil->qinf)*(uei/cur_pXFoil->qinf));
+    }
+    for (ibl=2; ibl<= nside2;ibl++)
+    {
+        uei = cur_pXFoil->uedg[ibl][2];
+        UeVinf[ibl][2] = uei * (1.0-cur_pXFoil->tklam)
+                        / (1.0-cur_pXFoil->tklam*(uei/cur_pXFoil->qinf)*(uei/cur_pXFoil->qinf));
+    }
+    //---- fill compressible ue arrays
+    for (ibl=2; ibl<= nside1;ibl++)	Cf[ibl][1] = cur_pXFoil->tau[ibl][1] / que;
+    for (ibl=2; ibl<= nside2;ibl++)	Cf[ibl][2] = cur_pXFoil->tau[ibl][2] / que;
+
+    //---- fill compressible ue arrays
+    for (ibl=2; ibl<= nside1;ibl++)	Cd[ibl][1] = cur_pXFoil->dis[ibl][1] / qrf/ qrf/ qrf;
+    for (ibl=2; ibl<= nside2;ibl++)	Cd[ibl][2] = cur_pXFoil->dis[ibl][2] / qrf/ qrf/ qrf;
+    //NPlot
+    for (ibl=2; ibl< nside1;ibl++)	AA0[ibl][1] = cur_pXFoil->ctau[ibl][1];
+    for (ibl=2; ibl< nside2;ibl++)	AA0[ibl][2] = cur_pXFoil->ctau[ibl][2];
+
+    cur_pXFoil->FillRTheta(RTheta, nside1, nside2);
+    for (ibl=2; ibl<= nside1; ibl++)
+    {
+        DStar[ibl][1] = cur_pXFoil->dstr[ibl][1];
+        Theta[ibl][1] = cur_pXFoil->thet[ibl][1];
+    }
+    for (ibl=2; ibl<= nside2; ibl++)
+    {
+        DStar[ibl][2] = cur_pXFoil->dstr[ibl][2];
+        Theta[ibl][2] = cur_pXFoil->thet[ibl][2];
+    }
+
+    out << tr("\nTop Side\n");
+    if(type==1) OutString = QString(tr("    x         Hk     Ue/Vinf      Cf        Cd     A/A0       D*       Theta      CTq       Cpi     Cpv       Qi           Qv\n"));
+    else        OutString = QString(tr("x,Hk,Ue/Vinf,Cf,Cd,A/A0,D*,Theta,CTq,Cpi,Cpv,Qi,Qv\n"));
+    out << (OutString);
+
+
+    for (ibl=2; ibl<nside1; ibl++)
+    {
+        //Get position from X array based on current Alpha value
+        originalXPos = 0;
+        for (int vPos = 0; vPos < nside1; ++vPos) {
+            if(x[ibl][1] == cur_pXFoil->x[vPos]){
+                originalXPos = vPos;
+                break;
+            }
+        }
+
+        if(type==1)
+            OutString = QString("%1  %2  %3  %4 %5 %6  %7  %8  %9  %10  %11  %12  %13\n")
+                            .arg(x[ibl][1])
+                            .arg(Hk[ibl][1],8,'f',5)
+                            .arg(UeVinf[ibl][1],8,'f',5)
+                            .arg(Cf[ibl][1],8,'f',5)
+                            .arg(Cd[ibl][1],8,'f',5)
+                            .arg(AA0[ibl][1],8,'f',5)
+                            .arg(DStar[ibl][1],8,'f',5)
+                            .arg(Theta[ibl][1],8,'f',5)
+                            .arg(cur_pXFoil->ctq[ibl][1],8,'f',5)
+                            .arg(cur_pXFoil->cpi[originalXPos])
+                            .arg(cur_pXFoil->cpv[originalXPos])
+                            .arg(cur_pXFoil->qgamm[originalXPos])
+                            .arg(cur_pXFoil->qvis[originalXPos]);
+        else
+            OutString = QString("%1, %2, %3, %4, %5, %6, %7, %8, %9, %10, %11, %12, %13\n")
+                            .arg(x[ibl][1])
+                            .arg(Hk[ibl][1],8,'f',5)
+                            .arg(UeVinf[ibl][1],8,'f',5)
+                            .arg(Cf[ibl][1],8,'f',5)
+                            .arg(Cd[ibl][1],8,'f',5)
+                            .arg(AA0[ibl][1],8,'f',5)
+                            .arg(DStar[ibl][1],8,'f',5)
+                            .arg(Theta[ibl][1],8,'f',5)
+                            .arg(cur_pXFoil->ctq[ibl][1],8,'f',5)
+                            .arg(cur_pXFoil->cpi[originalXPos])
+                            .arg(cur_pXFoil->cpv[originalXPos])
+                            .arg(cur_pXFoil->qgamm[originalXPos])
+                            .arg(cur_pXFoil->qvis[originalXPos]);
+        out << (OutString);
+    }
+    out << tr("\n\nBottom Side\n");
+    if(type==1) OutString = QString(tr("    x         Hk     Ue/Vinf      Cf        Cd     A/A0       D*       Theta      CTq       Cpi     Cpv       Qi           Qv\n"));
+    else        OutString = QString(tr("x,Hk,Ue/Vinf,Cf,Cd,A/A0,D*,Theta,CTq\n"));
+    out << (OutString);
+    for (ibl=2; ibl<nside2; ibl++)
+    {
+
+        //Get position from X array based on current Alpha value
+        originalXPos = 0;
+        for (int vPos = 0; vPos < nside1; ++vPos) {
+            if(x[ibl][2] == cur_pXFoil->x[vPos]){
+                originalXPos = vPos;
+                break;
+            }
+        }
+
+        if(type==1)
+            OutString = QString("%1  %2  %3  %4 %5 %6  %7  %8  %9  %10  %11  %12  %13\n")
+                            .arg(x[ibl][2])
+                            .arg(Hk[ibl][2],8,'f',5)
+                            .arg(UeVinf[ibl][2],8,'f',5)
+                            .arg(Cf[ibl][2],8,'f',5)
+                            .arg(Cd[ibl][2],8,'f',5)
+                            .arg(AA0[ibl][2],8,'f',5)
+                            .arg(DStar[ibl][2],8,'f',5)
+                            .arg(Theta[ibl][2],8,'f',5)
+                            .arg(cur_pXFoil->ctq[ibl][2],8,'f',5)
+                            .arg(cur_pXFoil->cpi[originalXPos])
+                            .arg(cur_pXFoil->cpv[originalXPos])
+                            .arg(cur_pXFoil->qgamm[originalXPos])
+                            .arg(cur_pXFoil->qvis[originalXPos]);
+
+        else
+            OutString = QString("%1, %2, %3, %4, %5, %6, %7, %8, %9, %10, %11, %12, %13\n")
+                            .arg(x[ibl][2])
+                            .arg(Hk[ibl][2],8,'f',5)
+                            .arg(UeVinf[ibl][2],8,'f',5)
+                            .arg(Cf[ibl][2],8,'f',5)
+                            .arg(Cd[ibl][2],8,'f',5)
+                            .arg(AA0[ibl][2],8,'f',5)
+                            .arg(DStar[ibl][2],8,'f',5)
+                            .arg(Theta[ibl][2],8,'f',5)
+                            .arg(cur_pXFoil->ctq[ibl][2],8,'f',5)
+                            .arg(cur_pXFoil->cpi[originalXPos])
+                            .arg(cur_pXFoil->cpv[originalXPos])
+                            .arg(cur_pXFoil->qgamm[originalXPos])
+                            .arg(cur_pXFoil->qvis[originalXPos]);
+
+        out << (OutString);
+    }
+
 }
 
 
@@ -6388,4 +6462,13 @@ void QXDirect::OnRenameFoil()
 	pMainFrame->OnRenameCurFoil();
 }
 
-
+//JS/RA
+void QXDirect::clearXFoilPoints()
+{
+    //Clean the current list but release memory before - JS/RA
+    while(m_pXFoilPoints.size() > 0){
+        XFoil * memTmp  = m_pXFoilPoints.front();
+        m_pXFoilPoints.erase(m_pXFoilPoints.begin());
+        delete memTmp;
+    }
+}

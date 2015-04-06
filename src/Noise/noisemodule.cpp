@@ -80,7 +80,7 @@ void NoiseModule::initComponents()
     m_NoiseToolBar = new NoiseToolBar(m_MainWindow, this);
 
     //Setup the dock
-    m_NoiseDock = new NoiseDock (tr("Noise Prediction"), m_MainWindow, 0, this);
+    m_NoiseDock = new NoiseDock (tr("2D Noise Prediction"), m_MainWindow, 0, this);
 
     m_twoDContextMenu = new TwoDContextMenu (g_mainFrame, this);
     setContextMenu(m_twoDContextMenu);
@@ -193,7 +193,12 @@ void NoiseModule::OnBpmteView()
 void NoiseModule::OnSelChangeNoiseSimulation(int simulationName)
 {
 
+    for (int var = 0; var < g_NoiseSimulationStore.size(); ++var) {
+        g_NoiseSimulationStore.at(var)->setShownInGraph(false);
+    }
+
     m_CurNoiseSimulation = g_NoiseSimulationStore.at(simulationName);
+    m_CurNoiseSimulation->setShownInGraph(true);
     reloadAllGraphics();
 
 }

@@ -397,7 +397,7 @@
              </item>
              <item>
               <property name="text">
-               <string>Transaction flow</string>
+               <string>Transition flow</string>
               </property>
              </item>
             </widget>
