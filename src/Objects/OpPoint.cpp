@@ -40,7 +40,7 @@ OpPoint* OpPoint::newBySerialize() {
 OpPoint::OpPoint(QString name, StorableObject *parent)
     : StorableObject (name, parent)
 {
-	m_bVisc     = false;//not a  viscous point a priori
+    m_bVisc     = false;//not a  viscous point a priori
 	m_bDispSurf = false;// no boundary layer surface either
 	m_bTEFlap   = false;
 	m_bLEFlap   = false;
@@ -59,6 +59,11 @@ OpPoint::OpPoint(QString name, StorableObject *parent)
 	memset(Cpv,  0, sizeof(Cpv));
 	memset(x,  0, sizeof(y));
 	memset(y,  0, sizeof(x));
+
+    memset(iblte,  0, sizeof(iblte));
+    memset(ipan,  0, sizeof(ipan));
+    memset(nbl,  0, sizeof(nbl));
+    memset(dstr,  0, sizeof(dstr));
 
 	memset(xd1,  0, sizeof(xd1));
 	memset(xd2,  0, sizeof(xd2));
@@ -362,3 +367,17 @@ void OpPoint::serialize() {
 }
 
 
+double OpPoint::getReynolds() const
+{
+    return Reynolds;
+}
+
+double OpPoint::getMach() const
+{
+    return Mach;
+}
+
+double OpPoint::getAlpha() const
+{
+    return Alpha;
+}

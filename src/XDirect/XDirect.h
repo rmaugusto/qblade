@@ -387,6 +387,8 @@ private:
 	XFoilAnalysisDlg m_XFdlg;	// the dialog class which manages the xfoil calculation and display output
 
 	XFoil *m_pXFoil;		// a pointer to the XFoil object
+
+    void addOpPointsResult(OpPoint *opPoint, QTextStream &out, QString &strong, QString &OutString, int &type);
 };
 
 

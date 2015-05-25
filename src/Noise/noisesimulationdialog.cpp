@@ -11,6 +11,7 @@
 #include <QListWidgetItem>
 #include <QMessageBox>
 
+
 NoiseSimulationDialog::NoiseSimulationDialog(QWidget *parent, NoiseSimulation *sim) :
     QDialog(parent),
     ui(new Ui::NoiseSimulationDialog)
@@ -231,27 +232,30 @@ void NoiseSimulationDialog::loadComponents()
     //Get all Operational Points and add to the list
     if(pXDirect){
 
-        //std::list<XFoil *> lstOPs = pXDirect->GetXFoilPoints();
-        std::list<XFoil *> lstOPs;
-        std::list<XFoil *>::const_iterator opIterator;
 
         //XFoil analisis is mandatory
-        if(lstOPs.size() == 0){
+        if(g_oppointStore.size() == 0){
             QMessageBox::warning(NULL, tr("Not available"), "Load an airfoil and select TBL data source prior to running the Noise Module.");
             QMetaObject::invokeMethod(this, "close", Qt::QueuedConnection);
         }
 
-        for(opIterator=lstOPs.begin(); opIterator!=lstOPs.end(); opIterator++)
-        {
+        for (int k = 0; k < g_oppointStore.size(); ++k) {
+            OpPoint * opPoint = g_oppointStore.at(k);
 
-            XFoil * pXFoil = *opIterator;
-
-            if(pXFoil){
+            if(opPoint){
 
                 ListItemNoiseOpPoint linop;
                 QVariant      qv;
-                QString strItem = QString("Alpha = %1° (%2 rad)")
-                                               .arg(pXFoil->alfa*180./PI,5,'f',2).arg(pXFoil->alfa,5,'f',5);
+
+                linop.setAlphaDeg(opPoint->getAlpha());
+                linop.setReynolds(opPoint->getReynolds());
+                linop.setAirfoilName(opPoint->getParent()->getParent()->getName());
+                linop.setPolarName(opPoint->getParent()->getName());
+
+                QString strItem = QString("%1°, %2, %3 ")
+                                               .arg(linop.AlphaDeg())
+                                               .arg(linop.PolarName())
+                                               .arg(linop.AirfoilName());
 
                 QListWidgetItem *item = new QListWidgetItem(NULL,QListWidgetItem::UserType);
                 item->setText(strItem);
@@ -261,15 +265,10 @@ void NoiseSimulationDialog::loadComponents()
 
                 for (unsigned int x = 0; x < m_NS->Calculation()->NoiseParam()->OpPoints().size() ; ++x) {
                     NoiseOpPoint * npp = m_NS->Calculation()->NoiseParam()->OpPoints().at(x);
-                    if(npp->Alpha() == pXFoil->alfa){
+                    if(npp->Alpha() == opPoint->getAlpha()){
                         item->setCheckState(Qt::Checked );
                     }
                 }
-
-                linop.setAlpha(pXFoil->alfa);
-                linop.setReynolds(pXFoil->reinf1);
-
-                qDebug() << pXFoil->alfa << " - reinf: " << pXFoil->reinf1;
 
                 qv.setValue(linop);
                 item->setData(Qt::UserRole,qv);
@@ -342,23 +341,23 @@ bool NoiseSimulationDialog::validateInputs()
 
 }
 
-void NoiseSimulationDialog::CreateXBL(XFoil * cur_pXFoil,double xs[IVX][3],int &nside1, int &nside2)
+void NoiseSimulationDialog::CreateXBL(OpPoint * cur_pOpPoint,double xs[IVX][3],int &nside1, int &nside2)
 {
 
     int i;
     //---- set up cartesian bl x-arrays for plotting
     for(int is=1; is<= 2; is++){
-        for (int ibl=2; ibl<= cur_pXFoil->nbl[is]; ibl++){
-            i = cur_pXFoil->ipan[ibl][is];
-            xs[ibl][is] = cur_pXFoil->x[i];
+        for (int ibl=2; ibl<= cur_pOpPoint->nbl[is]; ibl++){
+            i = cur_pOpPoint->ipan[ibl][is];
+            xs[ibl][is] = cur_pOpPoint->x[i];
         }
     }
 
-    nside1 = cur_pXFoil->nbl[2] + cur_pXFoil->iblte[1] - cur_pXFoil->iblte[2];
-    nside2 = cur_pXFoil->nbl[2];
+    nside1 = cur_pOpPoint->nbl[2] + cur_pOpPoint->iblte[1] - cur_pOpPoint->iblte[2];
+    nside2 = cur_pOpPoint->nbl[2];
 
-    for( int iblw=1; iblw <= cur_pXFoil->nbl[2]-cur_pXFoil->iblte[2]; iblw++)
-        xs[cur_pXFoil->iblte[1]+iblw][1] = xs[cur_pXFoil->iblte[2]+iblw][2];
+    for( int iblw=1; iblw <= cur_pOpPoint->nbl[2]-cur_pOpPoint->iblte[2]; iblw++)
+        xs[cur_pOpPoint->iblte[1]+iblw][1] = xs[cur_pOpPoint->iblte[2]+iblw][2];
 }
 
 void NoiseSimulationDialog::loadLinearInterpolate()
@@ -368,16 +367,10 @@ void NoiseSimulationDialog::loadLinearInterpolate()
     double x[IVX][3];
     int nside1, nside2, ibl;
 
-    //std::list<XFoil *> lstOPs = pXDirect->GetXFoilPoints();
-    std::list<XFoil *> lstOPs;
-    std::list<XFoil *>::const_iterator opIterator;
+    for (int k = 0; k < g_oppointStore.size(); ++k) {
+        OpPoint * opPoint = g_oppointStore.at(k);
 
-
-    for(opIterator=lstOPs.begin(); opIterator!=lstOPs.end(); opIterator++)
-    {
-        XFoil * cur_pXFoil = (*opIterator);
-
-        CreateXBL(cur_pXFoil,x, nside1, nside2);
+        CreateXBL(opPoint,x, nside1, nside2);
         for (ibl=2; ibl<= nside1;ibl++)
         {
 
@@ -385,9 +378,9 @@ void NoiseSimulationDialog::loadLinearInterpolate()
             m_NS->Calculation()->NoiseParam()->ChordStations()[ibl][1] = x[ibl][1];
             m_NS->Calculation()->NoiseParam()->ChordStations()[ibl][1] = x[ibl][1];
 
-            m_NS->Calculation()->NoiseParam()->DStars()[ibl][1] = cur_pXFoil->dstr[ibl][1];
-            m_NS->Calculation()->NoiseParam()->DStars()[ibl][1] = cur_pXFoil->dstr[ibl][1];
-            m_NS->Calculation()->NoiseParam()->DStars()[ibl][1] = cur_pXFoil->dstr[ibl][1];
+            m_NS->Calculation()->NoiseParam()->DStars()[ibl][1] = opPoint->dstr[ibl][1];
+            m_NS->Calculation()->NoiseParam()->DStars()[ibl][1] = opPoint->dstr[ibl][1];
+            m_NS->Calculation()->NoiseParam()->DStars()[ibl][1] = opPoint->dstr[ibl][1];
 
         }
         for (ibl=2; ibl<= nside2;ibl++)
@@ -397,9 +390,9 @@ void NoiseSimulationDialog::loadLinearInterpolate()
             m_NS->Calculation()->NoiseParam()->ChordStations()[ibl][2] = x[ibl][2];
             m_NS->Calculation()->NoiseParam()->ChordStations()[ibl][2] = x[ibl][2];
 
-            m_NS->Calculation()->NoiseParam()->DStars()[ibl][2] = cur_pXFoil->dstr[ibl][2];
-            m_NS->Calculation()->NoiseParam()->DStars()[ibl][2] = cur_pXFoil->dstr[ibl][2];
-            m_NS->Calculation()->NoiseParam()->DStars()[ibl][2] = cur_pXFoil->dstr[ibl][2];
+            m_NS->Calculation()->NoiseParam()->DStars()[ibl][2] = opPoint->dstr[ibl][2];
+            m_NS->Calculation()->NoiseParam()->DStars()[ibl][2] = opPoint->dstr[ibl][2];
+            m_NS->Calculation()->NoiseParam()->DStars()[ibl][2] = opPoint->dstr[ibl][2];
         }
     }
 }

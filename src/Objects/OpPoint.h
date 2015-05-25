@@ -29,6 +29,7 @@
 #include <QTextStream>
 #include <QDataStream>
 #include "../StorableObject.h"
+#include "../Noise/noisesimulationdialog.h"
 
 
 class OpPoint : public StorableObject
@@ -38,6 +39,7 @@ class OpPoint : public StorableObject
 	friend class CPolar;
 	friend class QXDirect;
 	friend class ObjectPropsDlg;
+    friend class NoiseSimulationDialog;
 
 	// An operating point is the result of an XFoil calculation
 	// for a given Reynolds
@@ -46,10 +48,13 @@ public:
     void serialize ();
     static OpPoint* newBySerialize ();
 
+    double getReynolds() const;
+    double getMach() const;
+    double getAlpha() const;
 
 private:
-	bool m_bVisc, m_bDispSurf;
-	bool m_bTEFlap, m_bLEFlap;
+    bool m_bVisc, m_bDispSurf;
+    bool m_bTEFlap, m_bLEFlap;
     bool m_bIsVisible, m_bShowPoints;
 
 
@@ -72,6 +77,8 @@ private:
 	double xd2[IWX], yd2[IWX];// ...second...
 	double xd3[IWX], yd3[IWX];// ...and third part of the boundary layer
 
+    int iblte[ISX],ipan[IVX][ISX],nbl[ISX];
+    double dstr[IVX][ISX];
 
 	QString m_strFoilName;
 	QString m_strPlrName;

@@ -22,6 +22,10 @@ class NoiseSimulationDialog : public QDialog
 {
     Q_OBJECT
 
+friend class OpPoint;
+
+class QXDirect;
+
 public:
     explicit NoiseSimulationDialog(QWidget *parent = 0,NoiseSimulation * sim=0);
     ~NoiseSimulationDialog();
@@ -53,7 +57,7 @@ private:
     void readWindowParams();
     bool validateInputs();
     void loadLinearInterpolate();
-    void CreateXBL(XFoil *cur_pXFoil, double xs[IVX][3], int &nside1, int &nside2);
+    void CreateXBL(OpPoint * cur_pOpPoint, double xs[IVX][3], int &nside1, int &nside2);
 
 
     Ui::NoiseSimulationDialog *ui;

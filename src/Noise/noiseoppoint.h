@@ -1,6 +1,8 @@
 #ifndef NOISEOPPOINT_H
 #define NOISEOPPOINT_H
 
+#include <QString>
+
 /**
  * @brief The NoiseOpPoint class
  * This class is a simplified representation of OpPoint
@@ -17,17 +19,23 @@ public:
 
     double Alpha() const;
     void setAlpha(double Alpha);
+    void setAlphaDeg(double Alpha);
 
-//    double DStar() const;
-//    void setDStar(double DStar);
 
     double AlphaDeg();
+
+    QString AirfoilName() const;
+    void setAirfoilName(QString AirfoilName);
+
+    QString PolarName() const;
+    void setPolarName(QString PolarName);
 
 private:
     double m_Reynolds;
     //Alpha in radians
     double m_Alpha;
-//    double m_DStar;
+    QString m_AirfoilName;
+    QString m_PolarName;
 
 };
 

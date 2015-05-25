@@ -426,6 +426,13 @@ void QXDirect::AddOpData(OpPoint *pOpPoint)
 	pOpPoint->nd1 = nd1;
 	pOpPoint->nd2 = nd2;
 	pOpPoint->nd3 = nd3;
+
+    memcpy(pOpPoint->iblte,m_pXFoil->iblte,sizeof(int)*ISX);
+    memcpy(pOpPoint->ipan,m_pXFoil->ipan,sizeof(int)*IVX*ISX );
+    memcpy(pOpPoint->nbl,m_pXFoil->nbl,sizeof(int)*ISX);
+    memcpy(pOpPoint->dstr,m_pXFoil->dstr,sizeof(double)*IVX*ISX);
+
+
 }
 
 
@@ -2542,6 +2549,129 @@ void QXDirect::OnEditCurPolar()
 	UpdateView();
 }
 
+void QXDirect::addOpPointsResult(OpPoint * opPoint,QTextStream & out, QString & strong, QString & OutString ,int & type)
+{
+
+    double x[IVX][3],Hk[IVX][3],UeVinf[IVX][3], Cf[IVX][3], Cd[IVX][3], AA0[IVX][3];
+    double RTheta[IVX][3], DStar[IVX][3], Theta[IVX][3];
+    double uei;
+    double que = 0.5*m_pXFoil->qinf*m_pXFoil->qinf;
+    double qrf = m_pXFoil->qinf;
+    int nside1, nside2, ibl;
+
+    if(type==1)
+        strong = QString("Alpha = %1,  Re = %2,  Ma= %3,  ACrit=%4\n\n")
+                         .arg(m_pXFoil->alfa*180./PI, 5, 'f',1)
+                         .arg(m_pXFoil->reinf1, 8, 'f',0)
+                         .arg(m_pXFoil->minf1, 6, 'f',4)
+                         .arg(m_pXFoil->acrit, 4, 'f',1);
+    else
+        strong = QString("Alpha =, %1,Re =, %3,Ma=, %3,ACrit =,%4\n\n")
+                         .arg(m_pXFoil->alfa*180./PI, 5, 'f',1)
+                         .arg(m_pXFoil->reinf1, 8, 'f',0)
+                         .arg(m_pXFoil->minf1, 6, 'f',4)
+                         .arg(m_pXFoil->acrit, 4, 'f',1);	out << (strong);
+
+    m_pXFoil->CreateXBL(x, nside1, nside2);
+    //write top first
+    m_pXFoil->FillHk(Hk, nside1, nside2);
+    for (ibl=2; ibl<= nside1;ibl++)
+    {
+        uei = m_pXFoil->uedg[ibl][1];
+        UeVinf[ibl][1] = uei * (1.0-m_pXFoil->tklam)
+                        / (1.0-m_pXFoil->tklam*(uei/m_pXFoil->qinf)*(uei/m_pXFoil->qinf));
+    }
+    for (ibl=2; ibl<= nside2;ibl++)
+    {
+        uei = m_pXFoil->uedg[ibl][2];
+        UeVinf[ibl][2] = uei * (1.0-m_pXFoil->tklam)
+                        / (1.0-m_pXFoil->tklam*(uei/m_pXFoil->qinf)*(uei/m_pXFoil->qinf));
+    }
+    //---- fill compressible ue arrays
+    for (ibl=2; ibl<= nside1;ibl++)	Cf[ibl][1] = m_pXFoil->tau[ibl][1] / que;
+    for (ibl=2; ibl<= nside2;ibl++)	Cf[ibl][2] = m_pXFoil->tau[ibl][2] / que;
+
+    //---- fill compressible ue arrays
+    for (ibl=2; ibl<= nside1;ibl++)	Cd[ibl][1] = m_pXFoil->dis[ibl][1] / qrf/ qrf/ qrf;
+    for (ibl=2; ibl<= nside2;ibl++)	Cd[ibl][2] = m_pXFoil->dis[ibl][2] / qrf/ qrf/ qrf;
+    //NPlot
+    for (ibl=2; ibl< nside1;ibl++)	AA0[ibl][1] = m_pXFoil->ctau[ibl][1];
+    for (ibl=2; ibl< nside2;ibl++)	AA0[ibl][2] = m_pXFoil->ctau[ibl][2];
+
+    m_pXFoil->FillRTheta(RTheta, nside1, nside2);
+    for (ibl=2; ibl<= nside1; ibl++)
+    {
+        DStar[ibl][1] = m_pXFoil->dstr[ibl][1];
+        Theta[ibl][1] = m_pXFoil->thet[ibl][1];
+    }
+    for (ibl=2; ibl<= nside2; ibl++)
+    {
+        DStar[ibl][2] = m_pXFoil->dstr[ibl][2];
+        Theta[ibl][2] = m_pXFoil->thet[ibl][2];
+    }
+
+    out << tr("\nTop Side\n");
+    if(type==1) OutString = QString(tr("    x         Hk     Ue/Vinf      Cf        Cd     A/A0       D*       Theta      CTq\n"));
+    else        OutString = QString(tr("x,Hk,Ue/Vinf,Cf,Cd,A/A0,D*,Theta,CTq\n"));
+    out << (OutString);
+    for (ibl=2; ibl<nside1; ibl++)
+    {
+        if(type==1)
+            OutString = QString("%1  %2  %3  %4 %5 %6  %7  %8  %9\n")
+                            .arg(x[ibl][1])
+                            .arg(Hk[ibl][1],8,'f',5)
+                            .arg(UeVinf[ibl][1],8,'f',5)
+                            .arg(Cf[ibl][1],8,'f',5)
+                            .arg(Cd[ibl][1],8,'f',5)
+                            .arg(AA0[ibl][1],8,'f',5)
+                            .arg(DStar[ibl][1],8,'f',5)
+                            .arg(Theta[ibl][1],8,'f',5)
+                            .arg(m_pXFoil->ctq[ibl][1],8,'f',5);
+        else
+            OutString = QString("%1, %2, %3, %4, %5, %6, %7, %8, %9\n")
+                            .arg(x[ibl][1])
+                            .arg(Hk[ibl][1],8,'f',5)
+                            .arg(UeVinf[ibl][1],8,'f',5)
+                            .arg(Cf[ibl][1],8,'f',5)
+                            .arg(Cd[ibl][1],8,'f',5)
+                            .arg(AA0[ibl][1],8,'f',5)
+                            .arg(DStar[ibl][1],8,'f',5)
+                            .arg(Theta[ibl][1],8,'f',5)
+                            .arg(m_pXFoil->ctq[ibl][1],8,'f',5);
+        out << (OutString);
+    }
+    out << tr("\n\nBottom Side\n");
+    if(type==1) OutString = QString(tr("    x         Hk     Ue/Vinf      Cf        Cd     A/A0       D*       Theta      CTq\n"));
+    else        OutString = QString(tr("x,Hk,Ue/Vinf,Cf,Cd,A/A0,D*,Theta,CTq\n"));
+    out << (OutString);
+    for (ibl=2; ibl<nside2; ibl++)
+    {
+        if(type==1)
+            OutString = QString("%1  %2  %3  %4 %5 %6  %7  %8  %9\n")
+                            .arg(x[ibl][2])
+                            .arg(Hk[ibl][2],8,'f',5)
+                            .arg(UeVinf[ibl][2],8,'f',5)
+                            .arg(Cf[ibl][2],8,'f',5)
+                            .arg(Cd[ibl][2],8,'f',5)
+                            .arg(AA0[ibl][2],8,'f',5)
+                            .arg(DStar[ibl][2],8,'f',5)
+                            .arg(Theta[ibl][2],8,'f',5)
+                            .arg(m_pXFoil->ctq[ibl][2],8,'f',5);
+        else
+            OutString = QString("%1, %2, %3, %4, %5, %6, %7, %8, %9\n")
+                            .arg(x[ibl][2])
+                            .arg(Hk[ibl][2],8,'f',5)
+                            .arg(UeVinf[ibl][2],8,'f',5)
+                            .arg(Cf[ibl][2],8,'f',5)
+                            .arg(Cd[ibl][2],8,'f',5)
+                            .arg(AA0[ibl][2],8,'f',5)
+                            .arg(DStar[ibl][2],8,'f',5)
+                            .arg(Theta[ibl][2],8,'f',5)
+                            .arg(m_pXFoil->ctq[ibl][2],8,'f',5);
+        out << (OutString);
+    }
+}
+
 void QXDirect::OnExportCurXFoilResults()
 {
 	if(!m_pXFoil->lvconv) return;
@@ -2550,12 +2680,6 @@ void QXDirect::OnExportCurXFoilResults()
 	MainFrame *pMainFrame = (MainFrame*)m_pMainFrame;
 	QString FileName,  OutString, strong;
 
-	double x[IVX][3],Hk[IVX][3],UeVinf[IVX][3], Cf[IVX][3], Cd[IVX][3], AA0[IVX][3];
-	double RTheta[IVX][3], DStar[IVX][3], Theta[IVX][3];
-	double uei;
-	double que = 0.5*m_pXFoil->qinf*m_pXFoil->qinf;
-	double qrf = m_pXFoil->qinf;
-	int nside1, nside2, ibl;
 	int type = 1;
 
     FileName = g_pCurFoil->getName();
@@ -2583,117 +2707,19 @@ void QXDirect::OnExportCurXFoilResults()
 	strong = m_pXFoil->m_FoilName+ "\n";
 	out << (strong);
 
-	if(type==1)
-		strong = QString("Alpha = %1,  Re = %2,  Ma= %3,  ACrit=%4\n\n")
-						 .arg(m_pXFoil->alfa*180./PI, 5, 'f',1)
-						 .arg(m_pXFoil->reinf1, 8, 'f',0)
-						 .arg(m_pXFoil->minf1, 6, 'f',4)
-						 .arg(m_pXFoil->acrit, 4, 'f',1);
-	else
-		strong = QString("Alpha =, %1,Re =, %3,Ma=, %3,ACrit =,%4\n\n")
-						 .arg(m_pXFoil->alfa*180./PI, 5, 'f',1)
-						 .arg(m_pXFoil->reinf1, 8, 'f',0)
-						 .arg(m_pXFoil->minf1, 6, 'f',4)
-						 .arg(m_pXFoil->acrit, 4, 'f',1);	out << (strong);
 
-	m_pXFoil->CreateXBL(x, nside1, nside2);
-	//write top first
-	m_pXFoil->FillHk(Hk, nside1, nside2);
-	for (ibl=2; ibl<= nside1;ibl++)
-	{
-		uei = m_pXFoil->uedg[ibl][1];
-		UeVinf[ibl][1] = uei * (1.0-m_pXFoil->tklam)
-						/ (1.0-m_pXFoil->tklam*(uei/m_pXFoil->qinf)*(uei/m_pXFoil->qinf));
-	}
-	for (ibl=2; ibl<= nside2;ibl++)
-	{
-		uei = m_pXFoil->uedg[ibl][2];
-		UeVinf[ibl][2] = uei * (1.0-m_pXFoil->tklam)
-						/ (1.0-m_pXFoil->tklam*(uei/m_pXFoil->qinf)*(uei/m_pXFoil->qinf));
-	}
-	//---- fill compressible ue arrays
-	for (ibl=2; ibl<= nside1;ibl++)	Cf[ibl][1] = m_pXFoil->tau[ibl][1] / que;
-	for (ibl=2; ibl<= nside2;ibl++)	Cf[ibl][2] = m_pXFoil->tau[ibl][2] / que;
+    for (int k = 0; k < g_oppointStore.size(); ++k) {
 
-	//---- fill compressible ue arrays
-	for (ibl=2; ibl<= nside1;ibl++)	Cd[ibl][1] = m_pXFoil->dis[ibl][1] / qrf/ qrf/ qrf;
-	for (ibl=2; ibl<= nside2;ibl++)	Cd[ibl][2] = m_pXFoil->dis[ibl][2] / qrf/ qrf/ qrf;
-	//NPlot
-	for (ibl=2; ibl< nside1;ibl++)	AA0[ibl][1] = m_pXFoil->ctau[ibl][1];
-	for (ibl=2; ibl< nside2;ibl++)	AA0[ibl][2] = m_pXFoil->ctau[ibl][2];
+        OpPoint * opPoint = g_oppointStore.at(k);
 
-	m_pXFoil->FillRTheta(RTheta, nside1, nside2);
-	for (ibl=2; ibl<= nside1; ibl++)
-	{
-		DStar[ibl][1] = m_pXFoil->dstr[ibl][1];
-		Theta[ibl][1] = m_pXFoil->thet[ibl][1];
-	}
-	for (ibl=2; ibl<= nside2; ibl++)
-	{
-		DStar[ibl][2] = m_pXFoil->dstr[ibl][2];
-		Theta[ibl][2] = m_pXFoil->thet[ibl][2];
-	}
+        //Export only OpPoints related to selected AirFoil
+        if(opPoint->getParent()->getId() == g_mainFrame->m_pctrlFoil->currentObject()->getId()){
+            VERIFICAR SE EH MESMO AIRFOIL
+            addOpPointsResult(opPoint,out,strong,OutString,type);
+        }
 
-	out << tr("\nTop Side\n");
-	if(type==1) OutString = QString(tr("    x         Hk     Ue/Vinf      Cf        Cd     A/A0       D*       Theta      CTq\n"));
-	else        OutString = QString(tr("x,Hk,Ue/Vinf,Cf,Cd,A/A0,D*,Theta,CTq\n"));
-	out << (OutString);
-	for (ibl=2; ibl<nside1; ibl++)
-	{
-		if(type==1)
-			OutString = QString("%1  %2  %3  %4 %5 %6  %7  %8  %9\n")
-							.arg(x[ibl][1])
-							.arg(Hk[ibl][1],8,'f',5)
-							.arg(UeVinf[ibl][1],8,'f',5)
-							.arg(Cf[ibl][1],8,'f',5)
-							.arg(Cd[ibl][1],8,'f',5)
-							.arg(AA0[ibl][1],8,'f',5)
-							.arg(DStar[ibl][1],8,'f',5)
-							.arg(Theta[ibl][1],8,'f',5)
-							.arg(m_pXFoil->ctq[ibl][1],8,'f',5);
-		else
-			OutString = QString("%1, %2, %3, %4, %5, %6, %7, %8, %9\n")
-							.arg(x[ibl][1])
-							.arg(Hk[ibl][1],8,'f',5)
-							.arg(UeVinf[ibl][1],8,'f',5)
-							.arg(Cf[ibl][1],8,'f',5)
-							.arg(Cd[ibl][1],8,'f',5)
-							.arg(AA0[ibl][1],8,'f',5)
-							.arg(DStar[ibl][1],8,'f',5)
-							.arg(Theta[ibl][1],8,'f',5)
-							.arg(m_pXFoil->ctq[ibl][1],8,'f',5);
-		out << (OutString);
-	}
-	out << tr("\n\nBottom Side\n");
-	if(type==1) OutString = QString(tr("    x         Hk     Ue/Vinf      Cf        Cd     A/A0       D*       Theta      CTq\n"));
-	else        OutString = QString(tr("x,Hk,Ue/Vinf,Cf,Cd,A/A0,D*,Theta,CTq\n"));
-	out << (OutString);
-	for (ibl=2; ibl<nside2; ibl++)
-	{
-		if(type==1)
-			OutString = QString("%1  %2  %3  %4 %5 %6  %7  %8  %9\n")
-							.arg(x[ibl][2])
-							.arg(Hk[ibl][2],8,'f',5)
-							.arg(UeVinf[ibl][2],8,'f',5)
-							.arg(Cf[ibl][2],8,'f',5)
-							.arg(Cd[ibl][2],8,'f',5)
-							.arg(AA0[ibl][2],8,'f',5)
-							.arg(DStar[ibl][2],8,'f',5)
-							.arg(Theta[ibl][2],8,'f',5)
-							.arg(m_pXFoil->ctq[ibl][2],8,'f',5);
-		else
-			OutString = QString("%1, %2, %3, %4, %5, %6, %7, %8, %9\n")
-							.arg(x[ibl][2])
-							.arg(Hk[ibl][2],8,'f',5)
-							.arg(UeVinf[ibl][2],8,'f',5)
-							.arg(Cf[ibl][2],8,'f',5)
-							.arg(Cd[ibl][2],8,'f',5)
-							.arg(AA0[ibl][2],8,'f',5)
-							.arg(DStar[ibl][2],8,'f',5)
-							.arg(Theta[ibl][2],8,'f',5)
-							.arg(m_pXFoil->ctq[ibl][2],8,'f',5);
-		out << (OutString);
-	}
+
+    }
 
 	DestFile.close();
 }
