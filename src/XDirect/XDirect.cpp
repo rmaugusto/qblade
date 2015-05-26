@@ -427,11 +427,22 @@ void QXDirect::AddOpData(OpPoint *pOpPoint)
 	pOpPoint->nd2 = nd2;
 	pOpPoint->nd3 = nd3;
 
+    pOpPoint->qinf = m_pXFoil->qinf;
+    pOpPoint->reinf1 = m_pXFoil->reinf1;
+    pOpPoint->minf1 = m_pXFoil->minf1;
+    pOpPoint->tklam = m_pXFoil->tklam;
+
+    memcpy(pOpPoint->uedg,m_pXFoil->uedg,sizeof(int)*IVX*ISX );
+    memcpy(pOpPoint->tau,m_pXFoil->tau,sizeof(int)*IVX*ISX );
+    memcpy(pOpPoint->dis,m_pXFoil->dis,sizeof(int)*IVX*ISX );
+    memcpy(pOpPoint->ctau,m_pXFoil->ctau,sizeof(int)*IVX*ISX );
+    memcpy(pOpPoint->ctq,m_pXFoil->ctq,sizeof(int)*IVX*ISX );
+    memcpy(pOpPoint->thet,m_pXFoil->thet,sizeof(int)*IVX*ISX );
+
     memcpy(pOpPoint->iblte,m_pXFoil->iblte,sizeof(int)*ISX);
     memcpy(pOpPoint->ipan,m_pXFoil->ipan,sizeof(int)*IVX*ISX );
     memcpy(pOpPoint->nbl,m_pXFoil->nbl,sizeof(int)*ISX);
     memcpy(pOpPoint->dstr,m_pXFoil->dstr,sizeof(double)*IVX*ISX);
-
 
 }
 
@@ -2555,59 +2566,61 @@ void QXDirect::addOpPointsResult(OpPoint * opPoint,QTextStream & out, QString & 
     double x[IVX][3],Hk[IVX][3],UeVinf[IVX][3], Cf[IVX][3], Cd[IVX][3], AA0[IVX][3];
     double RTheta[IVX][3], DStar[IVX][3], Theta[IVX][3];
     double uei;
-    double que = 0.5*m_pXFoil->qinf*m_pXFoil->qinf;
-    double qrf = m_pXFoil->qinf;
+    double que = 0.5*opPoint->qinf*opPoint->qinf;
+    double qrf = opPoint->qinf;
     int nside1, nside2, ibl;
+
+    out << ("\n");
 
     if(type==1)
         strong = QString("Alpha = %1,  Re = %2,  Ma= %3,  ACrit=%4\n\n")
-                         .arg(m_pXFoil->alfa*180./PI, 5, 'f',1)
-                         .arg(m_pXFoil->reinf1, 8, 'f',0)
-                         .arg(m_pXFoil->minf1, 6, 'f',4)
-                         .arg(m_pXFoil->acrit, 4, 'f',1);
+                         .arg(opPoint->Alpha, 5, 'f',1)
+                         .arg(opPoint->reinf1, 8, 'f',0)
+                         .arg(opPoint->minf1, 6, 'f',4)
+                         .arg(opPoint->ACrit, 4, 'f',1);
     else
         strong = QString("Alpha =, %1,Re =, %3,Ma=, %3,ACrit =,%4\n\n")
-                         .arg(m_pXFoil->alfa*180./PI, 5, 'f',1)
-                         .arg(m_pXFoil->reinf1, 8, 'f',0)
-                         .arg(m_pXFoil->minf1, 6, 'f',4)
-                         .arg(m_pXFoil->acrit, 4, 'f',1);	out << (strong);
+                         .arg(opPoint->Alpha, 5, 'f',1)
+                         .arg(opPoint->reinf1, 8, 'f',0)
+                         .arg(opPoint->minf1, 6, 'f',4)
+                         .arg(opPoint->ACrit, 4, 'f',1);	out << (strong);
 
     m_pXFoil->CreateXBL(x, nside1, nside2);
     //write top first
     m_pXFoil->FillHk(Hk, nside1, nside2);
     for (ibl=2; ibl<= nside1;ibl++)
     {
-        uei = m_pXFoil->uedg[ibl][1];
-        UeVinf[ibl][1] = uei * (1.0-m_pXFoil->tklam)
-                        / (1.0-m_pXFoil->tklam*(uei/m_pXFoil->qinf)*(uei/m_pXFoil->qinf));
+        uei = opPoint->uedg[ibl][1];
+        UeVinf[ibl][1] = uei * (1.0-opPoint->tklam)
+                        / (1.0-opPoint->tklam*(uei/opPoint->qinf)*(uei/opPoint->qinf));
     }
     for (ibl=2; ibl<= nside2;ibl++)
     {
-        uei = m_pXFoil->uedg[ibl][2];
-        UeVinf[ibl][2] = uei * (1.0-m_pXFoil->tklam)
-                        / (1.0-m_pXFoil->tklam*(uei/m_pXFoil->qinf)*(uei/m_pXFoil->qinf));
+        uei = opPoint->uedg[ibl][2];
+        UeVinf[ibl][2] = uei * (1.0-opPoint->tklam)
+                        / (1.0-opPoint->tklam*(uei/opPoint->qinf)*(uei/opPoint->qinf));
     }
     //---- fill compressible ue arrays
-    for (ibl=2; ibl<= nside1;ibl++)	Cf[ibl][1] = m_pXFoil->tau[ibl][1] / que;
-    for (ibl=2; ibl<= nside2;ibl++)	Cf[ibl][2] = m_pXFoil->tau[ibl][2] / que;
+    for (ibl=2; ibl<= nside1;ibl++)	Cf[ibl][1] = opPoint->tau[ibl][1] / que;
+    for (ibl=2; ibl<= nside2;ibl++)	Cf[ibl][2] = opPoint->tau[ibl][2] / que;
 
     //---- fill compressible ue arrays
-    for (ibl=2; ibl<= nside1;ibl++)	Cd[ibl][1] = m_pXFoil->dis[ibl][1] / qrf/ qrf/ qrf;
-    for (ibl=2; ibl<= nside2;ibl++)	Cd[ibl][2] = m_pXFoil->dis[ibl][2] / qrf/ qrf/ qrf;
+    for (ibl=2; ibl<= nside1;ibl++)	Cd[ibl][1] = opPoint->dis[ibl][1] / qrf/ qrf/ qrf;
+    for (ibl=2; ibl<= nside2;ibl++)	Cd[ibl][2] = opPoint->dis[ibl][2] / qrf/ qrf/ qrf;
     //NPlot
-    for (ibl=2; ibl< nside1;ibl++)	AA0[ibl][1] = m_pXFoil->ctau[ibl][1];
-    for (ibl=2; ibl< nside2;ibl++)	AA0[ibl][2] = m_pXFoil->ctau[ibl][2];
+    for (ibl=2; ibl< nside1;ibl++)	AA0[ibl][1] = opPoint->ctau[ibl][1];
+    for (ibl=2; ibl< nside2;ibl++)	AA0[ibl][2] = opPoint->ctau[ibl][2];
 
     m_pXFoil->FillRTheta(RTheta, nside1, nside2);
     for (ibl=2; ibl<= nside1; ibl++)
     {
-        DStar[ibl][1] = m_pXFoil->dstr[ibl][1];
-        Theta[ibl][1] = m_pXFoil->thet[ibl][1];
+        DStar[ibl][1] = opPoint->dstr[ibl][1];
+        Theta[ibl][1] = opPoint->thet[ibl][1];
     }
     for (ibl=2; ibl<= nside2; ibl++)
     {
-        DStar[ibl][2] = m_pXFoil->dstr[ibl][2];
-        Theta[ibl][2] = m_pXFoil->thet[ibl][2];
+        DStar[ibl][2] = opPoint->dstr[ibl][2];
+        Theta[ibl][2] = opPoint->thet[ibl][2];
     }
 
     out << tr("\nTop Side\n");
@@ -2626,7 +2639,7 @@ void QXDirect::addOpPointsResult(OpPoint * opPoint,QTextStream & out, QString & 
                             .arg(AA0[ibl][1],8,'f',5)
                             .arg(DStar[ibl][1],8,'f',5)
                             .arg(Theta[ibl][1],8,'f',5)
-                            .arg(m_pXFoil->ctq[ibl][1],8,'f',5);
+                            .arg(opPoint->ctq[ibl][1],8,'f',5);
         else
             OutString = QString("%1, %2, %3, %4, %5, %6, %7, %8, %9\n")
                             .arg(x[ibl][1])
@@ -2637,7 +2650,7 @@ void QXDirect::addOpPointsResult(OpPoint * opPoint,QTextStream & out, QString & 
                             .arg(AA0[ibl][1],8,'f',5)
                             .arg(DStar[ibl][1],8,'f',5)
                             .arg(Theta[ibl][1],8,'f',5)
-                            .arg(m_pXFoil->ctq[ibl][1],8,'f',5);
+                            .arg(opPoint->ctq[ibl][1],8,'f',5);
         out << (OutString);
     }
     out << tr("\n\nBottom Side\n");
@@ -2656,7 +2669,7 @@ void QXDirect::addOpPointsResult(OpPoint * opPoint,QTextStream & out, QString & 
                             .arg(AA0[ibl][2],8,'f',5)
                             .arg(DStar[ibl][2],8,'f',5)
                             .arg(Theta[ibl][2],8,'f',5)
-                            .arg(m_pXFoil->ctq[ibl][2],8,'f',5);
+                            .arg(opPoint->ctq[ibl][2],8,'f',5);
         else
             OutString = QString("%1, %2, %3, %4, %5, %6, %7, %8, %9\n")
                             .arg(x[ibl][2])
@@ -2667,7 +2680,7 @@ void QXDirect::addOpPointsResult(OpPoint * opPoint,QTextStream & out, QString & 
                             .arg(AA0[ibl][2],8,'f',5)
                             .arg(DStar[ibl][2],8,'f',5)
                             .arg(Theta[ibl][2],8,'f',5)
-                            .arg(m_pXFoil->ctq[ibl][2],8,'f',5);
+                            .arg(opPoint->ctq[ibl][2],8,'f',5);
         out << (OutString);
     }
 }
@@ -2712,13 +2725,15 @@ void QXDirect::OnExportCurXFoilResults()
 
         OpPoint * opPoint = g_oppointStore.at(k);
 
+        //opPoint->getParent()->getParent()->getName()
+        //opPoint->getParent() POLAR
+
         //Export only OpPoints related to selected AirFoil
-        if(opPoint->getParent()->getId() == g_mainFrame->m_pctrlFoil->currentObject()->getId()){
-            VERIFICAR SE EH MESMO AIRFOIL
-            addOpPointsResult(opPoint,out,strong,OutString,type);
+        if(opPoint->getParent()->getId() == g_mainFrame->m_pctrlPolar->currentObject()->getId()){
+            if(opPoint->getParent()->getParent()->getId() == g_mainFrame->m_pctrlFoil->currentObject()->getId()){
+                addOpPointsResult(opPoint,out,strong,OutString,type);
+            }
         }
-
-
     }
 
 	DestFile.close();

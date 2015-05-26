@@ -79,6 +79,9 @@ private:
 
     int iblte[ISX],ipan[IVX][ISX],nbl[ISX];
     double dstr[IVX][ISX];
+    double qinf, reinf1, minf1, tklam;
+    double uedg[IVX][ISX], tau[IVX][ISX], dis[IVX][ISX], ctau[IVX][ISX],thet[IVX][ISX],ctq[IVX][ISX];
+
 
 	QString m_strFoilName;
 	QString m_strPlrName;
