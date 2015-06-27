@@ -54,10 +54,10 @@ double NoiseCalculation::getDStarInterpolated(bool top)
         //qDebug() << "i: " << i << " - " << ccur;
 
         if(ccur > this->NoiseParam()->DStarChordStation()){
-            chordUpStream = prev_ccur;
-            chordDownStream = ccur;
-            dStarUpStream = prev_d;
-            dStarDownStream = cd;
+            chordUpStream = ccur;
+            chordDownStream = prev_ccur;
+            dStarUpStream = cd;
+            dStarDownStream = prev_d;
 
             qDebug() << "Chord UpStream: " << chordUpStream;
             qDebug() << "Chord DownStream: " << chordDownStream;

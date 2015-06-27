@@ -15,11 +15,11 @@ NoiseToolBar::NoiseToolBar(QMainWindow *parent, NoiseModule *module) :
 {
     m_Module = module;
 
-    BpmteViewAction = new QAction(QIcon(":/images/graph.png"), tr("Plot BPMTE Results in a Graph"), this);
+    BpmteViewAction = new QAction(QIcon(":/images/2d-noise.png"), tr("Plot BPMTE Results in a Graph"), this);
     BpmteViewAction->setCheckable(true);
     BpmteViewAction->setStatusTip(tr("Plot BPMTE Results in a Graph"));
 
-    Q3dViewAction = new QAction(QIcon(":/images/3dview.png"), tr("Plot Q3D Results in a Graph - NOT IMPLEMENTED YET"), this);
+    Q3dViewAction = new QAction(QIcon(":/images/3d-noise.png"), tr("Plot Q3D Results in a Graph - NOT IMPLEMENTED YET"), this);
     Q3dViewAction->setCheckable(true);
     Q3dViewAction->setStatusTip(tr("Plot Q3D Results in a Graph - NOT IMPLEMENTED YET"));
     Q3dViewAction->setEnabled(false);

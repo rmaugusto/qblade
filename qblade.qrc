@@ -52,5 +52,7 @@
         <file>images/vblade.png</file>
         <file>images/Noise-Icon.png</file>
         <file>images/noise_3d_plate.png</file>
+        <file>images/2d-noise.png</file>
+        <file>images/3d-noise.png</file>
     </qresource>
 </RCC>

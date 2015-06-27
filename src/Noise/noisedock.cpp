@@ -35,7 +35,7 @@ NoiseDock::NoiseDock(const QString & title, QMainWindow * parent, Qt::WindowFlag
 
 
 
-    QGroupBox *groupBox = new QGroupBox ("Trailing TE Noise");
+    QGroupBox *groupBox = new QGroupBox ("Trailing Edge Noise");
     m_contentVBox->addWidget(groupBox);
 
     QGridLayout *grid = new QGridLayout ();

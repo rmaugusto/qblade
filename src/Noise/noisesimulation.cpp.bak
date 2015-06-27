@@ -113,15 +113,13 @@ void NoiseSimulation::simulate()
 
         for (int i = 0; i < Noise::FREQUENCY_TABLE_SIZE; ++i) {
 
+            //Negative SPL contributions will not be plotted to graph
+            if( m_NoiseCalculation->SPLadB()[j][i] < 0 ){
+                continue;
+            }
 
             vetFreq.append( Noise::CENTRAL_BAND_FREQUENCY[i] );
-
-            //Negative SPL contributions will not be plotted to graph
-            //if( m_NoiseCalculation->SPLadB()[j][i] >= 0 ){
-                //vetA.append( m_NoiseCalculation->SPLadB()[j][i] );
-            //}
-
-            vetA.append( getPositiveNumber(m_NoiseCalculation->SPLadB()[j][i]) );
+            vetA.append( m_NoiseCalculation->SPLadB()[j][i] );
             vetS.append( getPositiveNumber(m_NoiseCalculation->SPLsdB()[j][i]) );
             vetP.append( getPositiveNumber(m_NoiseCalculation->SPLpdB()[j][i]) );
             vetDb.append( m_NoiseCalculation->SPLdB()[j][i] );

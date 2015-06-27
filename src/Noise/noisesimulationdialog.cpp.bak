@@ -363,7 +363,6 @@ void NoiseSimulationDialog::CreateXBL(OpPoint * cur_pOpPoint,double xs[IVX][3],i
 void NoiseSimulationDialog::loadLinearInterpolate()
 {
 
-    //TODO: O DSTR e o X devem ser baseados no alpha selecionado
 
     double x[IVX][3];
     int nside1, nside2, ibl;

@@ -187,7 +187,7 @@
         <item row="7" column="0">
          <widget class="QLabel" name="label_28">
           <property name="text">
-           <string>Eddy Convection Mach number (%):</string>
+           <string>Eddy Convection Mach number:</string>
           </property>
           <property name="alignment">
            <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
