@@ -381,3 +381,13 @@ double OpPoint::getAlpha() const
 {
     return Alpha;
 }
+void OpPoint::setReynolds(double value)
+{
+    Reynolds = value;
+}
+void OpPoint::setAlpha(double value)
+{
+    Alpha = value;
+}
+
+

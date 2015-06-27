@@ -52,6 +52,9 @@ public:
     double getMach() const;
     double getAlpha() const;
 
+    void setReynolds(double value);
+    void setAlpha(double value);
+
 private:
     bool m_bVisc, m_bDispSurf;
     bool m_bTEFlap, m_bLEFlap;
@@ -62,10 +65,10 @@ private:
     int m_Style, m_Width;
 
 
-	double Reynolds;
-	double Mach;
-	double Alpha; // index for polar
-	double Cl, Cm, Cd, Cdp, Xtr1, Xtr2, ACrit;
+    double Reynolds;
+    double Mach;
+    double Alpha; // index for polar
+    double Cl, Cm, Cd, Cdp, Xtr1, Xtr2, ACrit;
 	double m_XCP;
     double m_TEHMom, m_LEHMom, XForce, YForce;
     double Cpmn;
@@ -87,7 +90,7 @@ private:
 	QString m_strPlrName;
 
 	QColor m_Color;
-	
+
 
 private:
 	bool ExportOpp(QTextStream &out, QString Version, int FileType, bool bDataOnly=false);

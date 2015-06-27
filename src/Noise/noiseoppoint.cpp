@@ -1,60 +1,52 @@
 #include "noiseoppoint.h"
 #include <math.h>
 
+NoiseOpPoint::NoiseOpPoint(double reynolds,double alpha){
+    internalOpPoint = true;
+    m_OpPoint = new OpPoint();
+    m_OpPoint->setReynolds(reynolds);
+    m_OpPoint->setAlpha(alpha);
+}
+
 NoiseOpPoint::NoiseOpPoint()
 {
-
+    if(internalOpPoint && m_OpPoint){
+        delete m_OpPoint;
+    }
 }
 
 NoiseOpPoint::~NoiseOpPoint()
 {
 
 }
-double NoiseOpPoint::Reynolds() const
+double NoiseOpPoint::Reynolds()
 {
-    return m_Reynolds;
+    return m_OpPoint->getReynolds();
 }
 
-void NoiseOpPoint::setReynolds(double Reynolds)
+double NoiseOpPoint::Alpha()
 {
-    m_Reynolds = Reynolds;
-}
-double NoiseOpPoint::Alpha() const
-{
-    return m_Alpha;
+    return m_OpPoint->getAlpha() * 180 / M_PI;
 }
 
-void NoiseOpPoint::setAlpha(double Alpha)
-{
-    m_Alpha = Alpha;
-}
 
-void NoiseOpPoint::setAlphaDeg(double Alpha)
-{
-    m_Alpha = Alpha / 180 * M_PI;
-}
+//void NoiseOpPoint::setAlphaDeg(double Alpha)
+//{
+//    m_Alpha = Alpha / 180 * M_PI;
+//}
 
 double NoiseOpPoint::AlphaDeg()
 {
-    return m_Alpha * 180 / M_PI;
+    return m_OpPoint->getAlpha();
 }
-QString NoiseOpPoint::AirfoilName() const
+QString NoiseOpPoint::AirfoilName()
 {
-    return m_AirfoilName;
-}
-
-void NoiseOpPoint::setAirfoilName(QString AirfoilName)
-{
-    m_AirfoilName = AirfoilName;
-}
-QString NoiseOpPoint::PolarName() const
-{
-    return m_PolarName;
+    return m_OpPoint->getParent()->getParent()->getName();
 }
 
-void NoiseOpPoint::setPolarName(QString PolarName)
+QString NoiseOpPoint::PolarName()
 {
-    m_PolarName = PolarName;
+    return m_OpPoint->getParent()->getName();
 }
 
 

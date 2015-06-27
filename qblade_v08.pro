@@ -426,7 +426,8 @@ HEADERS += src/MainFrame.h \
     src/Noise/noisecalculation.h \
     src/Noise/noiseoppoint.h \
     src/Noise/noiseparameter.h \
-    src/Noise/newgraphlegend.h
+    src/Noise/newgraphlegend.h \
+    src/Noise/noisedefinitions.h
 
 TRANSLATIONS = translations/xflr5v6.ts \
     translations/xflr5v6_de.ts \

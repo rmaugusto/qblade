@@ -13,6 +13,7 @@
 using namespace std;
 
 class NoiseModule;
+class NoiseCalculation;
 
 class NoiseSimulation : public StorableObject, public ShowAsGraphInterface
 {

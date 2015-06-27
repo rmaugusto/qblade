@@ -6,20 +6,9 @@
 #include <list>
 #include <cmath>
 #include "noiseoppoint.h"
+#include "noisedefinitions.h"
 
-namespace Noise{
-
-    enum DeltaSource { XFoilCalculation, OriginalBPM, ImportData };
-    enum TransitionType { FullyTurbulent, TransitionFlow };
-    enum AirfoilSide { PressureSide, SuctionSide };
-
-    const unsigned short IIVX = 302;	//300 = number of nodes along bl on one side of airfoil and wake
-    const unsigned short IISX = 3;	//number of airfoil sides
-
-    typedef double ArrChordStations[Noise::IIVX][Noise::IISX];
-    typedef double TwoDArrDStars[Noise::IIVX][Noise::IISX];
-
-}
+class NoiseOpPoint;
 
 class NoiseParameter
 {

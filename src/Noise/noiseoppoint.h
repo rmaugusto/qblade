@@ -2,6 +2,8 @@
 #define NOISEOPPOINT_H
 
 #include <QString>
+//#include "../Objects/Polar.h"
+#include "../Objects/OpPoint.h"
 
 /**
  * @brief The NoiseOpPoint class
@@ -10,33 +12,32 @@
 class NoiseOpPoint
 {
 public:
-    NoiseOpPoint(double reynolds,double alpha) : m_Reynolds(reynolds),m_Alpha(alpha) {}
+    NoiseOpPoint(OpPoint * op) : m_OpPoint(op){}
+    NoiseOpPoint(double reynolds,double alpha);
     NoiseOpPoint();
     ~NoiseOpPoint();
 
-    double Reynolds() const;
-    void setReynolds(double Reynolds);
+    double Reynolds();
+    //void setReynolds(double Reynolds);
 
-    double Alpha() const;
-    void setAlpha(double Alpha);
-    void setAlphaDeg(double Alpha);
+    double Alpha();
+    //void setAlpha(double Alpha);
+    //void setAlphaDeg(double Alpha);
 
 
     double AlphaDeg();
 
-    QString AirfoilName() const;
-    void setAirfoilName(QString AirfoilName);
+    QString AirfoilName();
+    //void setAirfoilName(QString AirfoilName);
 
-    QString PolarName() const;
-    void setPolarName(QString PolarName);
+    QString PolarName();
+    //void setPolarName(QString PolarName);
 
 private:
-    double m_Reynolds;
-    //Alpha in radians
-    double m_Alpha;
-    QString m_AirfoilName;
-    QString m_PolarName;
-
+    OpPoint * m_OpPoint;
+    bool internalOpPoint=false;
 };
+
+Q_DECLARE_METATYPE(NoiseOpPoint*)
 
 #endif // NOISEOPPOINT_H

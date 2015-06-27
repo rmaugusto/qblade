@@ -26,7 +26,7 @@ void NoiseCalculation::setNoiseParam(NoiseParameter *np)
     m_NoiseParameter = np;
 }
 
-double NoiseCalculation::getDStarInterpolated(bool top)
+double NoiseCalculation::getDStarInterpolated(bool top,NoiseOpPoint * nop)
 {
 
     bool upDownFind = false;
@@ -661,8 +661,8 @@ void NoiseCalculation::calculate()
         qDebug() << "Alpha deg: " << nop->AlphaDeg();
         qDebug() << "Reynolds: " << nop->Reynolds();
 
-        m_DStarInterpolatedS = getDStarInterpolated(true);
-        m_DStarInterpolatedP = getDStarInterpolated(false);
+        m_DStarInterpolatedS = getDStarInterpolated(true,nop);
+        m_DStarInterpolatedP = getDStarInterpolated(false,nop);
 
         if( m_NoiseParameter->DeltaSouce() == Noise::XFoilCalculation){
             //For XFoil model

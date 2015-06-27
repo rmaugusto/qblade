@@ -13,10 +13,10 @@ namespace Ui{
     class NoiseSimulationDialog;
 }
 
-class ListItemNoiseOpPoint : public NoiseOpPoint
-{
-};
-Q_DECLARE_METATYPE(ListItemNoiseOpPoint)
+//class ListItemNoiseOpPoint : public NoiseOpPoint
+//{
+//};
+//Q_DECLARE_METATYPE(ListItemNoiseOpPoint)
 
 class NoiseSimulationDialog : public QDialog
 {
@@ -40,6 +40,7 @@ public:
     void loadComponents();
 
     NoiseSimulation * GetNoiseSimulation();
+    void freeOnClose();
 private slots:
 
     void on_deltaSourceXFoil_toggled(bool checked);
