@@ -4,6 +4,7 @@
 #include <QString>
 //#include "../Objects/Polar.h"
 #include "../Objects/OpPoint.h"
+#include "noisedefinitions.h"
 
 /**
  * @brief The NoiseOpPoint class
@@ -33,11 +34,22 @@ public:
     QString PolarName();
     //void setPolarName(QString PolarName);
 
+    void calculateXSides();
+    int getNSide1() const;
+    int getNSide2() const;
+    double *getX();
+    Noise::TwoDArrDStars &getDstr();
+
+    OpPoint *getOpPoint() const;
+
 private:
     OpPoint * m_OpPoint;
+    int m_nSide1;
+    int m_nSide2;
+    double xs[IVX][3];
     bool internalOpPoint=false;
 };
 
-Q_DECLARE_METATYPE(NoiseOpPoint*)
+Q_DECLARE_METATYPE(NoiseOpPoint)
 
 #endif // NOISEOPPOINT_H

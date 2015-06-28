@@ -44,6 +44,10 @@ class OpPoint : public StorableObject
 	// An operating point is the result of an XFoil calculation
 	// for a given Reynolds
 public:
+
+    typedef double TwoDArrIvx[IVX][ISX];
+    //typedef double (*TwoDArr)[ISX];
+
     OpPoint(QString name = "< no name >", StorableObject *parent = NULL);
     void serialize ();
     static OpPoint* newBySerialize ();
@@ -52,8 +56,15 @@ public:
     double getMach() const;
     double getAlpha() const;
 
+    int* getNbl();
+    int* getIblte();
+    double *getX();
+    TwoDArrIvx &getIpan();
+    TwoDArrIvx &getDstr();
+
     void setReynolds(double value);
     void setAlpha(double value);
+
 
 private:
     bool m_bVisc, m_bDispSurf;
@@ -80,8 +91,8 @@ private:
 	double xd2[IWX], yd2[IWX];// ...second...
 	double xd3[IWX], yd3[IWX];// ...and third part of the boundary layer
 
-    int iblte[ISX],ipan[IVX][ISX],nbl[ISX];
-    double dstr[IVX][ISX];
+    TwoDArrIvx ipan,dstr;
+    int iblte[ISX],nbl[ISX];
     double qinf, reinf1, minf1, tklam;
     double uedg[IVX][ISX], tau[IVX][ISX], dis[IVX][ISX], ctau[IVX][ISX],thet[IVX][ISX],ctq[IVX][ISX];
 

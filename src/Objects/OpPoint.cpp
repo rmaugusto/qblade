@@ -381,13 +381,41 @@ double OpPoint::getAlpha() const
 {
     return Alpha;
 }
+
+int* OpPoint::getNbl()
+{
+    return nbl;
+}
+
+int* OpPoint::getIblte()
+{
+    return iblte;
+}
+
+OpPoint::TwoDArrIvx& OpPoint::getIpan()
+{
+    return ipan;
+}
+
+double *OpPoint::getX()
+{
+    return x;
+}
+
 void OpPoint::setReynolds(double value)
 {
     Reynolds = value;
 }
+
 void OpPoint::setAlpha(double value)
 {
     Alpha = value;
 }
+
+OpPoint::TwoDArrIvx &OpPoint::getDstr()
+{
+    return dstr;
+}
+
 
 

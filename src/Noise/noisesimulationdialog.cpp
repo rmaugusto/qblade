@@ -95,10 +95,9 @@ void NoiseSimulationDialog::readWindowParams()
         for (int i = 0; i < ui->listOpPoints->count(); ++i) {
             //Recover NoiseOpPoint from checked list item
             QListWidgetItem * pLstItem = ui->listOpPoints->item(i);
-            if(pLstItem->checkState() == Qt::Checked){
-                QVariant pQv = pLstItem->data(Qt::UserRole);
-                NoiseOpPoint * nop = (NoiseOpPoint *)pQv.value<void *>();
-                param->OpPoints().push_back(nop);
+            if(pLstItem->checkState() == Qt::Checked){                
+                NoiseOpPoint nop = (NoiseOpPoint)pLstItem->data(Qt::UserRole).value<NoiseOpPoint>();
+                param->OpPoints().push_back(new NoiseOpPoint(nop.getOpPoint()));
 
 //                ListItemNoiseOpPoint pLinopp = pQv.value<ListItemNoiseOpPoint>();
 //                NoiseOpPoint * nop = new NoiseOpPoint(pLinopp.Reynolds(),pLinopp.Alpha());
@@ -250,8 +249,8 @@ void NoiseSimulationDialog::loadComponents()
             if(opPoint){
 
                 //                ListItemNoiseOpPoint linop;
-                NoiseOpPoint * nop = new NoiseOpPoint(opPoint);
-                QVariant      qv;
+                NoiseOpPoint nop(opPoint);
+                nop.calculateXSides();
 
 //                linop.setAlphaDeg(opPoint->getAlpha());
 //                linop.setReynolds(opPoint->getReynolds());
@@ -259,9 +258,9 @@ void NoiseSimulationDialog::loadComponents()
 //                linop.setPolarName(opPoint->getParent()->getName());
 
                 QString strItem = QString("%1°, %2, %3 ")
-                                               .arg(nop->AlphaDeg())
-                                               .arg(nop->PolarName())
-                                               .arg(nop->AirfoilName());
+                                               .arg(nop.AlphaDeg())
+                                               .arg(nop.PolarName())
+                                               .arg(nop.AirfoilName());
 
                 QListWidgetItem *item = new QListWidgetItem(NULL,QListWidgetItem::UserType);
                 item->setText(strItem);
@@ -276,6 +275,9 @@ void NoiseSimulationDialog::loadComponents()
                     }
                 }
 
+                //QVariant      * qv = new QVariant(Qt::UserRole,nop);
+                //item->setData(Qt::UserRole,*qv);
+                QVariant qv;
                 qv.setValue(nop);
                 item->setData(Qt::UserRole,qv);
 
@@ -347,24 +349,6 @@ bool NoiseSimulationDialog::validateInputs()
 
 }
 
-void NoiseSimulationDialog::CreateXBL(OpPoint * cur_pOpPoint,double xs[IVX][3],int &nside1, int &nside2)
-{
-
-    int i;
-    //---- set up cartesian bl x-arrays for plotting
-    for(int is=1; is<= 2; is++){
-        for (int ibl=2; ibl<= cur_pOpPoint->nbl[is]; ibl++){
-            i = cur_pOpPoint->ipan[ibl][is];
-            xs[ibl][is] = cur_pOpPoint->x[i];
-        }
-    }
-
-    nside1 = cur_pOpPoint->nbl[2] + cur_pOpPoint->iblte[1] - cur_pOpPoint->iblte[2];
-    nside2 = cur_pOpPoint->nbl[2];
-
-    for( int iblw=1; iblw <= cur_pOpPoint->nbl[2]-cur_pOpPoint->iblte[2]; iblw++)
-        xs[cur_pOpPoint->iblte[1]+iblw][1] = xs[cur_pOpPoint->iblte[2]+iblw][2];
-}
 
 void NoiseSimulationDialog::loadLinearInterpolate()
 {
@@ -445,9 +429,9 @@ void NoiseSimulationDialog::freeOnClose()
     for (int i = 0; i < ui->listOpPoints->count(); ++i) {
         //Recover NoiseOpPoint from checked list item
         QListWidgetItem * pLstItem = ui->listOpPoints->item(i);
-        QVariant pQv = pLstItem->data(Qt::UserRole);
-        NoiseOpPoint * nop = (NoiseOpPoint *)pQv.value<void *>();
-        delete nop;
+//        QVariant * pQv = pLstItem->data(Qt::UserRole);
+//        NoiseOpPoint * nop = (NoiseOpPoint *)pQv->value<void *>();
+//        delete nop;
         delete pLstItem;
     }
 }

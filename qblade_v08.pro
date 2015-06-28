@@ -481,6 +481,7 @@ macx {
 }
 OTHER_FILES += doc/ReleaseNotes.txt
 
+#QMAKE_CXXFLAGS += -pipe -static-libgcc -static-libstdc++ -ggdb
 # this activates compiler support for openMP
 QMAKE_CXXFLAGS += -fopenmp
 LIBS += -fopenmp
