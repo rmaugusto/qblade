@@ -40,7 +40,7 @@ public:
     void loadComponents();
 
     NoiseSimulation * GetNoiseSimulation();
-    void freeOnClose();
+    void freeOnClose(bool freeNS);
 private slots:
 
     void on_deltaSourceXFoil_toggled(bool checked);

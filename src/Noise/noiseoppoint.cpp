@@ -54,17 +54,17 @@ void NoiseOpPoint::calculateXSides()
         int i;
 
         for(int is=1; is<= 2; is++){
-            for (int ibl=2; ibl<= m_OpPoint->getNbl()[is]; ibl++){
-                i = m_OpPoint->getIpan()[ibl][is];
-                xs[ibl][is] = m_OpPoint->getX()[i];
+            for (int ibl=2; ibl<= m_OpPoint->getNblAt(is); ibl++){
+                i = m_OpPoint->getIpanAt(ibl,is);
+                xs[ibl][is] = m_OpPoint->getXAt(i);
             }
         }
 
-        m_nSide1 = m_OpPoint->getNbl()[2] + m_OpPoint->getIblte()[1] - m_OpPoint->getIblte()[2];
-        m_nSide2 = m_OpPoint->getNbl()[2];
+        m_nSide1 = m_OpPoint->getNblAt(2) + m_OpPoint->getIblteAt(1) - m_OpPoint->getIblteAt(2);
+        m_nSide2 = m_OpPoint->getNblAt(2);
 
-        for( int iblw=1; iblw <= m_OpPoint->getNbl()[2]-m_OpPoint->getIblte()[2]; iblw++)
-            xs[m_OpPoint->getIblte()[1]+iblw][1] = xs[m_OpPoint->getIblte()[2]+iblw][2];
+        for( int iblw=1; iblw <= m_OpPoint->getNblAt(2)-m_OpPoint->getIblteAt(2); iblw++)
+            xs[m_OpPoint->getIblteAt(1)+iblw][1] = xs[m_OpPoint->getIblteAt(2)+iblw][2];
 
 }
 int NoiseOpPoint::getNSide1() const
@@ -76,15 +76,16 @@ int NoiseOpPoint::getNSide2() const
     return m_nSide2;
 }
 
-double *NoiseOpPoint::getX()
+double NoiseOpPoint::getXs(int _x,int _y)
 {
-    return m_OpPoint->getX();
+    return m_OpPoint->getXAt(_x);
 }
 
-Noise::TwoDArrDStars &NoiseOpPoint::getDstr()
+double NoiseOpPoint::getDstrAt(int _x,int _y)
 {
-    return m_OpPoint->getDstr();
+    return m_OpPoint->getDstrAt(_x,_y);
 }
+
 OpPoint *NoiseOpPoint::getOpPoint() const
 {
     return m_OpPoint;

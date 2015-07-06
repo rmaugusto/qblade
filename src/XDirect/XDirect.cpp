@@ -323,6 +323,7 @@ void QXDirect::AddOpData(OpPoint *pOpPoint)
 	pOpPoint->ACrit    = m_pXFoil->acrit;
 	pOpPoint->m_bTEFlap    = g_pCurFoil->m_bTEFlap;
 	pOpPoint->m_bLEFlap    = g_pCurFoil->m_bLEFlap;
+    pOpPoint->gamm1    = m_pXFoil->gamm1;
 
 	pOpPoint->Cpmn   = m_pXFoil->cpmn;
 
@@ -431,6 +432,8 @@ void QXDirect::AddOpData(OpPoint *pOpPoint)
     pOpPoint->reinf1 = m_pXFoil->reinf1;
     pOpPoint->minf1 = m_pXFoil->minf1;
     pOpPoint->tklam = m_pXFoil->tklam;
+
+    pOpPoint->setLvconv(true); //OpPoint can be loaded from file and not processed all calcs
 
     memcpy(pOpPoint->uedg,m_pXFoil->uedg,sizeof(int)*IVX*ISX );
     memcpy(pOpPoint->tau,m_pXFoil->tau,sizeof(int)*IVX*ISX );
@@ -2585,9 +2588,9 @@ void QXDirect::addOpPointsResult(OpPoint * opPoint,QTextStream & out, QString & 
                          .arg(opPoint->minf1, 6, 'f',4)
                          .arg(opPoint->ACrit, 4, 'f',1);	out << (strong);
 
-    m_pXFoil->CreateXBL(x, nside1, nside2);
+    opPoint->CreateXBL(x, nside1, nside2);
     //write top first
-    m_pXFoil->FillHk(Hk, nside1, nside2);
+    opPoint->FillHk(Hk, nside1, nside2);
     for (ibl=2; ibl<= nside1;ibl++)
     {
         uei = opPoint->uedg[ibl][1];
@@ -2611,7 +2614,7 @@ void QXDirect::addOpPointsResult(OpPoint * opPoint,QTextStream & out, QString & 
     for (ibl=2; ibl< nside1;ibl++)	AA0[ibl][1] = opPoint->ctau[ibl][1];
     for (ibl=2; ibl< nside2;ibl++)	AA0[ibl][2] = opPoint->ctau[ibl][2];
 
-    m_pXFoil->FillRTheta(RTheta, nside1, nside2);
+    opPoint->FillRTheta(RTheta, nside1, nside2);
     for (ibl=2; ibl<= nside1; ibl++)
     {
         DStar[ibl][1] = opPoint->dstr[ibl][1];

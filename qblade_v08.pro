@@ -5,7 +5,7 @@ QT += opengl
 QT += xml
 QT += widgets
 TEMPLATE = app
-CONFIG += console
+CONFIG -= console
 SOURCES += src/MainFrame.cpp \
     src/Main.cpp \
     src/Globals.cpp \

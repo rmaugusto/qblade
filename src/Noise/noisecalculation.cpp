@@ -36,24 +36,22 @@ double NoiseCalculation::getDStarInterpolated(bool top,NoiseOpPoint * nop)
     double dStarDownStream = 0;
 
     //For positive alpha use TopSide else BottomSide
-    int side = top ? 1 : 2;
+    //int side = top ? 1 : 2;
+    int side = top ? 2 : 1;
     int nside = top ? nop->getNSide1() : nop->getNSide2();
-
-//    for (ibl=2; ibl<= nside1;ibl++)
-//    for (ibl=2; ibl<= nside2;ibl++)
 
     //Find closest station assuming crescent order on chordStation
     for(int i =2;i<=nside;i++){
 
         //Current chord
-        double ccur = nop->getX()[i];
+        double ccur = nop->getXs(i,side);
         //Current D*
-        double cd = nop->getDstr()[i][side];
+        double cd = nop->getDstr(i,side];
 
         //prev chord
-        double prev_ccur = i==0?ccur : nop->getX()[i-1];
+        double prev_ccur = i==0?ccur : nop->getXs(i-1,side);
         //prev chord
-        double prev_d = i==0?cd: nop->getDstr()[i-1][side];
+        double prev_d = i==0?cd: nop->getDstr(i-1,side);
 
         //qDebug() << "i: " << i << " - " << ccur;
 

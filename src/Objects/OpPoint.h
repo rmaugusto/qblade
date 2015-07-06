@@ -39,14 +39,10 @@ class OpPoint : public StorableObject
 	friend class CPolar;
 	friend class QXDirect;
 	friend class ObjectPropsDlg;
-    friend class NoiseSimulationDialog;
 
 	// An operating point is the result of an XFoil calculation
 	// for a given Reynolds
 public:
-
-    typedef double TwoDArrIvx[IVX][ISX];
-    //typedef double (*TwoDArr)[ISX];
 
     OpPoint(QString name = "< no name >", StorableObject *parent = NULL);
     void serialize ();
@@ -56,18 +52,25 @@ public:
     double getMach() const;
     double getAlpha() const;
 
-    int* getNbl();
-    int* getIblte();
-    double *getX();
-    TwoDArrIvx &getIpan();
-    TwoDArrIvx &getDstr();
+    int getNblAt(int x);
+    int getIblteAt(int x);
+    double getXAt(int x);
+    int getIpanAt(int x, int y);
+    double getDstrAt(int x, int y);
 
     void setReynolds(double value);
     void setAlpha(double value);
 
 
+    void CreateXBL(double xs[IVX][3],int &nside1, int &nside2);
+    void FillHk(double ws[IVX][3], int nside1, int nside2);
+    void FillRTheta(double ws[IVX][3], int nside1, int nside2);
+    bool hkin(double h, double msq, double &hk, double &hk_h, double &hk_msq);
+    bool getLvconv() const;
+    void setLvconv(bool Lvconv);
+
 private:
-    bool m_bVisc, m_bDispSurf;
+    bool m_bVisc, m_bDispSurf,m_Lvconv=false;
     bool m_bTEFlap, m_bLEFlap;
     bool m_bIsVisible, m_bShowPoints;
 
@@ -84,15 +87,15 @@ private:
     double m_TEHMom, m_LEHMom, XForce, YForce;
     double Cpmn;
 
-	double x[IQX], y[IQX];
+    double y[IQX],x[IQX],ipan[IVX][ISX],nbl[ISX],iblte[ISX];
 	double Cpv[IQX], Cpi[IQX];
 	double Qv[IQX], Qi[IQX];
 	double xd1[IQX], yd1[IQX];// first...
 	double xd2[IWX], yd2[IWX];// ...second...
 	double xd3[IWX], yd3[IWX];// ...and third part of the boundary layer
+    double dstr[IVX][ISX];
 
-    TwoDArrIvx ipan,dstr;
-    int iblte[ISX],nbl[ISX];
+    double gamm1;
     double qinf, reinf1, minf1, tklam;
     double uedg[IVX][ISX], tau[IVX][ISX], dis[IVX][ISX], ctau[IVX][ISX],thet[IVX][ISX],ctq[IVX][ISX];
 

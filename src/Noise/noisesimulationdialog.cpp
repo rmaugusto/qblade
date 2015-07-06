@@ -96,8 +96,14 @@ void NoiseSimulationDialog::readWindowParams()
             //Recover NoiseOpPoint from checked list item
             QListWidgetItem * pLstItem = ui->listOpPoints->item(i);
             if(pLstItem->checkState() == Qt::Checked){                
-                NoiseOpPoint nop = (NoiseOpPoint)pLstItem->data(Qt::UserRole).value<NoiseOpPoint>();
-                param->OpPoints().push_back(new NoiseOpPoint(nop.getOpPoint()));
+                QVariant qv = pLstItem->data(Qt::UserRole);
+                NoiseOpPoint componentNop = qv.value<NoiseOpPoint>();
+                NoiseOpPoint * nop = new NoiseOpPoint(componentNop.getOpPoint());
+
+                //Calculate all sides before use NOP
+                nop->calculateXSides();
+
+                param->OpPoints().push_back(nop);
 
 //                ListItemNoiseOpPoint pLinopp = pQv.value<ListItemNoiseOpPoint>();
 //                NoiseOpPoint * nop = new NoiseOpPoint(pLinopp.Reynolds(),pLinopp.Alpha());
@@ -246,11 +252,11 @@ void NoiseSimulationDialog::loadComponents()
         for (int k = 0; k < g_oppointStore.size(); ++k) {
             OpPoint * opPoint = g_oppointStore.at(k);
 
-            if(opPoint){
+            if(opPoint && opPoint->getLvconv()){
 
-                //                ListItemNoiseOpPoint linop;
-                NoiseOpPoint nop(opPoint);
-                nop.calculateXSides();
+                //ListItemNoiseOpPoint linop;
+                //NoiseOpPoint nop(opPoint);
+                NoiseOpPoint * nop = new NoiseOpPoint(opPoint);
 
 //                linop.setAlphaDeg(opPoint->getAlpha());
 //                linop.setReynolds(opPoint->getReynolds());
@@ -258,9 +264,9 @@ void NoiseSimulationDialog::loadComponents()
 //                linop.setPolarName(opPoint->getParent()->getName());
 
                 QString strItem = QString("%1°, %2, %3 ")
-                                               .arg(nop.AlphaDeg())
-                                               .arg(nop.PolarName())
-                                               .arg(nop.AirfoilName());
+                                               .arg(nop->AlphaDeg())
+                                               .arg(nop->PolarName())
+                                               .arg(nop->AirfoilName());
 
                 QListWidgetItem *item = new QListWidgetItem(NULL,QListWidgetItem::UserType);
                 item->setText(strItem);
@@ -278,7 +284,7 @@ void NoiseSimulationDialog::loadComponents()
                 //QVariant      * qv = new QVariant(Qt::UserRole,nop);
                 //item->setData(Qt::UserRole,*qv);
                 QVariant qv;
-                qv.setValue(nop);
+                qv.setValue(*nop);
                 item->setData(Qt::UserRole,qv);
 
                 ui->listOpPoints->insertItem( ui->listOpPoints->count(),item);
@@ -406,6 +412,7 @@ void NoiseSimulationDialog::on_buttonOK_clicked()
             g_NoiseSimulationStore.add( m_NS );
         }
 
+        freeOnClose(false);
         accept();
 
     }
@@ -413,25 +420,27 @@ void NoiseSimulationDialog::on_buttonOK_clicked()
 
 void NoiseSimulationDialog::on_buttonCancel_clicked()
 {
-    freeOnClose();
+    freeOnClose(true);
 
     reject();
 }
 
-void NoiseSimulationDialog::freeOnClose()
+void NoiseSimulationDialog::freeOnClose(bool freeNS)
 {
 
     //If it is a new simulation free
-    if(m_NSCreated){
+    if(m_NSCreated && freeNS){
         delete m_NS;
     }
 
     for (int i = 0; i < ui->listOpPoints->count(); ++i) {
         //Recover NoiseOpPoint from checked list item
         QListWidgetItem * pLstItem = ui->listOpPoints->item(i);
-//        QVariant * pQv = pLstItem->data(Qt::UserRole);
-//        NoiseOpPoint * nop = (NoiseOpPoint *)pQv->value<void *>();
-//        delete nop;
+        ui->listOpPoints->removeItemWidget(pLstItem);
+        QVariant pQv = pLstItem->data(Qt::UserRole);
+        NoiseOpPoint nopTmp = pQv.value<NoiseOpPoint>();
+        NoiseOpPoint * nop = &nopTmp;
+        delete nop;
         delete pLstItem;
     }
 }
@@ -439,7 +448,7 @@ void NoiseSimulationDialog::freeOnClose()
 void NoiseSimulationDialog::closeEvent(QCloseEvent *event)
 {
 
-    freeOnClose();
+    freeOnClose(true);
 
     reject();
 

@@ -366,6 +366,95 @@ void OpPoint::serialize() {
     g_serializer.readOrWriteColor (&m_Color);
 }
 
+void OpPoint::CreateXBL(double xs[IVX][3],int &nside1, int &nside2)
+{
+//	double xxtr[3];
+
+    int i;
+//---- set up cartesian bl x-arrays for plotting
+    for(int is=1; is<= 2; is++){
+        for (int ibl=2; ibl<= nbl[is]; ibl++){
+            i = ipan[ibl][is];
+            xs[ibl][is] = x[i];
+//			xxtr[is] = xle + (xte-xle)*xoctr[is] - (yte-yle)*yoctr[is];
+        }
+    }
+
+    nside1 = nbl[2] + iblte[1] - iblte[2];
+    nside2 = nbl[2];
+
+    for( int iblw=1; iblw <= nbl[2]-iblte[2]; iblw++)
+        xs[iblte[1]+iblw][1] = xs[iblte[2]+iblw][2];
+}
+
+void OpPoint::FillHk(double ws[IVX][3], int nside1, int nside2)
+{
+    int nside[3];
+    nside[1] = nside1;
+    nside[2] = nside2;
+    double thi, dsi, uei, uc, amsq, dummy;
+    double hstinv = gamm1*(Mach/qinf)*(Mach/qinf) / (1.0 + 0.5*gamm1*Mach*Mach);
+
+    //---- fill kinematic shape parameter array
+    for (int is=1; is<=2; is++){
+        for(int ibl=2; ibl< nside[is]; ibl++){
+
+            thi = thet[ibl][is];
+            dsi = dstr[ibl][is];
+            uei = uedg[ibl][is];
+            uc = uei * (1.0-tklam) / (1.0 - tklam*(uei/qinf)*(uei/qinf));
+            amsq = uc*uc*hstinv / (gamm1*(1.0 - 0.5*uc*uc*hstinv));
+            hkin(dsi/thi, amsq, ws[ibl][is], dummy, dummy);
+        }
+    }
+}
+
+void OpPoint::FillRTheta(double ws[IVX][3], int nside1, int nside2)
+{
+    int nside[3];
+    nside[1] = nside1;
+    nside[2] = nside2;
+    double ue, herat, rhoe, amue, uei;
+//---- 1 / (total enthalpy)
+    double hstinv = gamm1*(Mach/qinf)*(Mach/qinf) / (1.0 + 0.5*gamm1*Mach*Mach);
+
+//---- Sutherland's const./to   (assumes stagnation conditions are at stp)
+    double hvrat = 0.35;
+
+//---- fill rtheta arrays
+    for (int is=1; is<=2; is++){
+        for(int ibl=2; ibl< nside[is]; ibl++){
+            uei = uedg[ibl][is];
+            ue  = uei * (1.0-tklam) / (1.0 - tklam*(uei/qinf)*(uei/qinf));
+            herat = (1.0 - 0.5*hstinv*ue  *ue)
+                / (1.0 - 0.5*hstinv*qinf*qinf);
+            rhoe = pow(herat, 1.0/gamm1);
+            amue = sqrt(herat*herat*herat) * (1.0+hvrat)/(herat+hvrat);
+            ws[ibl][is] = Reynolds * rhoe*ue*thet[ibl][is]/amue;
+        }
+    }
+}
+
+bool OpPoint::hkin(double h, double msq, double &hk, double &hk_h, double &hk_msq){
+    //---- calculate kinematic shape parameter (assuming air)
+    //     (from Whitfield )
+    hk     =    (h - 0.29*msq)   /(1.0 + 0.113*msq);
+    hk_h   =     1.0              /(1.0 + 0.113*msq);
+    hk_msq = (-.29 - 0.113*(hk))/(1.0 + 0.113*msq);
+
+    return true;
+}
+bool OpPoint::getLvconv() const
+{
+    return m_Lvconv;
+}
+
+void OpPoint::setLvconv(bool Lvconv)
+{
+    m_Lvconv = Lvconv;
+}
+
+
 
 double OpPoint::getReynolds() const
 {
@@ -382,24 +471,24 @@ double OpPoint::getAlpha() const
     return Alpha;
 }
 
-int* OpPoint::getNbl()
+int OpPoint::getNblAt(int _x)
 {
-    return nbl;
+    return nbl[_x];
 }
 
-int* OpPoint::getIblte()
+int OpPoint::getIblteAt(int _x)
 {
-    return iblte;
+    return iblte[_x];
 }
 
-OpPoint::TwoDArrIvx& OpPoint::getIpan()
+int OpPoint::getIpanAt(int _x, int _y)
 {
-    return ipan;
+    return ipan[_x][_y];
 }
 
-double *OpPoint::getX()
+double OpPoint::getXAt(int _x)
 {
-    return x;
+    return x[_x];
 }
 
 void OpPoint::setReynolds(double value)
@@ -412,9 +501,9 @@ void OpPoint::setAlpha(double value)
     Alpha = value;
 }
 
-OpPoint::TwoDArrIvx &OpPoint::getDstr()
+double OpPoint::getDstrAt(int _x, int _y)
 {
-    return dstr;
+    return dstr[_x][_y];
 }
 
 

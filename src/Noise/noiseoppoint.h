@@ -36,9 +36,9 @@ public:
 
     void calculateXSides();
     int getNSide1() const;
-    int getNSide2() const;
-    double *getX();
-    Noise::TwoDArrDStars &getDstr();
+    int getNSide2() const;    
+    double getDstrAt(int x, int y);
+    double getXsAt(int x);
 
     OpPoint *getOpPoint() const;
 
