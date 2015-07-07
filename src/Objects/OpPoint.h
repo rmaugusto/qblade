@@ -75,7 +75,7 @@ private:
     bool m_bIsVisible, m_bShowPoints;
 
 
-	int n, nd1, nd2, nd3;
+    int n, nd1, nd2, nd3,iblte[ISX];
     int m_Style, m_Width;
 
 
@@ -87,7 +87,7 @@ private:
     double m_TEHMom, m_LEHMom, XForce, YForce;
     double Cpmn;
 
-    double y[IQX],x[IQX],ipan[IVX][ISX],nbl[ISX],iblte[ISX];
+    double y[IQX],x[IQX],ipan[IVX][ISX],nbl[ISX];
 	double Cpv[IQX], Cpi[IQX];
 	double Qv[IQX], Qi[IQX];
 	double xd1[IQX], yd1[IQX];// first...

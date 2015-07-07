@@ -76,9 +76,9 @@ int NoiseOpPoint::getNSide2() const
     return m_nSide2;
 }
 
-double NoiseOpPoint::getXs(int _x,int _y)
+double NoiseOpPoint::getXsAt(int _x,int _y)
 {
-    return m_OpPoint->getXAt(_x);
+    return xs[_x][_y];
 }
 
 double NoiseOpPoint::getDstrAt(int _x,int _y)

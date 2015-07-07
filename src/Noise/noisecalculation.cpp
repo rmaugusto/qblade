@@ -44,14 +44,14 @@ double NoiseCalculation::getDStarInterpolated(bool top,NoiseOpPoint * nop)
     for(int i =2;i<=nside;i++){
 
         //Current chord
-        double ccur = nop->getXs(i,side);
+        double ccur = nop->getXsAt(i,side);
         //Current D*
-        double cd = nop->getDstr(i,side];
+        double cd = nop->getDstrAt(i,side);
 
         //prev chord
-        double prev_ccur = i==0?ccur : nop->getXs(i-1,side);
+        double prev_ccur = i==0?ccur : nop->getXsAt(i-1,side);
         //prev chord
-        double prev_d = i==0?cd: nop->getDstr(i-1,side);
+        double prev_d = i==0?cd: nop->getDstrAt(i-1,side);
 
         //qDebug() << "i: " << i << " - " << ccur;
 

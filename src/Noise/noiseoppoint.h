@@ -38,7 +38,7 @@ public:
     int getNSide1() const;
     int getNSide2() const;    
     double getDstrAt(int x, int y);
-    double getXsAt(int x);
+    double getXsAt(int x,int y);
 
     OpPoint *getOpPoint() const;
 
