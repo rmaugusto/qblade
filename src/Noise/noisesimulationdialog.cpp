@@ -116,7 +116,8 @@ void NoiseSimulationDialog::readWindowParams()
 
         //When BPM add only one OpPoint always
         //Degree to radians
-        double aoa = ui->textAoa->text().toDouble()*(PI/180.);
+        //double aoa = ui->textAoa->text().toDouble()*(PI/180.);
+        double aoa = ui->textAoa->text().toDouble();
         NoiseOpPoint * nop = new NoiseOpPoint(ui->textChordBasedReynold->text().toDouble(),aoa);
         param->OpPoints().push_back(nop);
 
