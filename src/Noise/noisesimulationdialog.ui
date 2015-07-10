@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>787</width>
-    <height>663</height>
+    <width>902</width>
+    <height>654</height>
    </rect>
   </property>
   <property name="sizePolicy">
@@ -51,7 +51,7 @@
      <item>
       <widget class="QGroupBox" name="verticalGroupBox_2">
        <property name="title">
-        <string> OpPoint(s) for TE noise calculation:</string>
+        <string> OpPoint(s) for TE (only analysed will be shown):</string>
        </property>
        <layout class="QGridLayout" name="gridLayout_4">
         <item row="1" column="0">
