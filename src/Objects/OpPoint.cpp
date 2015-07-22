@@ -376,6 +376,8 @@ void OpPoint::CreateXBL(double xs[IVX][3],int &nside1, int &nside2)
         for (int ibl=2; ibl<= nbl[is]; ibl++){
             i = ipan[ibl][is];
             xs[ibl][is] = x[i];
+            qDebug() << "Alpha: " << Alpha << ", Ipan: " << i << ", X: " << x[i] << ", IDX: "<<ibl;
+
 //			xxtr[is] = xle + (xte-xle)*xoctr[is] - (yte-yle)*yoctr[is];
         }
     }
