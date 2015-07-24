@@ -433,7 +433,7 @@ void QXDirect::AddOpData(OpPoint *pOpPoint)
     pOpPoint->minf1 = m_pXFoil->minf1;
     pOpPoint->tklam = m_pXFoil->tklam;
 
-    pOpPoint->setLvconv(true); //OpPoint can be loaded from file and not processed all calcs
+    pOpPoint->setProc(true); //OpPoint can be loaded from file and not processed all calcs
 
     memcpy(pOpPoint->uedg,m_pXFoil->uedg,sizeof(double)*IVX*ISX );
     memcpy(pOpPoint->tau,m_pXFoil->tau,sizeof(double)*IVX*ISX );
@@ -446,6 +446,7 @@ void QXDirect::AddOpData(OpPoint *pOpPoint)
     memcpy(pOpPoint->ipan,m_pXFoil->ipan,sizeof(int)*IVX*ISX );
     memcpy(pOpPoint->nbl,m_pXFoil->nbl,sizeof(int)*ISX);
     memcpy(pOpPoint->dstr,m_pXFoil->dstr,sizeof(double)*IVX*ISX);
+    memcpy(pOpPoint->x2,m_pXFoil->x,sizeof(double)*IZX);
 
 }
 
@@ -2566,7 +2567,7 @@ void QXDirect::OnEditCurPolar()
 void QXDirect::addOpPointsResult(OpPoint * opPoint,QTextStream & out, QString & strong, QString & OutString ,int & type)
 {
 
-    double x[IVX][3],Hk[IVX][3],UeVinf[IVX][3], Cf[IVX][3], Cd[IVX][3], AA0[IVX][3],sortRelatedX[IVX][2];
+    double x[IVX][3],Hk[IVX][3],UeVinf[IVX][3], Cf[IVX][3], Cd[IVX][3], AA0[IVX][3];
     double RTheta[IVX][3], DStar[IVX][3], Theta[IVX][3];
     double uei;
     double que = 0.5*opPoint->qinf*opPoint->qinf;
@@ -2589,13 +2590,14 @@ void QXDirect::addOpPointsResult(OpPoint * opPoint,QTextStream & out, QString & 
                          .arg(opPoint->ACrit, 4, 'f',1);	out << (strong);
 
     for (int var = 0; var < IVX; ++var) {
-        qDebug() << m_pXFoil->x[var]<< " | " << opPoint->x[var];
+        qDebug() << m_pXFoil->x[var]<< " | " << opPoint->x2[var];
     }
 
-    //opPoint->CreateXBL(x, nside1, nside2);
-    m_pXFoil->CreateXBL(x, nside1, nside2);
+    opPoint->CreateXBL(x, nside1, nside2);
+    //m_pXFoil->CreateXBL(x, nside1, nside2);
     //write top first
-    m_pXFoil->FillHk(Hk, nside1, nside2);
+    opPoint->FillHk(Hk, nside1, nside2);
+    //m_pXFoil->FillHk(Hk, nside1, nside2);
     for (ibl=2; ibl<= nside1;ibl++)
     {
         uei = opPoint->uedg[ibl][1];
@@ -2745,7 +2747,9 @@ void QXDirect::OnExportCurXFoilResults()
         //Export only OpPoints related to selected AirFoil
         if(opPoint->getParent()->getId() == g_mainFrame->m_pctrlPolar->currentObject()->getId()){
             if(opPoint->getParent()->getParent()->getId() == g_mainFrame->m_pctrlFoil->currentObject()->getId()){
-                addOpPointsResult(opPoint,out,strong,OutString,type);
+                if(opPoint->getProc()){
+                    addOpPointsResult(opPoint,out,strong,OutString,type);
+                }
             }
         }
     }

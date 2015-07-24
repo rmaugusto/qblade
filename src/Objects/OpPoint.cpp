@@ -44,6 +44,7 @@ OpPoint::OpPoint(QString name, StorableObject *parent)
 	m_bDispSurf = false;// no boundary layer surface either
 	m_bTEFlap   = false;
 	m_bLEFlap   = false;
+    m_Proc = false;
 
 	Xtr1   = 0.0;
 	Xtr2   = 0.0;
@@ -375,9 +376,8 @@ void OpPoint::CreateXBL(double xs[IVX][3],int &nside1, int &nside2)
     for(int is=1; is<= 2; is++){
         for (int ibl=2; ibl<= nbl[is]; ibl++){
             i = ipan[ibl][is];
-            xs[ibl][is] = x[i];
-            qDebug() << "Alpha: " << Alpha << ", Ipan: " << i << ", X: " << x[i] << ", IDX: "<<ibl;
-
+            xs[ibl][is] = x2[i];
+            qDebug() << "Alpha: " << Alpha << ", Ipan: " << i << ", X: " << x2[i] << ", IDX: "<<ibl;
 //			xxtr[is] = xle + (xte-xle)*xoctr[is] - (yte-yle)*yoctr[is];
         }
     }
@@ -446,14 +446,14 @@ bool OpPoint::hkin(double h, double msq, double &hk, double &hk_h, double &hk_ms
 
     return true;
 }
-bool OpPoint::getLvconv() const
+bool OpPoint::getProc() const
 {
-    return m_Lvconv;
+    return m_Proc;
 }
 
-void OpPoint::setLvconv(bool Lvconv)
+void OpPoint::setProc(bool Lvconv)
 {
-    m_Lvconv = Lvconv;
+    m_Proc = Lvconv;
 }
 
 
@@ -488,9 +488,9 @@ int OpPoint::getIpanAt(int _x, int _y)
     return ipan[_x][_y];
 }
 
-double OpPoint::getXAt(int _x)
+double OpPoint::getX2At(int _x)
 {
-    return x[_x];
+    return x2[_x];
 }
 
 void OpPoint::setReynolds(double value)

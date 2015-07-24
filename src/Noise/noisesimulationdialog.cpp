@@ -253,7 +253,7 @@ void NoiseSimulationDialog::loadComponents()
         for (int k = 0; k < g_oppointStore.size(); ++k) {
             OpPoint * opPoint = g_oppointStore.at(k);
 
-            if(opPoint && opPoint->getLvconv()){
+            if(opPoint && opPoint->getProc()){
 
                 //ListItemNoiseOpPoint linop;
                 //NoiseOpPoint nop(opPoint);

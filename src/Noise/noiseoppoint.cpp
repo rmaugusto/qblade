@@ -8,8 +8,15 @@ NoiseOpPoint::NoiseOpPoint(double reynolds,double alpha){
     m_OpPoint->setAlpha(alpha);
 }
 
+NoiseOpPoint::NoiseOpPoint(OpPoint * op){
+    m_OpPoint = op;
+    internalOpPoint = false;
+}
+
 NoiseOpPoint::NoiseOpPoint()
 {
+    internalOpPoint = true;
+    m_OpPoint = new OpPoint();
 }
 
 NoiseOpPoint::~NoiseOpPoint()
@@ -56,8 +63,8 @@ void NoiseOpPoint::calculateXSides()
         for(int is=1; is<= 2; is++){
             for (int ibl=2; ibl<= m_OpPoint->getNblAt(is); ibl++){
                 i = m_OpPoint->getIpanAt(ibl,is);
-                xs[ibl][is] = m_OpPoint->getXAt(i);
-                qDebug() << "Alpha: " << m_OpPoint->getAlpha() << ", Ipan: " << i << ", X: " << m_OpPoint->getXAt(i) << ", IDX: "<<ibl;
+                xs[ibl][is] = m_OpPoint->getX2At(i);
+                qDebug() << "Alpha: " << m_OpPoint->getAlpha() << ", Ipan: " << i << ", X: " << m_OpPoint->getX2At(i) << ", IDX: "<<ibl;
             }
         }
 

@@ -54,7 +54,7 @@ public:
 
     int getNblAt(int x);
     int getIblteAt(int x);
-    double getXAt(int x);
+    double getX2At(int x);
     int getIpanAt(int x, int y);
     double getDstrAt(int x, int y);
 
@@ -66,11 +66,13 @@ public:
     void FillHk(double ws[IVX][3], int nside1, int nside2);
     void FillRTheta(double ws[IVX][3], int nside1, int nside2);
     bool hkin(double h, double msq, double &hk, double &hk_h, double &hk_msq);
-    bool getLvconv() const;
-    void setLvconv(bool Lvconv);
+    bool getProc() const;
+    void setProc(bool Lvconv);
 
 private:
-    bool m_bVisc, m_bDispSurf,m_Lvconv=false;
+    //if the OpPoint was analyzed and keep data in memory
+    bool m_Proc;
+    bool m_bVisc, m_bDispSurf;
     bool m_bTEFlap, m_bLEFlap;
     bool m_bIsVisible, m_bShowPoints;
 
@@ -87,7 +89,7 @@ private:
     double m_TEHMom, m_LEHMom, XForce, YForce;
     double Cpmn;
 
-    double y[IQX],x[IQX];
+    double y[IQX],x[IQX],x2[IZX];
 	double Cpv[IQX], Cpi[IQX];
 	double Qv[IQX], Qi[IQX];
 	double xd1[IQX], yd1[IQX];// first...
