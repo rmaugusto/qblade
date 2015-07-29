@@ -64,7 +64,6 @@ void NoiseOpPoint::calculateXSides()
             for (int ibl=2; ibl<= m_OpPoint->getNblAt(is); ibl++){
                 i = m_OpPoint->getIpanAt(ibl,is);
                 xs[ibl][is] = m_OpPoint->getX2At(i);
-                qDebug() << "Alpha: " << m_OpPoint->getAlpha() << ", Ipan: " << i << ", X: " << m_OpPoint->getX2At(i) << ", IDX: "<<ibl;
             }
         }
 
@@ -72,7 +71,6 @@ void NoiseOpPoint::calculateXSides()
         m_nSide2 = m_OpPoint->getNblAt(2);
 
         for( int iblw=1; iblw <= m_OpPoint->getNblAt(2)-m_OpPoint->getIblteAt(2); iblw++){
-            qDebug() << "OLD: " <<xs[m_OpPoint->getIblteAt(1)+iblw][1] << ", NEW: " << xs[m_OpPoint->getIblteAt(2)+iblw][2];
             xs[m_OpPoint->getIblteAt(1)+iblw][1] = xs[m_OpPoint->getIblteAt(2)+iblw][2];
         }
 

@@ -292,7 +292,7 @@ void NoiseCalculation::preCalcSPLa(NoiseOpPoint* nop)
 
     //If angle is smaller than the switching Angle
     //use dH and B else use dL and A1
-    if( nop->AlphaDeg() <= m_SwAlpha ){
+    if( nop->AlphaDeg() <= m_SwAlpha && nop->AlphaDeg() != 0 ){
         qDebug() << "SPLa No need to calculate SPLs and SPLp";
         qDebug() << "SPLa dH: " << getDH();
         m_SplaFirstTerm = 10*log10((pow(m_NoiseParameter->OriginalMach(),5)*m_NoiseParameter->WettedLength()*getDH()*m_DStarFinalS/pow(m_NoiseParameter->DistanceObsever(),2)));
@@ -664,8 +664,8 @@ void NoiseCalculation::calculate()
         qDebug() << "Alpha deg: " << nop->AlphaDeg();
         qDebug() << "Reynolds: " << nop->Reynolds();
 
-        m_DStarInterpolatedS = getDStarInterpolated(true,nop);
-        m_DStarInterpolatedP = getDStarInterpolated(false,nop);
+        m_DStarInterpolatedS = getDStarInterpolated(false,nop);
+        m_DStarInterpolatedP = getDStarInterpolated(true,nop);
 
         if( m_NoiseParameter->DeltaSouce() == Noise::XFoilCalculation){
             //For XFoil model
