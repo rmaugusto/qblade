@@ -438,10 +438,6 @@ void NoiseSimulationDialog::freeOnClose(bool freeNS)
         //Recover NoiseOpPoint from checked list item
         QListWidgetItem * pLstItem = ui->listOpPoints->item(i);
         ui->listOpPoints->removeItemWidget(pLstItem);
-        QVariant pQv = pLstItem->data(Qt::UserRole);
-        NoiseOpPoint nopTmp = pQv.value<NoiseOpPoint>();
-        NoiseOpPoint * nop = &nopTmp;
-        delete nop;
         delete pLstItem;
     }
 }
