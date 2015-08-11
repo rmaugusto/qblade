@@ -64,6 +64,11 @@ private:
     double m_SwAlpha1;
     double m_SwAlpha;
     bool m_AlphaBigSw;
+
+    bool m_CalcSeparatedFlow;
+    bool m_CalcSuctionSide;
+    bool m_CalcPressureSide;
+
     std::vector<double> m_OASPL;
     std::vector<double> m_OASPLA;
     std::vector<double> m_OASPLB;

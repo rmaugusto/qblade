@@ -5,6 +5,9 @@ NoiseCalculation::NoiseCalculation()
 {
 
     m_NoiseParameter = 0;
+    m_CalcSeparatedFlow = false;
+    m_CalcPressureSide = false;
+    m_CalcSuctionSide = false;
 
 }
 
@@ -551,7 +554,7 @@ void NoiseCalculation::calcSPLs(int posOpPoint,int posFreq)
 
     //If angle is bigger than the switching Angle
     //or suction side is mandatory
-    if(m_AlphaBigSw || m_NoiseParameter->SuctionSide()){
+    if(m_CalcSuctionSide){
 
         if(a<0.204){
             aMin = sqrt(67.552-886.788*pow(a,2)-8.219);
@@ -597,8 +600,8 @@ void NoiseCalculation::calcSPLp(int posOpPoint,int posFreq)
     double splDb = 0;
 
     //If angle is bigger than the switching Angle
-    //or pressure side is mandatory
-    if(m_AlphaBigSw || m_NoiseParameter->PressureSide() ){
+    //or pressure side is mandatory    
+    if(m_CalcPressureSide){
 
         if(a<0.204){
             aMin = sqrt(67.552-886.788*pow(a,2)-8.219);
@@ -693,25 +696,42 @@ void NoiseCalculation::calculate()
         qDebug() << "SwAngle1: " << m_SwAlpha1;
         qDebug() << "SwAngle calculated: " << m_SwAlpha;
 
-        if(!m_AlphaBigSw && !m_NoiseParameter->SuctionSide() && !m_NoiseParameter->PressureSide()){
-            qDebug() << "SPLa No need to calculate SPLs and SPLp";
+
+        if(m_AlphaBigSw && m_NoiseParameter->SeparatedFlow()){
+            qDebug() << "Only separated flow source will be calculated";
+            m_CalcSeparatedFlow = true;
+            m_CalcPressureSide = false;
+            m_CalcSuctionSide = false;
+        }else{
+            if(m_NoiseParameter->SeparatedFlow()){
+                qDebug() << "Separated flow source will be calculated";
+                m_CalcSeparatedFlow = true;
+            }
+
+            if(m_NoiseParameter->PressureSide()){
+                qDebug() << "Pressure side source will be calculated";
+                m_CalcPressureSide = true;
+            }
+
+            if(m_NoiseParameter->SuctionSide()){
+                qDebug() << "Suction side source will be calculated";
+                m_CalcSuctionSide = true;
+            }
         }
 
-        if(m_NoiseParameter->SeparatedFlow()){
+        if(m_CalcSeparatedFlow){
             preCalcSPLa(nop);
         }
 
         //If angle is bigger than the switching Angle
         //or suction side is mandatory
-        if(m_AlphaBigSw || m_NoiseParameter->SuctionSide()){
-            qDebug() << "SPLa NEED to calculate SPLs";
+        if(m_CalcSuctionSide){
             preCalcSPLs(nop);
         }
 
         //If angle is bigger than the switching Angle
         //or pressure side is mandatory
-        if(m_AlphaBigSw || m_NoiseParameter->PressureSide()){
-            qDebug() << "SPLa NEED to calculate SPLp";
+        if(m_CalcPressureSide){
             preCalcSPLp(nop);
         }
 
@@ -722,19 +742,19 @@ void NoiseCalculation::calculate()
             qDebug() << "==== Band Frequency ====";
             qDebug() << "Freq: [" << (posFreq+1) << "] " << Noise::CENTRAL_BAND_FREQUENCY[posFreq] ;
 
-            if(m_NoiseParameter->SeparatedFlow()){
+            if(m_CalcSeparatedFlow){
                 calcSPLa(nop->AlphaDeg(),posOpPoint,posFreq);
             }
 
             //If angle is bigger than the switching Angle
             //or suction side is mandatory
-            if(m_AlphaBigSw || m_NoiseParameter->SuctionSide()){
+            if(m_CalcSuctionSide){
                 calcSPLs(posOpPoint,posFreq);
             }
 
             //If angle is bigger than the switching Angle
             //or pressure side is mandatory
-            if(m_AlphaBigSw || m_NoiseParameter->PressureSide()){
+            if(m_CalcPressureSide){
                 calcSPLp(posOpPoint,posFreq);
             }
 
