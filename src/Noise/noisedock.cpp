@@ -131,8 +131,13 @@ void NoiseDock::onNewButtonClicked()
 
     if(result == QDialog::Accepted){
         NoiseSimulation * ns  = dialog->GetNoiseSimulation();
-        ns->simulate();
-        m_Module->reloadAllGraphics();
+        try {
+            ns->simulate();
+            m_Module->reloadAllGraphics();
+        } catch (NoiseException & e) {
+            g_NoiseSimulationStore.remove(m_NoiseSimulationComboBox->currentObject() );
+            QMessageBox::warning(this,"Simulation error",e.getErrorMessage());
+        }
         //g_mainFrame->getTwoDWidget()->update();
     }
 
@@ -186,9 +191,17 @@ void NoiseDock::onEditCopyButtonClicked()
 
         if(result == QDialog::Accepted){
             NoiseSimulation * ns  = dialog->GetNoiseSimulation();
-            ns->simulate();
-            m_Module->reloadAllGraphics();
+
+            try {
+                ns->simulate();
+                m_Module->reloadAllGraphics();
+            } catch (NoiseException & e) {
+                QMessageBox::warning(this,"Simulation error",e.getErrorMessage());
+            }
+
         }
+
+
 
         delete dialog;
 

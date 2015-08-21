@@ -12,6 +12,8 @@ namespace Noise{
     const unsigned short IIVX = 302;	//300 = number of nodes along bl on one side of airfoil and wake
     const unsigned short IISX = 3;	//number of airfoil sides
 
+    const int EXPT_DSTAR_NOT_FOUND = -1;
+
     typedef double ArrChordStations[Noise::IIVX][Noise::IISX];
     typedef double TwoDArrDStars[Noise::IIVX][Noise::IISX];
 

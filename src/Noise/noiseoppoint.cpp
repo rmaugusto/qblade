@@ -46,6 +46,12 @@ double NoiseOpPoint::AlphaDeg()
 {
     return m_OpPoint->getAlpha();
 }
+
+double NoiseOpPoint::AlphaDegAbs()
+{
+    return fabs(m_OpPoint->getAlpha());
+}
+
 QString NoiseOpPoint::AirfoilName()
 {
     return m_OpPoint->getParent()->getParent()->getName();

@@ -214,7 +214,8 @@ SOURCES += src/MainFrame.cpp \
     src/Noise/noisecalculation.cpp \
     src/Noise/noiseoppoint.cpp \
     src/Noise/noiseparameter.cpp \
-    src/Noise/newgraphlegend.cpp
+    src/Noise/newgraphlegend.cpp \
+    src/Noise/noiseexception.cpp
 
 HEADERS += src/MainFrame.h \
     src/Params.h \
@@ -427,7 +428,8 @@ HEADERS += src/MainFrame.h \
     src/Noise/noiseoppoint.h \
     src/Noise/noiseparameter.h \
     src/Noise/newgraphlegend.h \
-    src/Noise/noisedefinitions.h
+    src/Noise/noisedefinitions.h \
+    src/Noise/noiseexception.h
 
 TRANSLATIONS = translations/xflr5v6.ts \
     translations/xflr5v6_de.ts \

@@ -76,6 +76,7 @@ double NoiseCalculation::getDStarInterpolated(bool top,NoiseOpPoint * nop)
     }
 
     if(!upDownFind){
+        throw NoiseException(Noise::EXPT_DSTAR_NOT_FOUND, "There is no data to interpolate D* from, at the specified chord station");
         qWarning("Can not find upstream and downstream. D* Interpolated will be zero !");
         return 0;
     }
@@ -117,12 +118,12 @@ double NoiseCalculation::getSt2(NoiseOpPoint* nop)
     double st1 = getSt1();
     double st2 = 0;
 
-    if( nop->AlphaDeg() < 1.33 ){
+    if( nop->AlphaDegAbs() < 1.33 ){
         st2 = st1;
-    }else if( nop->AlphaDeg() > 12.5 ){
+    }else if( nop->AlphaDegAbs() > 12.5 ){
         st2 = st1*4.72;
     }else{
-        st2 = st1 * pow(10,0.0054* pow((nop->AlphaDeg()-1.33),2));
+        st2 = st1 * pow(10,0.0054* pow((nop->AlphaDegAbs()-1.33),2));
     }
 
     return st2;
@@ -386,12 +387,12 @@ void NoiseCalculation::preCalcSPLa(NoiseOpPoint* nop)
     m_SplaK1 = getK1(nop);
 
     m_SplaK2 = 0;
-    if(nop->AlphaDeg() < (m_SwAlpha1-m_SplaGamma)){
+    if(nop->AlphaDegAbs() < (m_SwAlpha1-m_SplaGamma)){
         m_SplaK2 = m_SplaK1 - 1000;
-    }else if(nop->AlphaDeg() > (m_SwAlpha1+m_SplaGamma)){
+    }else if(nop->AlphaDegAbs() > (m_SwAlpha1+m_SplaGamma)){
         m_SplaK2 = m_SplaK1 - 12;
     }else{
-        m_SplaK2 = m_SplaK1 + (sqrt( pow(m_SplaBeta,2)-pow((m_SplaBeta/m_SplaGamma),2)* pow((nop->AlphaDeg()-m_SwAlpha1),2)  )+m_SplaBetaZero);
+        m_SplaK2 = m_SplaK1 + (sqrt( pow(m_SplaBeta,2)-pow((m_SplaBeta/m_SplaGamma),2)* pow((nop->AlphaDegAbs()-m_SwAlpha1),2)  )+m_SplaBetaZero);
     }
 
 
@@ -451,7 +452,7 @@ void NoiseCalculation::preCalcSPLp(NoiseOpPoint *nop)
     if(m_ReynoldsBasedDisplacement > 5000){
         m_SplpDeltaK1 = 0;
     }else{
-        m_SplpDeltaK1 = ( nop->AlphaDeg() *(1.43*log10(m_ReynoldsBasedDisplacement)-5.29));
+        m_SplpDeltaK1 = ( nop->AlphaDegAbs() *(1.43*log10(m_ReynoldsBasedDisplacement)-5.29));
     }
 
     qDebug() << "Reynolds Based Displacement: " << m_ReynoldsBasedDisplacement;
@@ -665,8 +666,15 @@ void NoiseCalculation::calculate()
         qDebug() << "Alpha deg: " << nop->AlphaDeg();
         qDebug() << "Reynolds: " << nop->Reynolds();
 
-        m_DStarInterpolatedS = getDStarInterpolated(false,nop);
-        m_DStarInterpolatedP = getDStarInterpolated(true,nop);
+        bool dStarOrder = false;
+
+        //When angle is negative D* search must be inverted
+        if(nop->AlphaDeg() < 0){
+            dStarOrder = true;
+        }
+
+        m_DStarInterpolatedS = getDStarInterpolated(dStarOrder,nop);
+        m_DStarInterpolatedP = getDStarInterpolated(!dStarOrder,nop);
 
         if( m_NoiseParameter->DeltaSouce() == Noise::XFoilCalculation){
             //For XFoil model
@@ -696,6 +704,10 @@ void NoiseCalculation::calculate()
         qDebug() << "SwAngle1: " << m_SwAlpha1;
         qDebug() << "SwAngle calculated: " << m_SwAlpha;
 
+
+        m_CalcSeparatedFlow = false;
+        m_CalcPressureSide = false;
+        m_CalcSuctionSide = false;
 
         if(m_AlphaBigSw && m_NoiseParameter->SeparatedFlow()){
             qDebug() << "Only separated flow source will be calculated";

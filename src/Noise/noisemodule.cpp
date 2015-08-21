@@ -193,13 +193,17 @@ void NoiseModule::OnBpmteView()
 void NoiseModule::OnSelChangeNoiseSimulation(int simulationName)
 {
 
-    for (int var = 0; var < g_NoiseSimulationStore.size(); ++var) {
-        g_NoiseSimulationStore.at(var)->setShownInGraph(false);
-    }
+    if(g_NoiseSimulationStore.size() > 0){
 
-    m_CurNoiseSimulation = g_NoiseSimulationStore.at(simulationName);
-    m_CurNoiseSimulation->setShownInGraph(true);
-    reloadAllGraphics();
+        for (int var = 0; var < g_NoiseSimulationStore.size(); ++var) {
+            g_NoiseSimulationStore.at(var)->setShownInGraph(false);
+        }
+
+        m_CurNoiseSimulation = g_NoiseSimulationStore.at(simulationName);
+        m_CurNoiseSimulation->setShownInGraph(true);
+        reloadAllGraphics();
+
+    }
 
 }
 

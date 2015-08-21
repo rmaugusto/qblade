@@ -4,6 +4,7 @@
 #include <cmath>
 #include <list>
 #include <limits>
+#include "noiseexception.h"
 #include "noiseoppoint.h"
 #include "noiseparameter.h"
 #include "noisedefinitions.h"

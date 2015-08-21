@@ -22,11 +22,8 @@ public:
     //void setReynolds(double Reynolds);
 
     double Alpha();
-    //void setAlpha(double Alpha);
-    //void setAlphaDeg(double Alpha);
-
-
     double AlphaDeg();
+    double AlphaDegAbs();
 
     QString AirfoilName();
     //void setAirfoilName(QString AirfoilName);
