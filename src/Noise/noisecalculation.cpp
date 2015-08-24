@@ -43,21 +43,30 @@ double NoiseCalculation::getDStarInterpolated(bool top,NoiseOpPoint * nop)
     int side = top ? 2 : 1;
     int nside = top ? nop->getNSide1() : nop->getNSide2();
 
+    //Current chord
+    double ccur;
+    //Current D*
+    double cd;
+
+    //prev chord
+    double prev_ccur;
+    //prev chord
+    double prev_d;
+
     //Find closest station assuming crescent order on chordStation
     for(int i =2;i<=nside;i++){
 
         //Current chord
-        double ccur = nop->getXsAt(i,side);
+        ccur = nop->getXsAt(i,side);
         //Current D*
-        double cd = nop->getDstrAt(i,side);
+        cd = nop->getDstrAt(i,side);
 
         //prev chord
-        double prev_ccur = i==0?ccur : nop->getXsAt(i-1,side);
+        prev_ccur = i==0?ccur : nop->getXsAt(i-1,side);
         //prev chord
-        double prev_d = i==0?cd: nop->getDstrAt(i-1,side);
+        prev_d = i==0?cd: nop->getDstrAt(i-1,side);
 
-        //qDebug() << "i: " << i << " - " << ccur;
-
+        qDebug() << "i: " << i << " - " << ccur;
 
         if(ccur > this->NoiseParam()->DStarChordStation()){
             chordUpStream = prev_ccur;
@@ -76,8 +85,8 @@ double NoiseCalculation::getDStarInterpolated(bool top,NoiseOpPoint * nop)
     }
 
     if(!upDownFind){
+        qWarning() << "Can not find upstream and downstream. D* Interpolated will be zero ! D* ChordStation target: " << this->NoiseParam()->DStarChordStation() << " - Last found X ( "<<ccur<<" ) D* ("<< cd <<")";
         throw NoiseException(Noise::EXPT_DSTAR_NOT_FOUND, "There is no data to interpolate D* from, at the specified chord station");
-        qWarning("Can not find upstream and downstream. D* Interpolated will be zero !");
         return 0;
     }
 

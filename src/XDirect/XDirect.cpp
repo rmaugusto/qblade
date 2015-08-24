@@ -2589,10 +2589,6 @@ void QXDirect::addOpPointsResult(OpPoint * opPoint,QTextStream & out, QString & 
                          .arg(opPoint->minf1, 6, 'f',4)
                          .arg(opPoint->ACrit, 4, 'f',1);	out << (strong);
 
-    for (int var = 0; var < IVX; ++var) {
-        qDebug() << m_pXFoil->x[var]<< " | " << opPoint->x2[var];
-    }
-
     opPoint->CreateXBL(x, nside1, nside2);
     //m_pXFoil->CreateXBL(x, nside1, nside2);
     //write top first
@@ -2706,7 +2702,7 @@ void QXDirect::addOpPointsResult(OpPoint * opPoint,QTextStream & out, QString & 
 
 void QXDirect::OnExportCurXFoilResults()
 {
-	if(!m_pXFoil->lvconv) return;
+    //if(!m_pXFoil->lvconv) return;
 	if(!g_pCurFoil)		  return;
 
 	MainFrame *pMainFrame = (MainFrame*)m_pMainFrame;
