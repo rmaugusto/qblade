@@ -170,7 +170,7 @@ double NoiseCalculation::getBPMThickness(NoiseOpPoint * nop, Noise::AirfoilSide 
 
     }
 
-    if(nop->AlphaDeg() == 0){
+    if(nop->AlphaDegAbs() == 0){
 
         bpm = dStar;
 
@@ -178,28 +178,28 @@ double NoiseCalculation::getBPMThickness(NoiseOpPoint * nop, Noise::AirfoilSide 
         double corFactor = 0;
 
         if(as==Noise::PressureSide){
-            corFactor = pow(10,(-0.0432*nop->AlphaDeg()+0.00113*pow(nop->AlphaDeg(),2)));
+            corFactor = pow(10,(-0.0432*nop->AlphaDegAbs()+0.00113*pow(nop->AlphaDegAbs(),2)));
             bpm = corFactor * dStar;
         }else{
 
             if(m_NoiseParameter->Transition() == Noise::FullyTurbulent){
 
-                if(nop->AlphaDeg() < 5){
-                    corFactor = pow(10,(0.0679 * nop->AlphaDeg()));
-                }else if(nop->AlphaDeg() >= 5 && nop->AlphaDeg() <= 12.5){
-                    corFactor = 0.381*(pow(10,(0.1516*nop->AlphaDeg())));
+                if(nop->AlphaDegAbs() < 5){
+                    corFactor = pow(10,(0.0679 * nop->AlphaDegAbs()));
+                }else if(nop->AlphaDegAbs() >= 5 && nop->AlphaDegAbs() <= 12.5){
+                    corFactor = 0.381*(pow(10,(0.1516*nop->AlphaDegAbs())));
                 }else{
-                    corFactor = 14.296*(pow(10,(0.0258*nop->AlphaDeg())));
+                    corFactor = 14.296*(pow(10,(0.0258*nop->AlphaDegAbs())));
                 }
 
             }else{
 
-                if(nop->AlphaDeg() < 7.5){
-                    corFactor = pow(10,(0.0679*nop->AlphaDeg()));
-                }else if(nop->AlphaDeg() >= 7.5 && nop->AlphaDeg() <= 12.5){
-                    corFactor = 0.0162*(pow(10,(0.3066*nop->AlphaDeg())));
+                if(nop->AlphaDegAbs() < 7.5){
+                    corFactor = pow(10,(0.0679*nop->AlphaDegAbs()));
+                }else if(nop->AlphaDegAbs() >= 7.5 && nop->AlphaDegAbs() <= 12.5){
+                    corFactor = 0.0162*(pow(10,(0.3066*nop->AlphaDegAbs())));
                 }else{
-                    corFactor = 54.42*(pow(10,(0.0258*nop->AlphaDeg())));
+                    corFactor = 54.42*(pow(10,(0.0258*nop->AlphaDegAbs())));
                 }
 
             }
