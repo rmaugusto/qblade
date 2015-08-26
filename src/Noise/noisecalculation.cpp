@@ -41,7 +41,7 @@ double NoiseCalculation::getDStarInterpolated(bool top,NoiseOpPoint * nop)
     //For positive alpha use TopSide else BottomSide
     //int side = top ? 1 : 2;
     int side = top ? 2 : 1;
-    int nside = top ? nop->getNSide1() : nop->getNSide2();
+    int nside = top ? nop->getNSide2() : nop->getNSide1();
 
     //Current chord
     double ccur;
@@ -66,7 +66,7 @@ double NoiseCalculation::getDStarInterpolated(bool top,NoiseOpPoint * nop)
         //prev chord
         prev_d = i==0?cd: nop->getDstrAt(i-1,side);
 
-        qDebug() << "i: " << i << " - " << ccur;
+        //qDebug() << "i: " << i << " - " << ccur;
 
         if(ccur > this->NoiseParam()->DStarChordStation()){
             chordUpStream = prev_ccur;
@@ -155,11 +155,17 @@ double NoiseCalculation::getBPMThickness(NoiseOpPoint * nop, Noise::AirfoilSide 
         }else{
             dStarCF = 0.0601*(pow(nop->Reynolds(),-0.114));
         }
+
         dStar = dStarCF * m_NoiseParameter->OriginalChordLength();
+
+        qDebug() << "BPM FullyTurbulent dStarCF: " << dStarCF;
 
     }else{
 
         dStarCT = pow(10,(3.0187-1.5397*log10(nop->Reynolds())+0.1059* pow(log10(nop->Reynolds()),2)));
+
+        qDebug() << "BPM TransitionFlow dStarCT: " << dStarCT;
+
         dStar = dStarCT * m_NoiseParameter->OriginalChordLength();
 
     }
@@ -204,6 +210,7 @@ double NoiseCalculation::getBPMThickness(NoiseOpPoint * nop, Noise::AirfoilSide 
 
     }
 
+    qDebug() << "BPM D*: " << bpm;
 
     return bpm;
 
@@ -682,14 +689,19 @@ void NoiseCalculation::calculate()
             dStarOrder = true;
         }
 
-        m_DStarInterpolatedS = getDStarInterpolated(dStarOrder,nop);
-        m_DStarInterpolatedP = getDStarInterpolated(!dStarOrder,nop);
-
         if( m_NoiseParameter->DeltaSouce() == Noise::XFoilCalculation){
+
             //For XFoil model
+            m_DStarInterpolatedS = getDStarInterpolated(dStarOrder,nop);
+            m_DStarInterpolatedP = getDStarInterpolated(!dStarOrder,nop);
+
             m_DStarFinalS = m_DStarInterpolatedS * m_NoiseParameter->OriginalChordLength() * m_NoiseParameter->DStarScalingFactor();
             m_DStarFinalP = m_DStarInterpolatedP * m_NoiseParameter->OriginalChordLength() * m_NoiseParameter->DStarScalingFactor();
         }else if( m_NoiseParameter->DeltaSouce() == Noise::OriginalBPM){
+
+            m_DStarInterpolatedS = 0;
+            m_DStarInterpolatedP = 0;
+
             //For BPM model
             m_DStarFinalS = getBPMThickness(nop,Noise::SuctionSide) * m_NoiseParameter->DStarScalingFactor();
             m_DStarFinalP = getBPMThickness(nop,Noise::PressureSide) * m_NoiseParameter->DStarScalingFactor();
