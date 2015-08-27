@@ -106,7 +106,7 @@ double NoiseCalculation::getDL(){
 }
 
 double NoiseCalculation::getDH()
-{    
+{
     //Dh, High Freq. Directivity Factor
     if(m_NoiseParameter->HighFreq()){
         return (2*pow((sin((m_NoiseParameter->DirectivityGreek()/2))),2)*pow((sin(m_NoiseParameter->DirectivityPhi())),2))/((1+m_NoiseParameter->OriginalMach()*cos(m_NoiseParameter->DirectivityGreek()))*(pow((1+(m_NoiseParameter->OriginalMach()-m_EddyMachNumber)*cos(m_NoiseParameter->DirectivityPhi())),2)));
@@ -341,7 +341,6 @@ void NoiseCalculation::preCalcSPLa(NoiseOpPoint* nop)
         }
 
         m_SplaBr = (-20-m_SplaBMin)/(m_SplaBMax-m_SplaBMin);
-        m_AlphaBigSw = false;
 
         qDebug() << "SPLA Bo " << m_SplaBo;
         qDebug() << "SPLA bMin " << m_SplaBMin;
@@ -387,8 +386,6 @@ void NoiseCalculation::preCalcSPLa(NoiseOpPoint* nop)
         qDebug() << "SPLA aMax " << m_SplaAMax;
         qDebug() << "SPLA Ar " << m_SplaAr;
 
-
-        m_AlphaBigSw = true;
     }
 
 
@@ -544,7 +541,7 @@ void NoiseCalculation::calcSPLa(double alpha, int posOpPoint, int posFreq)
             aMax = (-15.901*a+1.098);
         }
 
-        a1 =aMin+ m_SplaBr *(aMax-aMin);
+        a1 =aMin+ m_SplaAr *(aMax-aMin);
         splDb = m_SplaFirstTerm +a1+m_SplaK2;
 
         m_SPLadB[posOpPoint][posFreq] = splDb;
@@ -589,7 +586,7 @@ void NoiseCalculation::calcSPLs(int posOpPoint,int posFreq)
             aMax = (-15.901*a+1.098);
         }
 
-        a1 =aMin+ m_SplaBr *(aMax-aMin);
+        a1 =aMin+ m_SplaAr *(aMax-aMin);
         splDb = m_SplsFirstTerm +a1+m_SplsK13;
 
     }else{
@@ -617,7 +614,7 @@ void NoiseCalculation::calcSPLp(int posOpPoint,int posFreq)
     double splDb = 0;
 
     //If angle is bigger than the switching Angle
-    //or pressure side is mandatory    
+    //or pressure side is mandatory
     if(m_CalcPressureSide){
 
         if(a<0.204){
@@ -636,7 +633,7 @@ void NoiseCalculation::calcSPLp(int posOpPoint,int posFreq)
             aMax = (-15.901*a+1.098);
         }
 
-        a1 =aMin+ m_SplaBr *(aMax-aMin);
+        a1 =aMin+ m_SplaAr *(aMax-aMin);
         splDb = m_SplpFirstTerm +a1+m_SplpK13+m_SplpDeltaK1;
 
     }else{
@@ -689,6 +686,7 @@ void NoiseCalculation::calculate()
             dStarOrder = true;
         }
 
+
         if( m_NoiseParameter->DeltaSouce() == Noise::XFoilCalculation){
 
             //For XFoil model
@@ -722,6 +720,12 @@ void NoiseCalculation::calculate()
         m_SwAlpha1 = 23.43 * m_NoiseParameter->OriginalMach() + 4.651;
         m_SwAlpha = fmin(m_SwAlpha1,Noise::SWITCHING_ANGLE2);
 
+        if( nop->AlphaDeg() <= m_SwAlpha){
+            m_AlphaBigSw = false;
+        }else{
+            m_AlphaBigSw = true;
+        }
+
         qDebug() << "SwAngle1: " << m_SwAlpha1;
         qDebug() << "SwAngle calculated: " << m_SwAlpha;
 
@@ -752,9 +756,11 @@ void NoiseCalculation::calculate()
             }
         }
 
-        if(m_CalcSeparatedFlow){
+        //if(m_CalcSeparatedFlow){
+            //Always pre calculate SPLa to reuse in SPLs and SPLp
             preCalcSPLa(nop);
-        }
+
+        //}
 
         //If angle is bigger than the switching Angle
         //or suction side is mandatory
@@ -809,7 +815,7 @@ void NoiseCalculation::calculate()
             m_SPLPLOG[posOpPoint] += pow(10,(m_SPLpdB[posOpPoint][posFreq]/10));
         }
 
-        m_OASPL[posOpPoint] = 10*log10(m_OASPL[posOpPoint]);        
+        m_OASPL[posOpPoint] = 10*log10(m_OASPL[posOpPoint]);
         m_OASPLA[posOpPoint] = 10*log10(m_OASPLA[posOpPoint]);
         m_OASPLB[posOpPoint] = 10*log10(m_OASPLB[posOpPoint]);
         m_OASPLC[posOpPoint] = 10*log10(m_OASPLC[posOpPoint]);
@@ -823,6 +829,31 @@ void NoiseCalculation::calculate()
 
 void NoiseCalculation::setupVectors()
 {
+    //Clear all results is case of simulation edition
+    m_SPLdB.clear();
+    m_SPLdBAW.clear();
+    m_SPLdBBW.clear();
+    m_SPLdBCW.clear();
+    m_SPLpdB.clear();
+    m_SPLpdBAW.clear();
+    m_SPLpdBBW.clear();
+    m_SPLpdBCW.clear();
+    m_SPLsdB.clear();
+    m_SPLsdBAW.clear();
+    m_SPLsdBBW.clear();
+    m_SPLsdBCW.clear();
+    m_SPLadB.clear();
+    m_SPLadBAW.clear();
+    m_SPLadBBW.clear();
+    m_SPLadBCW.clear();
+
+    m_OASPL.clear();
+    m_OASPLA.clear();
+    m_OASPLB.clear();
+    m_OASPLC.clear();
+    m_SPLALOG.clear();
+    m_SPLSLOG.clear();
+    m_SPLPLOG.clear();
 
     //Resize vectors acording to OpPoints total
     m_SPLdB.resize( m_NoiseParameter->OpPoints().size() );
@@ -852,6 +883,24 @@ void NoiseCalculation::setupVectors()
 
     //Resize for each OpPoint the frequency table
     for (unsigned int i = 0; i < m_NoiseParameter->OpPoints().size(); ++i) {
+        //Clear all results is case of simulation edition
+        m_SPLdB[i].clear();
+        m_SPLdBAW[i].clear();
+        m_SPLdBBW[i].clear();
+        m_SPLdBCW[i].clear();
+        m_SPLpdB[i].clear();
+        m_SPLpdBAW[i].clear();
+        m_SPLpdBBW[i].clear();
+        m_SPLpdBCW[i].clear();
+        m_SPLsdB[i].clear();
+        m_SPLsdBAW[i].clear();
+        m_SPLsdBBW[i].clear();
+        m_SPLsdBCW[i].clear();
+        m_SPLadB[i].clear();
+        m_SPLadBAW[i].clear();
+        m_SPLadBBW[i].clear();
+        m_SPLadBCW[i].clear();
+
         m_SPLdB[i].resize( Noise::FREQUENCY_TABLE_SIZE );
         m_SPLdBAW[i].resize( Noise::FREQUENCY_TABLE_SIZE );
         m_SPLdBBW[i].resize( Noise::FREQUENCY_TABLE_SIZE );
