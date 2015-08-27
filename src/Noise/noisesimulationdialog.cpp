@@ -87,7 +87,7 @@ void NoiseSimulationDialog::readWindowParams()
 
     param->setSeparatedFlow( ui->checkBoxSourceSPLa->isChecked() );
     param->setSuctionSide( ui->checkBoxSourceSPLs->isChecked() );
-    param->setPressureSide( ui->checkBoxSourceSPLs->isChecked() );
+    param->setPressureSide( ui->checkBoxSourceSPLp->isChecked() );
 
     param->OpPoints().clear();
 
@@ -198,7 +198,7 @@ void NoiseSimulationDialog::readCalculationParams()
         ui->checkSpline->setChecked(param->InterpolationSpline());
         ui->checkBoxSourceSPLa->setChecked(param->SeparatedFlow());
         ui->checkBoxSourceSPLs->setChecked(param->SuctionSide());
-        ui->checkBoxSourceSPLs->setChecked(param->PressureSide());
+        ui->checkBoxSourceSPLp->setChecked(param->PressureSide());
 
         if(param->Transition() == Noise::FullyTurbulent){
             ui->comboTransitionType->setCurrentIndex(0);
@@ -277,7 +277,7 @@ void NoiseSimulationDialog::loadComponents()
 
                 for (unsigned int x = 0; x < m_NS->Calculation()->NoiseParam()->OpPoints().size() ; ++x) {
                     NoiseOpPoint * npp = m_NS->Calculation()->NoiseParam()->OpPoints().at(x);
-                    if(npp->Alpha() == opPoint->getAlpha()){
+                    if(npp->AlphaDeg() == opPoint->getAlpha()){
                         item->setCheckState(Qt::Checked );
                     }
                 }
