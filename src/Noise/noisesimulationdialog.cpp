@@ -277,8 +277,10 @@ void NoiseSimulationDialog::loadComponents()
 
                 for (unsigned int x = 0; x < m_NS->Calculation()->NoiseParam()->OpPoints().size() ; ++x) {
                     NoiseOpPoint * npp = m_NS->Calculation()->NoiseParam()->OpPoints().at(x);
-                    if(npp->AlphaDeg() == opPoint->getAlpha()){
-                        item->setCheckState(Qt::Checked );
+                    if(npp->AlphaDeg() == opPoint->getAlpha() &&
+                            npp->PolarName() == nop->PolarName() &&
+                            npp->AirfoilName() == nop->AirfoilName()){
+                        item->setCheckState(Qt::Checked );                        
                     }
                 }
 

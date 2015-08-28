@@ -304,6 +304,53 @@ Noise::TwoDVector NoiseCalculation::SPLsdB() const
     return m_SPLsdB;
 }
 
+void NoiseCalculation::preCalcA1(NoiseOpPoint* nop){
+
+    double m_A1ChordBasedReynolds;
+    double m_A1Ao;
+    double m_A1AMin;
+    double m_A1AMax;
+    double m_A1FirstTerm;
+
+    m_A1FirstTerm = 10*log10((pow(m_NoiseParameter->OriginalMach(),5)*m_NoiseParameter->WettedLength()*getDL()*m_DStarFinalS/pow(m_NoiseParameter->DistanceObsever(),2)));
+    m_A1ChordBasedReynolds = nop->Reynolds() * 3;
+
+    if(m_A1ChordBasedReynolds < 95200){
+        m_A1Ao = 0.57;
+    }else if(m_A1ChordBasedReynolds > 857000){
+        m_A1Ao = 1.13;
+    }else{
+        m_A1Ao = (-0.000000000000957*(pow((m_A1ChordBasedReynolds-857000),2))+1.13);
+    }
+
+    if(m_A1Ao < 0.204){
+        m_A1AMin = (sqrt(67.552-886.788*pow(m_A1Ao,2))-8.219);
+    }else if(m_A1Ao > 0.244){
+        m_A1AMin = (-142.795*pow(m_A1Ao,3)+103.656*pow(m_A1Ao,2)-57.757*m_A1Ao+6.006);
+    }else{
+        m_A1AMin = (-32.665*m_A1Ao+3.981);
+    }
+
+    if(m_A1Ao < 0.13){
+        m_A1AMax = (sqrt(67.552-886.788*pow(m_A1Ao,2))-8.219);
+    }else if(m_A1Ao > 0.321){
+        m_A1AMax = (-4.669*pow(m_A1Ao,3)+3.491*pow(m_A1Ao,2)-16.699*m_A1Ao+1.149);
+    }else{
+        m_A1AMax = (-15.901*m_A1Ao+1.098);
+    }
+
+    m_A1Ar = (-20-m_A1AMin)/(m_A1AMax-m_A1AMin);
+
+
+    qDebug() << "A1 ChordBasedReynolds " << m_A1ChordBasedReynolds;
+    qDebug() << "A1 Ao " << m_A1Ao;
+    qDebug() << "A1 aMin " << m_A1AMin;
+    qDebug() << "A1 aMax " << m_A1AMax;
+    qDebug() << "A1 Ar " << m_A1Ar;
+
+
+}
+
 void NoiseCalculation::preCalcSPLa(NoiseOpPoint* nop)
 {
     qDebug() << "---> SPLa CALCULATION";
@@ -586,7 +633,7 @@ void NoiseCalculation::calcSPLs(int posOpPoint,int posFreq)
             aMax = (-15.901*a+1.098);
         }
 
-        a1 =aMin+ m_SplaAr *(aMax-aMin);
+        a1 =aMin+ m_A1Ar *(aMax-aMin);
         splDb = m_SplsFirstTerm +a1+m_SplsK13;
 
     }else{
@@ -633,7 +680,7 @@ void NoiseCalculation::calcSPLp(int posOpPoint,int posFreq)
             aMax = (-15.901*a+1.098);
         }
 
-        a1 =aMin+ m_SplaAr *(aMax-aMin);
+        a1 =aMin+ m_A1Ar *(aMax-aMin);
         splDb = m_SplpFirstTerm +a1+m_SplpK13+m_SplpDeltaK1;
 
     }else{
@@ -756,11 +803,11 @@ void NoiseCalculation::calculate()
             }
         }
 
-        //if(m_CalcSeparatedFlow){
-            //Always pre calculate SPLa to reuse in SPLs and SPLp
-            preCalcSPLa(nop);
+        preCalcA1(nop);
 
-        //}
+        if(m_CalcSeparatedFlow){
+            preCalcSPLa(nop);
+        }
 
         //If angle is bigger than the switching Angle
         //or suction side is mandatory

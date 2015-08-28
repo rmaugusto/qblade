@@ -70,6 +70,8 @@ private:
     bool m_CalcSuctionSide;
     bool m_CalcPressureSide;
 
+    double m_A1Ar;
+
     std::vector<double> m_OASPL;
     std::vector<double> m_OASPLA;
     std::vector<double> m_OASPLB;
@@ -138,6 +140,7 @@ private:
     double getSt2(NoiseOpPoint *nop);
     double getBPMThickness(NoiseOpPoint *nop, Noise::AirfoilSide as);
 
+    void preCalcA1(NoiseOpPoint* nop);
     void preCalcSPLa(NoiseOpPoint* nop);
     void preCalcSPLs(NoiseOpPoint* nop);
     void preCalcSPLp(NoiseOpPoint* nop);
