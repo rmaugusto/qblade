@@ -134,6 +134,7 @@ void NoiseDock::onNewButtonClicked()
         try {
             ns->simulate();
             m_Module->reloadAllGraphics();
+            m_NoiseSimulationComboBox->setCurrentIndex( g_NoiseSimulationStore.size()-1 );
         } catch (NoiseException & e) {
             g_NoiseSimulationStore.remove(m_NoiseSimulationComboBox->currentObject() );
             QMessageBox::warning(this,"Simulation error",e.getErrorMessage());
@@ -156,9 +157,13 @@ void NoiseDock::onExportButtonClicked()
         fileName.replace("/", " ");
 
         fileName = QFileDialog::getSaveFileName(this, tr("Export Noise"),
-                            fileName+".txt",
+                            m_LastDirName,
                             tr("Noise prediction (*.txt)"));
         if(!fileName.length()) return;
+
+        int pos = fileName.lastIndexOf("/");
+        if(pos>0) m_LastDirName = fileName.left(pos);
+
 
         QFile qFile(fileName);
 

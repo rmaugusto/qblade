@@ -32,6 +32,7 @@ public:
 	void readOrWriteBool (bool*);
 	void readOrWriteInt (int*);
 	void readOrWriteIntArray1D (int*, int);
+    void readOrWriteIntArray2D (int *array, int dim1, int dim2);
 	void readOrWriteIntVector1D (QVector<int>*);
 	void readOrWriteFloat (float*);
 	void readOrWriteFloatArray1D (float**, int);

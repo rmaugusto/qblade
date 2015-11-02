@@ -44,6 +44,8 @@ public slots:
 
 private:
 
+    QString m_LastDirName;
+
     NoiseModule *m_Module;
     QPushButton *m_newButton;
     QPushButton *m_editCopyButton;

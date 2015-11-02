@@ -7034,10 +7034,11 @@ bool MainFrame::SerializeProject(QDataStream &ar, bool bIsStoring, int ProjectFo
 	g_serializer.setDataStream(&ar);
 	if (bIsStoring) {
 		g_serializer.setMode(Serializer::WRITE);
-		g_serializer.setArchiveFormat(100025);  // NM entirely changed behaviour. Introduced Serializer. Added WindField.
+        g_serializer.setArchiveFormat(100026);  //Save OpPoint behavior
 		g_serializer.writeInt(g_serializer.getArchiveFormat());
 		/* older formats:
-		 * 100024 : JW modification
+         * 100025 : NM entirely changed behaviour. Introduced Serializer. Added WindField.
+         * 100024 : JW modification
 		 * 100024 : (new code JW) Weibull functionality changed
 		 * 100023 : (new code JW) VAWT Characteristics Simulations included
 		 * 100022 : (new code JW) VAWT simulation included
@@ -7095,6 +7096,7 @@ bool MainFrame::SerializeProject(QDataStream &ar, bool bIsStoring, int ProjectFo
 		g_bladeStructureStore.serializeContent();
         g_oppointStore.serializeContent();
         g_bladestructureloadingStore.serializeContent();
+        //g_NoiseSimulationStore.serializeContent();
 				
 		if (g_serializer.isReadMode()) {
 			g_serializer.restoreAllPointers();
@@ -7117,6 +7119,7 @@ bool MainFrame::SerializeProject(QDataStream &ar, bool bIsStoring, int ProjectFo
 			g_bladeStructureStore.emitObjectListChanged(true);
             g_oppointStore.emitObjectListChanged(true);
             g_bladestructureloadingStore.emitObjectListChanged(true);
+            //g_NoiseSimulationStore.emitObjectListChanged(this);
 			
 			// now initialize the BEM program  // NM have no clue what or if at all necessary
 			CBlade *pWing;  // NM TODO this should probabely be located in the constructor or serializer of the objects

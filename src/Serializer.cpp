@@ -132,6 +132,11 @@ void Serializer::readOrWriteDoubleArray2D (double *array, int dim1, int dim2) {
 	readOrWriteDoubleArray1D(array, dim1*dim2);
 }
 
+void Serializer::readOrWriteIntArray2D (int *array, int dim1, int dim2) {
+    readOrWriteIntArray1D(array, dim1*dim2);
+}
+
+
 void Serializer::readOrWriteDoubleArray3D (double *array, int dim1, int dim2, int dim3) {
 	readOrWriteDoubleArray1D(array, dim1*dim2*dim3);
 }

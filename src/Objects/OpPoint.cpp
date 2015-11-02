@@ -361,6 +361,29 @@ void OpPoint::serialize() {
     g_serializer.readOrWriteDoubleArray1D (xd3, IWX);
     g_serializer.readOrWriteDoubleArray1D (yd3, IWX);
 
+
+    if(g_serializer.getArchiveFormat() >= 100026) {
+
+        g_serializer.readOrWriteDoubleArray1D (x2, IZX);
+        g_serializer.readOrWriteIntArray1D (iblte, ISX);
+        g_serializer.readOrWriteIntArray1D (nbl, ISX);
+        g_serializer.readOrWriteIntArray2D (reinterpret_cast<int*> (ipan), IVX,ISX);
+        g_serializer.readOrWriteDoubleArray2D (reinterpret_cast<double*> (dstr), IVX,ISX);
+        g_serializer.readOrWriteDouble (&gamm1);
+        g_serializer.readOrWriteDouble (&qinf);
+        g_serializer.readOrWriteDouble (&reinf1);
+        g_serializer.readOrWriteDouble (&minf1);
+        g_serializer.readOrWriteDouble (&tklam);
+        g_serializer.readOrWriteDoubleArray2D (reinterpret_cast<double*> (uedg), IVX,ISX);
+        g_serializer.readOrWriteDoubleArray2D (reinterpret_cast<double*> (tau), IVX,ISX);
+        g_serializer.readOrWriteDoubleArray2D (reinterpret_cast<double*> (dis), IVX,ISX);
+        g_serializer.readOrWriteDoubleArray2D (reinterpret_cast<double*> (ctau), IVX,ISX);
+        g_serializer.readOrWriteDoubleArray2D (reinterpret_cast<double*> (thet), IVX,ISX);
+        g_serializer.readOrWriteDoubleArray2D (reinterpret_cast<double*> (ctq), IVX,ISX);
+        g_serializer.readOrWriteBool(&m_Proc);
+
+    }
+
     g_serializer.readOrWriteString (&m_strFoilName);
     g_serializer.readOrWriteString (&m_strPlrName);
 
