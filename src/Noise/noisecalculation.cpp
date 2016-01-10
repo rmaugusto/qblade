@@ -844,7 +844,19 @@ void NoiseCalculation::calculate()
                 calcSPLp(posOpPoint,posFreq);
             }
 
-            m_SPLdB[posOpPoint][posFreq] = 10*log10(pow(10,(m_SPLadB[posOpPoint][posFreq]/10))+pow(10,(m_SPLsdB[posOpPoint][posFreq]/10))+pow(10,(m_SPLpdB[posOpPoint][posFreq]/10)));
+            double splDbConsolidated = 0.0;
+
+            if(m_CalcSeparatedFlow)
+                splDbConsolidated += pow(10,(m_SPLadB[posOpPoint][posFreq]/10));
+
+            if(m_CalcPressureSide)
+                splDbConsolidated += pow(10,(m_SPLsdB[posOpPoint][posFreq]/10));
+
+            if(m_CalcSuctionSide)
+                splDbConsolidated += pow(10,(m_SPLpdB[posOpPoint][posFreq]/10));
+
+            m_SPLdB[posOpPoint][posFreq] = 10*log10( splDbConsolidated );
+            //m_SPLdB[posOpPoint][posFreq] = 10*log10(pow(10,(m_SPLadB[posOpPoint][posFreq]/10))+pow(10,(m_SPLsdB[posOpPoint][posFreq]/10))+pow(10,(m_SPLpdB[posOpPoint][posFreq]/10)));
             m_SPLdBAW[posOpPoint][posFreq] =m_SPLdB[posOpPoint][posFreq]+Noise::AWeighting[posFreq];
             m_SPLdBBW[posOpPoint][posFreq] =m_SPLdB[posOpPoint][posFreq]+Noise::BWeighting[posFreq];
             m_SPLdBCW[posOpPoint][posFreq] =m_SPLdB[posOpPoint][posFreq]+Noise::CWeighting[posFreq];
