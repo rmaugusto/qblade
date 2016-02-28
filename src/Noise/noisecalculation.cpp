@@ -869,9 +869,15 @@ void NoiseCalculation::calculate()
             m_OASPLB[posOpPoint] += pow(10,(m_SPLdBBW[posOpPoint][posFreq]/10));
             m_OASPLC[posOpPoint] += pow(10,(m_SPLdBCW[posOpPoint][posFreq]/10));
 
-            m_SPLALOG[posOpPoint] += pow(10,(m_SPLadB[posOpPoint][posFreq]/10));
-            m_SPLSLOG[posOpPoint] += pow(10,(m_SPLsdB[posOpPoint][posFreq]/10));
-            m_SPLPLOG[posOpPoint] += pow(10,(m_SPLpdB[posOpPoint][posFreq]/10));
+            if(m_CalcSeparatedFlow)
+                m_SPLALOG[posOpPoint] += pow(10,(m_SPLadB[posOpPoint][posFreq]/10));
+
+            if(m_CalcSuctionSide)
+                m_SPLSLOG[posOpPoint] += pow(10,(m_SPLsdB[posOpPoint][posFreq]/10));
+
+            if(m_CalcPressureSide)
+                m_SPLPLOG[posOpPoint] += pow(10,(m_SPLpdB[posOpPoint][posFreq]/10));
+
         }
 
         m_OASPL[posOpPoint] = 10*log10(m_OASPL[posOpPoint]);
@@ -879,9 +885,15 @@ void NoiseCalculation::calculate()
         m_OASPLB[posOpPoint] = 10*log10(m_OASPLB[posOpPoint]);
         m_OASPLC[posOpPoint] = 10*log10(m_OASPLC[posOpPoint]);
 
-        m_SPLALOG[posOpPoint] = 10*log10(m_SPLALOG[posOpPoint]);
-        m_SPLSLOG[posOpPoint] = 10*log10(m_SPLSLOG[posOpPoint]);
-        m_SPLPLOG[posOpPoint] = 10*log10(m_SPLPLOG[posOpPoint]);
+        if(m_CalcSeparatedFlow)
+            m_SPLALOG[posOpPoint] = 10*log10(m_SPLALOG[posOpPoint]);
+
+        if(m_CalcSuctionSide)
+            m_SPLSLOG[posOpPoint] = 10*log10(m_SPLSLOG[posOpPoint]);
+
+        if(m_CalcPressureSide)
+            m_SPLPLOG[posOpPoint] = 10*log10(m_SPLPLOG[posOpPoint]);
+
     }
 
 }
