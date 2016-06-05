@@ -616,7 +616,6 @@ void NoiseCalculation::calcSPLs(int posOpPoint,int posFreq)
     //If angle is bigger than the switching Angle
     //or suction side is mandatory
     if(m_CalcSuctionSide){
-
         if(a<0.204){
             aMin = sqrt(67.552-886.788*pow(a,2)-8.219);
         }else if(a > 0.244){
@@ -834,15 +833,15 @@ void NoiseCalculation::calculate()
 
             //If angle is bigger than the switching Angle
             //or suction side is mandatory
-            if(m_CalcSuctionSide){
+            //if(m_CalcSuctionSide){
                 calcSPLs(posOpPoint,posFreq);
-            }
+            //}
 
             //If angle is bigger than the switching Angle
             //or pressure side is mandatory
-            if(m_CalcPressureSide){
+            //if(m_CalcPressureSide){
                 calcSPLp(posOpPoint,posFreq);
-            }
+            //}
 
             double splDbConsolidated = 0.0;
 
