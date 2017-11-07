@@ -1,3 +1,8 @@
+QBlade is a Blade Element Momentum Method (BEM), Double Multiple Streamtube (DMS) and nonlinear Lifting Line Theory (LLT) Design and Simulation Software for Vertical- and Horizontal Axis Wind Turbines. It also includes tools to setup and simulate the internal blade structure and perform an aeroelastic analysis of a wind turbine rotor in turbulent inflow conditions through a coupling with FAST from NREL
+
+Original project: http://www.q-blade.org/
+
+
 # Melhorias do projeto QBLADE
 
 #Branches
