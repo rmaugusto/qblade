@@ -8,6 +8,7 @@ The software is especially adequate for teaching, as it provides a â€™hands onâ€
 
 QBlade also includes extensive post processing functionality for the rotor and turbine simulations and gives deep insight into all relevant blade and rotor variables. In addition to that, the resulting software is a very flexible and user-friendly platform for wind turbine blade design. 
 
+This is a fork for new noise module.
 Original project: http://www.q-blade.org/
 
 
