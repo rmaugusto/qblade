@@ -1,10 +1,30 @@
+/****************************************************************************
+
+    QFEMModule Class
+        Copyright (C) 2014 David Marten david.marten@tu-berlin.de
+
+    This program is free software; you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation; either version 2 of the License, or
+    (at your option) any later version.
+
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with this program; if not, write to the Free Software
+    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+
+*****************************************************************************/
+
 #ifndef QFEMMODULE_H
 #define QFEMMODULE_H
 
 #include <QModelIndex>
-
 #include "../Module.h"
-#include "../Miarex/GLLightDlg.h"
+#include "../Misc/GLLightDlg.h"
 class CBlade;
 class BladeStructure;
 class QFEMToolBar;
@@ -23,33 +43,32 @@ public:
 	~QFEMModule ();
     BladeStructure* getShownBladeStructure () { return m_structure; }
 
-
-	QStringList getAvailableGraphVariables();  // override from TwoDWidgetInterface
+	QList<NewCurve*> prepareCurves (QString xAxis, QString yAxis, NewGraph::GraphType graphType,
+									NewGraph::GraphType graphTypeMulti);
+	QStringList getAvailableGraphVariables(bool xAxis);  // override from TwoDWidgetInterface
+	virtual QPair<ShowAsGraphInterface*,int> getHighlightDot(NewGraph::GraphType);
 
     CBlade* GetCurrentBlade();
     BladeStructure* GetCurrentStructure();
 
+    void CleanUp();
 
-	virtual void onRedraw ();  // override from GLModule
-    virtual void addMainMenuEntries();
 
-    bool m_perspective;
+	void drawGL ();  // override from GLModule
+	void overpaint (QPainter &painter);
+    void addMainMenuEntries();
+	QStringList prepareMissingObjectMessage (); 
+
     bool m_axes;
-    bool m_positions;
-    bool m_airfoils;
     bool QFEMCompleted;
     bool m_internalChecked;
-    int modeType;
-    int modeNumber;
+    int m_modeType;
+    int m_modeNumber;
 
-   int numrender;
-    CBlade* GetBlade();
+    CBlade* getBlade();
     virtual void initView();  // override from Module
 
-private:
-
-    int m_DockWidth;
-
+//private:
     QFEMToolBar* m_QFEMToolBar;
     QFEMDock* m_QFEMDock;
 
@@ -71,7 +90,6 @@ private:
 	virtual void configureGL ();  // override from GLModule
 	void showAll();
 	void hideAll();
-	void setContextMenuGraphType(NewGraph::GraphType graphType);
 
 	void SetCurrentSection(int section);
 	void ReadParams();
@@ -85,9 +103,6 @@ private:
 	void GLCreateGeom(CBlade *pWing);
     void GLRenderStressLegend();
     void UpdateModeNumber();
-    void drawFrequency();
-    void drawLoadingName();
-
 
     QFEMTwoDContextMenu *m_twoDContextMenu;
 
@@ -100,7 +115,6 @@ public slots:
 private slots:
 	void OnSelChangeRotor();
 	void OnSelChangeBladeStructure();
-    void reloadAllGraphCurves();
     void OnSelChangeLoading();
 	void OnItemClicked(const QModelIndex &index);
 	void OnCellChanged();
@@ -121,6 +135,10 @@ private slots:
     void OnCenterScene();
     void SliderPressed();
     void SliderReleased();
+	
+	void reloadFemGraphs () { reloadAllGraphCurves(); }	
 };
+
+extern QFEMModule *g_QFEMModule;
 
 #endif // QFEMMODULE_H

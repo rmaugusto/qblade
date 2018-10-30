@@ -10,7 +10,7 @@ class QComboBox;
 
 class BEMToolbar : public QToolBar
 {
-	friend class QBEM;
+    friend class QBEM;
 	Q_OBJECT
 	
 public:

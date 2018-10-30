@@ -1,7 +1,7 @@
 /****************************************************************************
 
     BEM Class
-        Copyright (C) 2010 David Marten qblade@web.de
+        Copyright (C) 2010 David Marten david.marten@tu-berlin.de
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -23,11 +23,9 @@
 #define BEM_H
 
 #include <QtWidgets>
-#include "../GLWidget.h"
 #include "../MainFrame.h"
 #include "../Misc/ColorButton.h"
-#include "../Objects/Wing.h"
-#include "../Miarex/GLLightDlg.h"
+#include "../Misc/GLLightDlg.h"
 #include "BladeDelegate.h"
 #include "BladeAxisDelegate.h"
 #include "../Graph/QGraph.h"
@@ -43,6 +41,7 @@
 #include "../Misc/LineButton.h"
 #include "../Misc/LineDelegate.h"
 #include "BEMToolbar.h"
+class GLWidget;
 
 
 class QBEM : public QWidget
@@ -52,7 +51,6 @@ class QBEM : public QWidget
     friend class BData;
     friend class TBEMData;
     friend class BEMData;
-    friend class GLWidget;
     friend class TwoDWidget;
     friend class OptimizeDlg;
     friend class CreateBEMDlg;
@@ -72,18 +70,21 @@ class QBEM : public QWidget
     Q_OBJECT
 
 public:
-        QBEM(QWidget *parent = NULL);
-        QString m_VersionName;
-private slots:
 
+
+        QBEM(QWidget *parent = NULL);
+		
+		QStringList prepareMissingObjectMessage();
+		
+private slots:
         //methods
         ///// JW virtual methods //////////
         virtual void CheckButtons();
-        virtual void OnSaveWing();
+        virtual void OnSaveBlade();
         virtual void OnNewBlade();
-        virtual void InitWingTable();
+        virtual void InitBladeTable();
         virtual void OnDeleteBlade();
-        virtual void OnEditWing();
+        virtual void OnEditBlade();
         virtual void OnInsertBefore();
         virtual void OnInsertAfter();
         //virtual void OnCellChanged(QWidget *pWidget);
@@ -99,8 +100,8 @@ private slots:
         virtual void UpdateRotorSimulation();
         virtual void UpdateBladeData();
         virtual void OnSelChangeBladeData(int i);
-        virtual void OnSelChangeRotorSimulation(int i);
-        virtual void OnSelChangeTurbineSimulation(int i);
+		virtual void OnSelChangeRotorSimulation();
+		virtual void OnSelChangeTurbineSimulation();
         virtual void OnSelChangeHeightData(int i);
         virtual void OnSelChangeTurbineHeightData(int i);
         virtual void SetRotorGraphTitles(Graph* pGraph);
@@ -121,28 +122,33 @@ private slots:
         virtual void OnHubChanged();
 		virtual void CheckTurbineButtons();
 		virtual void UpdateCharacteristicsSimulation();
-		virtual void OnSelChangeCharSimulation(int i);
+		virtual void OnSelChangeCharSimulation();
         ///// end JW virtual methods //////
 
         void OnEditCur360Polar();
         void OnItemClicked(const QModelIndex &index);
         virtual void OnDeleteSection();
         void OnDelete360Polar();
-        void OnDiscardWing();
+        void OnRename360Polar();
+        void OnDiscardBlade();
         void OnDiscardTurbine();
         void OnExportBladeGeometry();
         void OnHideWidgets();
         void OnSingleGraphs();
-        void AboutTheBEM();
+        void OnDecompose360Polar();
         void OnNew360Polar();
         void Compute360Polar();
+        void ComputePolar();
+        void ComputeDecomposition();
         void ComputeViterna360Polar(); // JW method
         void OnSave360Polar();
+        void CombinePolars();
 		void CreatePolarCurve();
-        void CreateSinglePolarCurve();
+        void CreateSinglePolarCurve(bool showPolar = true);
         void OnSetCharMainWind();
         void OnSetCharMainRot();
         void OnSetCharMainPitch();
+        virtual void OnResize();
 
         void OnExportRotorToAeroDyn();
         void OnExportRotorToWT_Perf();  // new code NM
@@ -163,11 +169,7 @@ private slots:
 		void SetWeibullGraphTitles(Graph* pGraph);// new JW method
         BData* GetBladeData(QString Lambda);
         BData* GetTurbineBladeData(QString Windspeed);
-        void OnOrtho();
         void OnChangeCoordinates();
-        BEMData* GetRotorSimulation(QString WingName, QString SimName);
-        CBEMData* GetCharSimulation(QString WingName, QString BEMName);
-		TBEMData* GetTurbineSimulation(QString TurbineName, QString SimName);
 		virtual void OnSelChangeTurbine(int i);
         void InitTurbineSimulationParams(TBEMData *bladedata);
         void InitBladeSimulationParams(BEMData *bladedata);
@@ -177,8 +179,12 @@ private slots:
         virtual void OnBladeColor();
         virtual void OnSectionColor();
         void OnLightDlg();
+        void OnSingleMultiPolarChanged();
+        void OnPolarDialog();
 
-
+protected slots:
+		void onPerspectiveChanged ();
+		
 
 public slots:
 	virtual void onModuleChanged ();  // NM will hide this module if no longer active
@@ -186,12 +192,12 @@ public slots:
         void OnStallModel(); // JW method
         void OnSetAR(double val); // JW method
         // JW virtual methods //
-        virtual void UpdateWings();
+        virtual void UpdateBlades();
         virtual void OnSelChangeWing(int i);
-        virtual void OnWingView();
+        virtual void OnBladeView();
         virtual void OnRotorsimView();
 		virtual void OnCharView();
-        virtual void OnPowerView();
+        virtual void OnTurbineView();
         virtual void FillComboBoxes(bool bEnable = true);
         virtual void SetCurveParams();
         virtual void OnShowAllRotorCurves();
@@ -208,6 +214,11 @@ public slots:
         virtual void OnShowPoints();
         virtual void OnShowCurve();
         virtual void OnShowOpPoint();
+        virtual void InvertedClicked();
+        virtual void OnLengthHeightChanged();
+        virtual void OnHubValChanged();
+
+
 		// end JW virtual methods //
         void Paint360Legend(QPoint place, int bottom, QPainter &painter);
 		void OnWeibullGraph();// JW method
@@ -231,21 +242,13 @@ public slots:
         void OnPrescribePitch();
 		void OnPrescribeRot();
 		void OnDiscard360Polar();
-        void drawRotorName();
         void BladeCoordsChanged();
-
-
-
-
-signals:
-
 
 protected:
 
         virtual void SaveSettings(QSettings *pSettings); // JW virt. method
         virtual void LoadSettings(QSettings *pSettings); // JW virt. method
 public:
-
         ///// JW virtual methods //////////
         virtual void DisableAllButtons();
         virtual void EnableAllButtons();
@@ -272,6 +275,11 @@ public:
 		virtual void * GetWeibullXVariable(int iVar);// JW method
 		virtual void * GetWeibullYVariable(void *Data, int iVar);// JW method
         virtual void GLCallViewLists();
+		
+		virtual void configureGL ();  // NM new functions equal to the interface that GLModule offers
+		virtual void drawGL ();
+		virtual void overpaint (QPainter &painter);
+
 
 		///// end JW virtual methods //////////
 		void FillWeibullCurve(CCurve *pCurve, void *Data, int XVar);//int count);// JW method
@@ -283,6 +291,7 @@ public:
         void ReadParams(bool isVawt = false);
         void ReadAdvancedSectionData(int sel);
         void ComputeGeometry(bool isVawt = false);
+        void ComputePolarVars();
         void GLCreateGeom(CBlade *pWing, int List);
         void GLRenderView();
         void GLDraw3D();
@@ -326,7 +335,7 @@ public:
 
 
 
-private:
+public:
 
         //pointers
 		BEMToolbar *m_BEMToolBar;
@@ -346,7 +355,7 @@ private:
 
         CFoil *m_pCurFoil;
         CPolar *m_pCurPolar;
-		C360Polar *m_pCur360Polar;
+        C360Polar *m_pCur360Polar;
         int m_iSection;
         GLWidget *m_pGLWidget;
         TwoDWidget *m_p2DWidget;
@@ -363,12 +372,15 @@ private:
         QStackedWidget *m_pctrBottomControls;
         QCheckBox *m_pctrlShowCurve, *m_pctrlShowPoints;
 
+        QGroupBox *SliderGroup, *DecomposeGroup, *ViternaGroup, *RangeGroup;
+        QLabel *IsDecomposed;
+
 
         QSpinBox *m_pctrlBlades;
         NumberEdit *m_pctrlFixedPitch, *m_pctrlHubRadius;
-        QLabel *m_pctrlBladesLabel, *m_pctrlHubRadiusLabel, *m_pctrlSolidityLabel, *m_pctrlHubRadiusUnitLabel, *m_pctrlBladesAndHubLabel, *m_pctrlFixedPitchUnit, *m_pctrlFixedPitchLabel;
+        QLabel *m_pctrlBladesLabel, *m_pctrlHubRadiusLabel, *m_pctrlSolidityLabel, *m_pctrlHubRadiusUnitLabel, *m_pctrlSingleMultiLabel, *m_pctrlWingNameLabel, *m_pctrlBladesAndHubLabel, *m_pctrlFixedPitchUnit, *m_pctrlFixedPitchLabel;
         QTableView *m_pctrlBladeTableView;
-        QPushButton *m_pctrlNewWing, *m_pctrlDeleteWing, *m_pctrlPitchBladeButton, *m_pctrlEditWing, *m_pctrlSave, *m_pctrlOptimize, *m_pctrlBack, *m_pctrlScale;
+        QPushButton *m_pctrlNewWing, *m_pctrlDeleteWing, *m_pctrlEditWing, *m_pctrlSave, *m_pctrlOptimize, *m_pctrlBack, *m_pctrlScale;
         QPushButton *m_pctrlAlignMaxThickness, *m_pctrlLightDlg, *m_pctrlResetView;
         QStackedWidget *mainWidget, *bladeWidget;
 		QStackedWidget *PowWidget;// JW variable
@@ -390,24 +402,28 @@ private:
 		QLabel *m_pctrlWkLabel, *m_pctrlWALabel, *m_pctrlYield, *m_pctrlYieldLabel, *POwer;
 		QDoubleSpinBox *m_pctrlPMk, *m_pctrlPMA;// JW variable
 		QLabel *m_pctrlPMkLabel, *m_pctrlPMALabel;// JW variable
-        QPushButton *m_pctrlSave360, *m_pctrlNew360, *m_pctrlCancel360, *m_pctrlDelete360Polar;
+        QPushButton *m_pctrlSave360, *m_pctrlNew360, *m_pctrlCancel360, *m_pctrlDelete360Polar, *m_pctrlDecompose360, *m_pctrlRename360Polar;
         QLabel *m_LabelA, *m_LabelB,*m_LabelAm, *m_LabelBm, *m_pctrlBEMLS, *m_pctrlBEMLE, *m_pctrlBEMLD, *m_pctrlCD90Label;
         QSlider *m_pctrlA, *m_pctrlB, *m_pctrlAm, *m_pctrlBm;
         QLineEdit *m_360Name;
         QDoubleSpinBox *m_pctrlCD90;
-        QCheckBox *m_ComparePolars, *m_pctrlIsOrtho, *m_pctrlPerspective, *m_pctrlBladeCoordinates, *m_pctrlBladeCoordinates2, *m_pctrlShowTurbine, *m_pctrlSurfaces, *m_pctrlAirfoils, *m_pctrlOutline, *m_pctrlOutlineEdge, *m_pctrlAxes, *m_pctrlPositions, *m_pctrlFoilNames;
+        QCheckBox *m_ComparePolars, *m_pctrlBladeCoordinates, *m_pctrlBladeCoordinates2;
         QStandardItemModel *m_pWingModel, *m_pBladeAxisModel;
+        QDoubleSpinBox *m_posStall, *m_posSep, *m_negStall, *m_negSep, *m_pos180Stall, *m_pos180Sep, *m_neg180Stall, *m_neg180Sep;
+
+        QPushButton *m_pctrlPerspective, *m_pctrlShowTurbine, *m_pctrlSurfaces, *m_pctrlAirfoils, *m_pctrlOutline, *m_pctrlOutlineEdge, *m_pctrlAxes, *m_pctrlPositions, *m_pctrlFoilNames;
 
         BladeDelegate *m_pBladeDelegate;
         BladeAxisDelegate *m_pBladeAxisDelegate;
 
         ColorButton *m_pctrlWingColor, *m_pctrlSectionColor;
 
+        QButtonGroup *m_SingleMultiGroup;
+
 
 
 ///variables///////
 
-        bool m_bChanged;
         bool m_bRightSide;
         bool m_bResetglGeom;
         bool m_bCrossPoint;
@@ -423,6 +439,7 @@ private:
         bool m_bSingleGraphs;
         bool m_b360PolarChanged;
         bool m_bNew360Polar;
+        bool m_bDecompose;
         bool m_WingEdited;
         bool m_TurbineEdited;
         bool m_bIsolateBladeCurve;
@@ -440,6 +457,8 @@ private:
         QRadioButton *m_pctrlStallModelVit, *m_pctrlStallModelMontg;
         QLabel *m_pctrlARLabel;
         QDoubleSpinBox *m_pctrlAR;
+        QDoubleSpinBox *m_Slope, *m_posAoA, *m_negAoA;
+
 
 		QList <double> m_k;//shape parameter
 		QList <double> m_A;//scale parameter
@@ -471,7 +490,7 @@ private:
 
         ////GRAPHS///////
 
-        QGraph m_360CLGraph, m_360CDGraph,  *m_pCurGraph;
+        QGraph m_360Graph1, m_360Graph2, m_360Graph3, m_360Graph4, *m_pCurGraph;
         QGraph m_RotorGraph1, m_RotorGraph2, m_RotorGraph3;
         QGraph m_PowerGraph1, m_PowerGraph2, m_PowerGraph3;
         QGraph m_CharGraph1, m_CharGraph2, m_CharGraph3, m_CharGraph4;
@@ -501,6 +520,8 @@ private:
         double dlg_lambdastart;
         double dlg_lambdaend;
         double dlg_lambdadelta;
+        double dlg_windspeed;
+
         double dlg_windstart;
         double dlg_windend;
         double dlg_winddelta;
@@ -516,7 +537,9 @@ private:
         double dlg_rotdelta;
         double dlg_reynolds;
 
-        double pitch_old;
+        int m_widthfrac;
+
+        double m_PitchOld;
         double pitch_new;
 
         QList <double> pitchwindspeeds;
@@ -533,6 +556,7 @@ private:
 
 };
 
-extern QBEM *g_qbem;								/**< global pointer to the QBEM module **/
+
+extern QBEM *g_qbem;  /**< global pointer to the QBEM module **/
 
 #endif // BEM_H

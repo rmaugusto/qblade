@@ -26,7 +26,6 @@
 #include "XFoil.h"
 #include "XDirect.h"
 #include "../Design/AFoil.h"
-#include "../XGlobals.h"
 #include "../Store.h"
 
 void *InterpolateFoilsDlg::s_pXFoil;

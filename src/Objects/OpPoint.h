@@ -23,13 +23,13 @@
 #ifndef OPPOINT_H
 #define OPPOINT_H
 
+#include <QVector>
 #include "../Params.h"
 #include <QString>
 #include <QColor>
 #include <QTextStream>
 #include <QDataStream>
 #include "../StorableObject.h"
-#include "../Noise/noisesimulationdialog.h"
 
 
 class OpPoint : public StorableObject
@@ -43,70 +43,64 @@ class OpPoint : public StorableObject
 	// An operating point is the result of an XFoil calculation
 	// for a given Reynolds
 public:
-
     OpPoint(QString name = "< no name >", StorableObject *parent = NULL);
     void serialize ();
     static OpPoint* newBySerialize ();
-
-    double getReynolds() const;
-    double getMach() const;
-    double getAlpha() const;
-
-    int getNblAt(int x);
-    int getIblteAt(int x);
-    double getX2At(int x);
-    int getIpanAt(int x, int y);
-    double getDstrAt(int x, int y);
-
-    void setReynolds(double value);
-    void setAlpha(double value);
+	
+	void writeData (QTextStream &stream, bool asCsv);
 
 
-    void CreateXBL(double xs[IVX][3],int &nside1, int &nside2);
-    void FillHk(double ws[IVX][3], int nside1, int nside2);
-    void FillRTheta(double ws[IVX][3], int nside1, int nside2);
-    bool hkin(double h, double msq, double &hk, double &hk_h, double &hk_msq);
-    bool getProc() const;
-    void setProc(bool Lvconv);
-
-private:
-    //if the OpPoint was analyzed and keep data in memory
-    bool m_Proc;
-    bool m_bVisc, m_bDispSurf;
-    bool m_bTEFlap, m_bLEFlap;
+//private:
+	bool m_bVisc, m_bDispSurf;
+	bool m_bTEFlap, m_bLEFlap;
     bool m_bIsVisible, m_bShowPoints;
 
 
-    int n, nd1, nd2, nd3,iblte[ISX],nbl[ISX],ipan[IVX][ISX];
+	int n, nd1, nd2, nd3;
     int m_Style, m_Width;
 
 
-    double Reynolds;
-    double Mach;
-    double Alpha; // index for polar
-    double Cl, Cm, Cd, Cdp, Xtr1, Xtr2, ACrit;
+	double Reynolds;
+	double Mach;
+	double Alpha; // index for polar
+	double Cl, Cm, Cd, Cdp, Xtr1, Xtr2, ACrit;
 	double m_XCP;
     double m_TEHMom, m_LEHMom, XForce, YForce;
     double Cpmn;
 
-    double y[IQX],x[IQX],x2[IZX];
+	double x[IQX], y[IQX];
 	double Cpv[IQX], Cpi[IQX];
 	double Qv[IQX], Qi[IQX];
 	double xd1[IQX], yd1[IQX];// first...
 	double xd2[IWX], yd2[IWX];// ...second...
 	double xd3[IWX], yd3[IWX];// ...and third part of the boundary layer
-    double dstr[IVX][ISX];
-
-    double gamm1;
-    double qinf, reinf1, minf1, tklam;
-    double uedg[IVX][ISX], tau[IVX][ISX], dis[IVX][ISX], ctau[IVX][ISX],thet[IVX][ISX],ctq[IVX][ISX];
-
-
+	
+	/* new variables: addidtional data from XFoil which formerly was thrown away */
+	/* the data in the vectors fits to the same x values, but starts from different indices. Ussualy x1values are for
+	 * the top data and x2values are for the bottom data, but better look up and check. The int value in YVector
+	 * indicates at what x index to start. */
+	typedef QPair<int, QVector<double> > YVector;
+	QVector<double> x1Values, x2Values;  // created by m_pXFoil->CreateXBL(x, nside1, nside2);
+	int nSide1, nSide2;  // created by m_pXFoil->CreateXBL(x, nside1, nside2);
+	YVector topShear, topShearEq, botShear, botShearEq;  // "Max. Shear Coefficient" > QXDirect::OnCtPlot()
+	YVector botDStar, botTheta;  // "Bottom Side D* and Theta" > QXDirect::OnDbPlot()
+	YVector topDStar, topTheta;  // "Top Side D* and Theta" > QXDirect::OnDtPlot()
+	YVector reThetaTop, reThetaBot;  // "Re_Theta" > QXDirect::OnRtPlot()
+	YVector amplificationTop, amplificationBot;  // "Amplification Ratio" > QXDirect::OnNPlot()
+	YVector dissipationTop, dissipationBot;  // "Dissipation Coefficient" > QXDirect::OnCdPlot()
+	YVector skinFrictionTop, skinFrictionBot;  // "Skin Friction Coefficient" > QXDirect::OnCfPlot()
+	YVector edgeVelocityTop, edgeVelocityBot;  // "Edge Velocity" > QXDirect::OnUePlot()
+	YVector kinShapeParaTop, kinShapeParaBot;  // "Kinematic Shape Parameter" > QXDirect::OnHPlot()
+	/* end */
+	
+	/* new variables that are required for the noise calculation and were formerly not copied from XFoil */
+	bool m_readyForNoise;  // if the OpPoint contains the arrays needed for a noise simulation
+	/* end */
+	
 	QString m_strFoilName;
 	QString m_strPlrName;
 
 	QColor m_Color;
-
 
 private:
 	bool ExportOpp(QTextStream &out, QString Version, int FileType, bool bDataOnly=false);

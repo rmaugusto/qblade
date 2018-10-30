@@ -25,7 +25,6 @@
 #include "FoilTableDelegate.h"
 #include "AFoil.h"
 #include "../Globals.h"
-#include "../XGlobals.h"
 #include "../Store.h"
 
 void *FoilTableDelegate::s_pAFoil;

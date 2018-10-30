@@ -21,7 +21,6 @@
 
 #include "DMSSimDock.h"
 #include "../Globals.h"
-#include "../XGlobals.h"
 #include "SimuWidgetDMS.h"
 
 
@@ -38,8 +37,4 @@ DMSSimDock::DMSSimDock (const QString & title, QMainWindow * parent, Qt::WindowF
 	setVisible(false);
 
 	addScrolledDock(Qt::RightDockWidgetArea , parent);
-}
-
-void DMSSimDock::initView()
-{
 }

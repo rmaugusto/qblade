@@ -32,6 +32,8 @@
 #include <QCoreApplication>
 #include <QThread>
 #include <QThreadPool>
+#include <QDebug>
+#include "../Store.h"
 
 
 //bool BatchThreadDlg::s_bStoreOpp = false;
@@ -306,12 +308,11 @@ void BatchThreadDlg::CleanUp()
 
 CPolar * BatchThreadDlg::CreatePolar(CFoil *pFoil, double Spec, double Mach, double NCrit)
 {
-//	QXDirect *pXDirect = (QXDirect*)s_pXDirect;
-	if(!pFoil) return NULL;
+	if(!pFoil)
+		return NULL;
 
 	MainFrame *pMainFrame = (MainFrame*)s_pMainFrame;
 	CPolar *pNewPolar = new CPolar;
-//	pNewPolar->getParentName()   = pFoil->getName();  // NM REPLACE here must have been an error...
 	pNewPolar->setSingleParent(pFoil);
 	pNewPolar->m_bIsVisible = true;
 
@@ -347,18 +348,17 @@ CPolar * BatchThreadDlg::CreatePolar(CFoil *pFoil, double Spec, double Mach, dou
 	pNewPolar->m_ACrit = NCrit;
 	pNewPolar->m_XTop  = m_XTopTr;
 	pNewPolar->m_XBot  = m_XBotTr;
-
 	pNewPolar->m_Color = pMainFrame->GetColor(1);
 
 	SetPlrName(pNewPolar);
-	CPolar *pOldPolar = pMainFrame->GetPolar(pFoil->getName(), pNewPolar->getName());
-
-	if(pOldPolar)
-	{
-		delete pNewPolar;
-		pNewPolar = pOldPolar;
-	}
-	else pNewPolar = pMainFrame->AddPolar(pNewPolar);
+	
+	CPolar *pOldPolar = g_polarStore.getObjectByName(pNewPolar->getName(), pFoil);
+	if(pOldPolar) {
+        delete pNewPolar;
+        pNewPolar = pOldPolar;
+	} else {
+		pNewPolar = (g_polarStore.add(pNewPolar) ? pNewPolar : NULL);
+    }
 	return pNewPolar;
 }
 
@@ -782,6 +782,7 @@ void BatchThreadDlg::StartAnalysis()
 	UpdateOutput(strong);
 
 	for(int it=0; it<m_nThreads; it++)	StartThread();
+
 }
 
 
@@ -861,7 +862,7 @@ void BatchThreadDlg::StartThread()
 		//on the other hand, this loop will run permanently;
 		for (int it=0; it<m_nThreads; it++)
 		{
-			if(m_pXFoilTask && m_pXFoilTask[it].m_bIsFinished)
+            if(m_pXFoilTask && m_pXFoilTask[it].m_bIsFinished && m_AnalysisPair.size())
 			{
 				m_pXFoilTask[it].m_bIsFinished = false;
 				m_pXFoilTask[it].m_Id = it;

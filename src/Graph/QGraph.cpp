@@ -29,6 +29,7 @@
 #include <limits>
 #include <QDate>
 #include <QTime>
+#include "../MainFrame.h"
 
 #include "../Globals.h"
 
@@ -615,7 +616,7 @@ void QGraph::ExportToFile(QFile &XFile, int FileType)
 
 	maxpoints = 0;
 
-    out << "Export File Created with QBlade v0.8 on "<<date.toString("dd.MM.yyyy") << " at " << time.toString("hh:mm:ss") << "\n" ;
+    out << "Export File Created with "<< g_mainFrame->m_VersionName<<" on "<<date.toString("dd.MM.yyyy") << " at " << time.toString("hh:mm:ss") << "\n" ;
 
 
 	for(i=0; i<m_oaCurves.size(); i++)
@@ -655,7 +656,7 @@ void QGraph::ExportToFile(QFile &XFile, int FileType)
                 if(FileType==1)	strong= QString(" %1 %2")
                                                 .arg(pCurve->x[j],15,'e',5).arg(pCurve->y[j],15,'e',5);
                 else            strong= QString(" %1; %2;")
-                                                .arg(pCurve->x[j],15,'e',5).arg(pCurve->y[j],15,'e',5);
+                                                .arg(pCurve->x[j],15,'e',5).arg(pCurve->y[j],15,'e',5).replace(".",",");
 			}
             else if(pCurve->n > 2)
 			{

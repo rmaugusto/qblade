@@ -2,6 +2,7 @@
 #define EIGEN_DISABLE_UNALIGNED_ARRAY_ASSERT
 #ifndef NODE_H
 #define NODE_H
+
 #include <vector>
 #include <stdlib.h>
 #include <Eigen/Dense>

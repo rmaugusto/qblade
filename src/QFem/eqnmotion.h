@@ -6,6 +6,8 @@
 #endif
 #ifndef EQNMOTION_H
 #define EQNMOTION_H
+
+
 #include <Eigen/Dense>
 #include "taperedelem.h"
 #include "node.h"
@@ -114,7 +116,7 @@ public:
       The polynomial fitting is achieved by feeding into a gsl tool box function.
     @param Degree = Highest order power +1 ie X^6 means degree = 7
     */
-    void FitPolynomials(int degree);
+    void FitPolynomials();
 
 
 
@@ -139,8 +141,10 @@ private:
     See FitPolynomials
     @param mode = mode number being fitted
     */
-    void FitPolynomial(int degree, int mode);
+    void FitPolynomial(int mode);
     void SortModes(QVector<Mode> &ModeCon);
+
+    MatrixXd pinv(MatrixXd& m, double epsilon = 1E-9);
 };
 
 #endif // EQNMOTION_H

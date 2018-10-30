@@ -1,7 +1,7 @@
 /****************************************************************************
 
     SimuWidget Class
-        Copyright (C) 2010 David Marten qblade@web.de
+        Copyright (C) 2010 David Marten david.marten@tu-berlin.de
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -38,6 +38,11 @@ SimuWidget::SimuWidget(QWidget */*parent*/)
     m_pctrlShowCurve->setEnabled(false);
     m_pctrlShowPoints->setEnabled(false);
 
+    QRect rec = QApplication::desktop()->screenGeometry();
+    int width = rec.width();
+    setFixedWidth(width/6);
+
+
 }
 
 
@@ -46,7 +51,7 @@ SimuWidget::SimuWidget(QWidget */*parent*/)
 void SimuWidget::SetupLayout()
 {
 
-	setFixedWidth(250);
+//	setFixedWidth(250);
     /////////top Layout//////////
     m_pctrlRho = new QLabel(tr("Rho"));
     m_pctrlElements = new QLabel(tr("Elements"));
@@ -115,71 +120,96 @@ void SimuWidget::SetupLayout()
     //---------------Wing Simulation Control Layout (bottom)------------------//
     QGridLayout *SequenceLayout = new QGridLayout;
 
-    m_pctrlCreateBEM = new QPushButton(tr("Define Simulation"));// JW modification
-    m_pctrlLSLabel = new QLabel(tr("Tip Speed Ratio Start ="));
+    m_pctrlCreateBEM = new QPushButton(tr("Define Simulation"));
+    m_pctrlDeleteBEM = new QPushButton(tr("Delete Simulation"));
+
+    m_pctrlLSLabel = new QLabel(tr("Tip Speed Ratio Start:"));
     m_pctrlLSLabel->setAlignment(Qt::AlignLeft);
     m_pctrlLSLineEdit = new NumberEdit;
     m_pctrlLSLineEdit->setAlignment(Qt::AlignRight);
     m_pctrlLSLineEdit->setMinimum(double(0.00001));
-    m_pctrlLELabel = new QLabel(tr("Tip Speed Ratio End ="));
+    m_pctrlLELabel = new QLabel(tr("Tip Speed Ratio End:"));
     m_pctrlLELabel->setAlignment(Qt::AlignLeft);
     m_pctrlLELineEdit = new NumberEdit;
     m_pctrlLELineEdit->setAlignment(Qt::AlignRight);
     m_pctrlLELineEdit->setMinimum(double(0.01));
-    m_pctrlLDLabel = new QLabel(tr("Tip Speed Ratio Delta ="));
+    m_pctrlLDLabel = new QLabel(tr("Tip Speed Ratio Delta:"));
     m_pctrlLDLabel->setAlignment(Qt::AlignLeft);
     m_pctrlLDLineEdit = new NumberEdit;
     m_pctrlLDLineEdit->setAlignment(Qt::AlignRight);
     m_pctrlLDLineEdit->setMinimum(double(0.1));
 
+    QLabel *m_pctrlWindSpeedLabel = new QLabel(tr("@ Wind Speed of: ="));
+    m_pctrlWindspeed = new NumberEdit;
+    m_pctrlWindspeed->setAlignment(Qt::AlignRight);
+    m_pctrlWindspeed->setMinimum(double(0.01));
+
     m_pctrlStartBEM = new QPushButton(tr("Start Simulation"));
 
-    SequenceLayout->addWidget(m_pctrlCreateBEM,1,2);
-    SequenceLayout->addWidget(m_pctrlLSLabel,2,1);
-    SequenceLayout->addWidget(m_pctrlLELabel,3,1);
-    SequenceLayout->addWidget(m_pctrlLDLabel,4,1);
-    SequenceLayout->addWidget(m_pctrlLSLineEdit,2,2);
-    SequenceLayout->addWidget(m_pctrlLELineEdit,3,2);
-    SequenceLayout->addWidget(m_pctrlLDLineEdit,4,2);
-    SequenceLayout->addWidget(m_pctrlStartBEM,5,2);
+    QVBoxLayout *SeqLay = new QVBoxLayout;
+    QHBoxLayout *createDeleteLayout = new QHBoxLayout;
+    createDeleteLayout->addWidget(m_pctrlCreateBEM);
+    createDeleteLayout->addWidget(m_pctrlDeleteBEM);
+
+
+    SequenceLayout->addWidget(m_pctrlLSLabel,1,1);
+    SequenceLayout->addWidget(m_pctrlLELabel,2,1);
+    SequenceLayout->addWidget(m_pctrlLDLabel,3,1);
+    SequenceLayout->addWidget(m_pctrlLSLineEdit,1,2);
+    SequenceLayout->addWidget(m_pctrlLELineEdit,2,2);
+    SequenceLayout->addWidget(m_pctrlLDLineEdit,3,2);
+    SequenceLayout->addWidget(m_pctrlWindSpeedLabel,4,1);
+    SequenceLayout->addWidget(m_pctrlWindspeed,4,2);
+
+    SeqLay->addLayout(createDeleteLayout);
+    SeqLay->addLayout(SequenceLayout);
+    SeqLay->addWidget(m_pctrlStartBEM);
 
     QGroupBox *AnalysisGroup = new QGroupBox(tr("Analysis Settings"));
-    AnalysisGroup->setLayout(SequenceLayout);
+    AnalysisGroup->setLayout(SeqLay);
 
     /////////-----------Turbine Simulation Control Layout (Bottom) ---------------//
 
     m_pctrlWind1 = new NumberEdit;
     m_pctrlWind1->setMinimum(double(0.01));
-    m_pctrlWind1Label = new QLabel(tr("Start = "));
+    m_pctrlWind1Label = new QLabel(tr("V Start = "));
     m_pctrlWind2 = new NumberEdit;
     m_pctrlWind2->setMinimum(double(0.01));
-    m_pctrlWind2Label = new QLabel(tr("End = "));
+    m_pctrlWind2Label = new QLabel(tr("V End = "));
     m_pctrlWindDelta= new NumberEdit;
     m_pctrlWindDelta->setMinimum(double(0.1));
 
-    m_pctrlWindDeltaLabel = new QLabel(tr("Delta = "));
+    m_pctrlWindDeltaLabel = new QLabel(tr("V Delta = "));
     m_pctrlDefineTurbineSim = new QPushButton(tr("Define Simulation"));
     m_pctrlStartTurbineSim = new QPushButton(tr("Start Simulation"));
+    m_pctrlDeleteTBEM = new QPushButton(tr("Delete Simulation"));
 
     speed1 = new QLabel;
     speed2 = new QLabel;
     speed3 = new QLabel;
 
+    SeqLay = new QVBoxLayout;
+    createDeleteLayout = new QHBoxLayout;
+    createDeleteLayout->addWidget(m_pctrlDefineTurbineSim);
+    createDeleteLayout->addWidget(m_pctrlDeleteTBEM);
+
     QGridLayout *WindLayout = new QGridLayout;
-    WindLayout->addWidget(m_pctrlDefineTurbineSim,1,2);
-    WindLayout->addWidget(m_pctrlWind1Label,2,1);
-    WindLayout->addWidget(m_pctrlWind1,2,2);
-    WindLayout->addWidget(speed1,2,3);
-    WindLayout->addWidget(m_pctrlWind2Label,3,1);
-    WindLayout->addWidget(m_pctrlWind2,3,2);
-    WindLayout->addWidget(speed2,3,3);
-    WindLayout->addWidget(m_pctrlWindDeltaLabel,4,1);
-    WindLayout->addWidget(m_pctrlWindDelta,4,2);
-    WindLayout->addWidget(speed3,4,3);
-    WindLayout->addWidget(m_pctrlStartTurbineSim,5,2);
+    WindLayout->addWidget(m_pctrlWind1Label,1,1);
+    WindLayout->addWidget(m_pctrlWind1,1,2);
+    WindLayout->addWidget(speed1,1,3);
+    WindLayout->addWidget(m_pctrlWind2Label,2,1);
+    WindLayout->addWidget(m_pctrlWind2,2,2);
+    WindLayout->addWidget(speed2,2,3);
+    WindLayout->addWidget(m_pctrlWindDeltaLabel,3,1);
+    WindLayout->addWidget(m_pctrlWindDelta,3,2);
+    WindLayout->addWidget(speed3,3,3);
+
+    SeqLay->addLayout(createDeleteLayout);
+    SeqLay->addLayout(WindLayout);
+    SeqLay->addWidget(m_pctrlStartTurbineSim);
 
     QVBoxLayout *StretchLayout = new QVBoxLayout;
-    StretchLayout->addLayout(WindLayout);
+    StretchLayout->addLayout(SeqLay);
     StretchLayout->addStretch(1000);
 
     QGroupBox *WindGroup = new QGroupBox(tr("Analysis Settings"));
@@ -288,9 +318,15 @@ void SimuWidget::SetupLayout()
 
     CreateCharSim = new QPushButton(tr("Define Simulation"));
     StartCharSim = new QPushButton(tr("Start Simulation"));
+    m_pctrlDeleteCBEM = new QPushButton(tr("Delete Simulation"));
+
+    createDeleteLayout = new QHBoxLayout;
+    createDeleteLayout->addWidget(CreateCharSim);
+    createDeleteLayout->addWidget(m_pctrlDeleteCBEM);
+
 
     QVBoxLayout *CharLayout = new QVBoxLayout;
-    CharLayout->addWidget(CreateCharSim);
+    CharLayout->addLayout(createDeleteLayout);
     CharLayout->addWidget(WUnitGroup);
     CharLayout->addWidget(RUnitGroup);
     CharLayout->addWidget(PUnitGroup);
@@ -375,6 +411,10 @@ void SimuWidget::SetupLayout()
 void SimuWidget::Connect()
 {
 
+    connect(m_pctrlDeleteCBEM, SIGNAL(clicked()), g_qbem, SLOT(OnDeleteCharSim()));
+    connect(m_pctrlDeleteTBEM, SIGNAL(clicked()), g_qbem, SLOT(OnDeleteTurbineSim()));
+    connect(m_pctrlDeleteBEM, SIGNAL(clicked()), g_qbem, SLOT(OnDeleteRotorSim()));
+
     connect(m_pctrlStartBEM, SIGNAL(clicked()), this,SLOT(OnStartBEM()));
     connect(m_pctrlCreateBEM, SIGNAL(clicked()), this,SLOT(OnCreateBEM()));    
     connect(m_pctrlStartTurbineSim, SIGNAL(clicked()), SLOT(OnStartTurbineSimulation()));
@@ -445,6 +485,8 @@ void SimuWidget::OnCheckDeltas()
     pBEM->dlg_lambdastart = m_pctrlLSLineEdit->getValue();
     pBEM->dlg_lambdaend = m_pctrlLELineEdit->getValue();
     pBEM->dlg_lambdadelta = m_pctrlLDLineEdit->getValue();
+    pBEM->dlg_windspeed = m_pctrlWindspeed->getValue();
+
 
 
 }

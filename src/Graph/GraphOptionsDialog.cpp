@@ -14,15 +14,14 @@
 #include "../MainFrame.h"
 #include "../TwoDWidget.h"
 #include "../Misc/NumberEdit.h"
-#include "../Misc/LineButton.h"
-#include "../Misc/LinePickerDlg.h"
-#include "../Misc/ColorButton.h"
+#include "../Misc/LineStyleButton.h"
+#include "../Misc/NewColorButton.h"
 
 
 GraphOptionsDialog::GraphOptionsDialog(NewGraph *graph) {
 	m_graph = graph;
 	
-	setWindowTitle(tr("Graph Options"));
+    setWindowTitle(tr("Graph Settings"));
 	
 	QVBoxLayout *dialogVBox = new QVBoxLayout ();
 	setLayout(dialogVBox);
@@ -84,37 +83,45 @@ GraphOptionsDialog::GraphOptionsDialog(NewGraph *graph) {
 					grid->addWidget(label, gridRowCount, 1, 1, 1, Qt::AlignHCenter);
 					label = new QLabel(tr("x-Axis"));
 					grid->addWidget(label, gridRowCount++, 2, 1, 1, Qt::AlignHCenter);
-					label = new QLabel (tr("Automatic: "));
+					label = new QLabel (tr("Scale:"));
+					grid->addWidget(label, gridRowCount, 0);
+					m_yLogScale = new QCheckBox ("logarithmic");
+					connect(m_yLogScale, SIGNAL(toggled(bool)), this, SLOT(onLogarithmicChanged()));
+					grid->addWidget(m_yLogScale, gridRowCount, 1);
+					m_xLogScale = new QCheckBox ("logarithmic");
+					connect(m_xLogScale, SIGNAL(toggled(bool)), this, SLOT(onLogarithmicChanged()));
+					grid->addWidget(m_xLogScale, gridRowCount++, 2);
+					label = new QLabel (tr("Automatic:"));
 					grid->addWidget(label, gridRowCount, 0);
 					QHBoxLayout *autoHBox = new QHBoxLayout ();
 					grid->addLayout(autoHBox, gridRowCount, 1);
-						m_yLimitsManuelCheckBox = new QCheckBox (tr("limits"));
-						autoHBox->addWidget(m_yLimitsManuelCheckBox);
+						m_yLimitsManualCheckBox = new QCheckBox (tr("limits"));
+						autoHBox->addWidget(m_yLimitsManualCheckBox);
 						m_yTickManuelCheckBox = new QCheckBox (tr("tick"));
 						autoHBox->addWidget(m_yTickManuelCheckBox);
 					autoHBox = new QHBoxLayout ();
 					grid->addLayout(autoHBox, gridRowCount++, 2);
-						m_xLimitsManuelCheckBox = new QCheckBox (tr("limits"));
-						autoHBox->addWidget(m_xLimitsManuelCheckBox);
+						m_xLimitsManualCheckBox = new QCheckBox (tr("limits"));
+						autoHBox->addWidget(m_xLimitsManualCheckBox);
 						m_xTickManuelCheckBox = new QCheckBox (tr("tick"));
 						autoHBox->addWidget(m_xTickManuelCheckBox);
-					label = new QLabel (tr("Low limit: "));
+					label = new QLabel (tr("Low limit:"));
 					grid->addWidget(label, gridRowCount, 0);
-					m_yLowLimitEdit = new NumberEdit (NumberEdit::Standard, 6);
+					m_yLowLimitEdit = new NumberEdit (NumberEdit::Scientific, 6);
 					connect(m_yLowLimitEdit, SIGNAL(valueChanged(double)), this, SLOT(onAxisValueChanged()));
 					grid->addWidget(m_yLowLimitEdit, gridRowCount, 1);
-					m_xLowLimitEdit = new NumberEdit (NumberEdit::Standard, 6);
+					m_xLowLimitEdit = new NumberEdit (NumberEdit::Scientific, 6);
 					connect(m_xLowLimitEdit, SIGNAL(valueChanged(double)), this, SLOT(onAxisValueChanged()));
 					grid->addWidget(m_xLowLimitEdit, gridRowCount++, 2);
-					label = new QLabel (tr("High limit: "));
+					label = new QLabel (tr("High limit:"));
 					grid->addWidget(label, gridRowCount, 0);
-					m_yHighLimitEdit = new NumberEdit (NumberEdit::Standard);
+					m_yHighLimitEdit = new NumberEdit (NumberEdit::Scientific, 6);
 					connect(m_yHighLimitEdit, SIGNAL(valueChanged(double)), this, SLOT(onAxisValueChanged()));
 					grid->addWidget(m_yHighLimitEdit, gridRowCount, 1);
-					m_xHighLimitEdit = new NumberEdit (NumberEdit::Standard);
+					m_xHighLimitEdit = new NumberEdit (NumberEdit::Scientific, 6);
 					connect(m_xHighLimitEdit, SIGNAL(valueChanged(double)), this, SLOT(onAxisValueChanged()));
 					grid->addWidget(m_xHighLimitEdit, gridRowCount++, 2);
-					label = new QLabel (tr("Tick size: "));
+					label = new QLabel (tr("Tick size:"));
 					grid->addWidget(label, gridRowCount, 0);
 					m_yTickSizeEdit = new NumberEdit (NumberEdit::Scientific, 2, 0);
 					connect(m_yTickSizeEdit, SIGNAL(valueChanged(double)), this, SLOT(onAxisValueChanged()));
@@ -122,24 +129,21 @@ GraphOptionsDialog::GraphOptionsDialog(NewGraph *graph) {
 					m_xTickSizeEdit = new NumberEdit (NumberEdit::Scientific, 2, 0);
 					connect(m_xTickSizeEdit, SIGNAL(valueChanged(double)), this, SLOT(onAxisValueChanged()));
 					grid->addWidget(m_xTickSizeEdit, gridRowCount++, 2);
-					label = new QLabel (tr("Grid style: "));
+					label = new QLabel (tr("Grid style:"));
 					grid->addWidget(label, gridRowCount, 0);
-					m_yGridStyleButton = new LineButton ();
-					connect(m_yGridStyleButton, SIGNAL(clicked()), this, SLOT(onLineButtonClicked()));
+					m_yGridStyleButton = new LineStyleButton ();
 					grid->addWidget(m_yGridStyleButton, gridRowCount, 1);
-					m_xGridStyleButton = new LineButton ();
-					connect(m_xGridStyleButton, SIGNAL(clicked()), this, SLOT(onLineButtonClicked()));
+					m_xGridStyleButton = new LineStyleButton ();
 					grid->addWidget(m_xGridStyleButton, gridRowCount++, 2);
-					label = new QLabel (tr("Axis style: "));
+					label = new QLabel (tr("Axis style:"));
 					grid->addWidget(label, gridRowCount, 0);
-					m_mainAxisStyleButton = new LineButton ();
-					connect(m_mainAxisStyleButton, SIGNAL(clicked()), this, SLOT(onLineButtonClicked()));
+					m_mainAxisStyleButton = new LineStyleButton ();
 					grid->addWidget(m_mainAxisStyleButton, gridRowCount++, 1, 1, 2);
-					setTabOrder(m_yLimitsManuelCheckBox, m_yLowLimitEdit);
+					setTabOrder(m_yLimitsManualCheckBox, m_yLowLimitEdit);
 					setTabOrder(m_yLowLimitEdit, m_yHighLimitEdit);
 					setTabOrder(m_yHighLimitEdit, m_yTickSizeEdit);
-					setTabOrder(m_yTickSizeEdit, m_xLimitsManuelCheckBox);
-					setTabOrder(m_xLimitsManuelCheckBox, m_xLowLimitEdit);
+					setTabOrder(m_yTickSizeEdit, m_xLimitsManualCheckBox);
+					setTabOrder(m_xLimitsManualCheckBox, m_xLowLimitEdit);
 					setTabOrder(m_xLowLimitEdit, m_xHighLimitEdit);
 					setTabOrder(m_xHighLimitEdit, m_xTickSizeEdit);
 			groupBox = new QGroupBox (tr("Styles"));
@@ -151,54 +155,50 @@ GraphOptionsDialog::GraphOptionsDialog(NewGraph *graph) {
 //				grid->setColumnMinimumWidth(1, 100);
 				groupBox->setLayout(grid);
 					gridRowCount = 0;
-					label = new QLabel (tr("Border style: "));
+					label = new QLabel (tr("Border style:"));
 					grid->addWidget(label, gridRowCount, 0);
-					m_borderStyleButton = new LineButton ();
-					connect(m_borderStyleButton, SIGNAL(clicked()), this, SLOT(onLineButtonClicked()));
+					m_borderStyleButton = new LineStyleButton (false, true, true);
 					grid->addWidget(m_borderStyleButton, gridRowCount++, 1);
-					label = new QLabel (tr("Background: "));
+					label = new QLabel (tr("Background:"));
 					grid->addWidget(label, gridRowCount, 0);
-					m_backgroundColorButton = new ColorButton ();
-					connect(m_backgroundColorButton, SIGNAL(clicked()), this, SLOT(onColorButtonClicked()));
+					m_backgroundColorButton = new NewColorButton ();
 					grid->addWidget(m_backgroundColorButton, gridRowCount++, 1);
-					label = new QLabel (tr("Title font: "));
+					label = new QLabel (tr("Title font:"));
 					grid->addWidget(label, gridRowCount, 0);
 					m_titleFontButton = new QPushButton ();
 					m_titleFontButton->setFixedWidth (120);
 					connect(m_titleFontButton, SIGNAL(clicked()), this, SLOT(onFontButtonClicked()));
 					grid->addWidget(m_titleFontButton, gridRowCount++, 1);
-					label = new QLabel (tr("Title color: "));
+					label = new QLabel (tr("Title color:"));
 					grid->addWidget(label, gridRowCount, 0);
-					m_titleColorButton = new ColorButton ();
-					connect(m_titleColorButton, SIGNAL(clicked()), this, SLOT(onColorButtonClicked()));
+					m_titleColorButton = new NewColorButton ();
 					grid->addWidget(m_titleColorButton, gridRowCount++, 1);
-					label = new QLabel (tr("Label font: "));
+					label = new QLabel (tr("Label font:"));
 					grid->addWidget(label, gridRowCount, 0);
 					m_tickFontButton = new QPushButton ();
 					m_tickFontButton->setFixedWidth (120);
 					connect(m_tickFontButton, SIGNAL(clicked()), this, SLOT(onFontButtonClicked()));
 					grid->addWidget(m_tickFontButton, gridRowCount++, 1);
-					label = new QLabel (tr("Label color: "));
+					label = new QLabel (tr("Label color:"));
 					grid->addWidget(label, gridRowCount, 0);
-					m_tickColorButton = new ColorButton ();
-					connect(m_tickColorButton, SIGNAL(clicked()), this, SLOT(onColorButtonClicked()));
+					m_tickColorButton = new NewColorButton ();
 					grid->addWidget(m_tickColorButton, gridRowCount++, 1);
 			hBox->addStretch();
 		
 	initView();
 }
 
-void GraphOptionsDialog::initView(bool asDefault) {
+void GraphOptionsDialog::initView(bool asDefault/* = false*/) {
 	NewGraph *graphToLoad;
 	if (asDefault) {
-		graphToLoad = new NewGraph("__default", NewGraph::FastSimulation, NULL);
+		graphToLoad = new NewGraph("__default", NULL, {NewGraph::None, "", "", false, false});
 	} else {
 		graphToLoad = m_graph;
 	}
 	
-	m_backgroundColorButton->SetColor(graphToLoad->getBackgroundColor());
-	m_titleColorButton->SetColor(graphToLoad->getTitleColor());
-	m_tickColorButton->SetColor(graphToLoad->getTickColor());
+	m_backgroundColorButton->setColor(graphToLoad->getBackgroundColor());
+	m_titleColorButton->setColor(graphToLoad->getTitleColor());
+	m_tickColorButton->setColor(graphToLoad->getTickColor());
 	m_titleFont = graphToLoad->getTitleFont();
 	setFontButtonsText(m_titleFontButton, m_titleFont.family());
 	m_tickFont = graphToLoad->getTickFont();
@@ -206,19 +206,20 @@ void GraphOptionsDialog::initView(bool asDefault) {
 	m_mainAxisStyleButton->setPen(graphToLoad->getMainAxesPen());
 	m_xGridStyleButton->setPen(graphToLoad->getXGridPen());
 	m_yGridStyleButton->setPen(graphToLoad->getYGridPen());
-	m_borderStyleButton->SetColor(graphToLoad->getBorderColor());
-	m_borderStyleButton->SetWidth(graphToLoad->getBorderWidth());
-	
+	m_borderStyleButton->setPen(QPen(graphToLoad->getBorderColor(), graphToLoad->getBorderWidth()));
+			
 	if (asDefault) {
 		delete graphToLoad;
 	}	
 	
 	if (!asDefault) {  // the following parameters are not restored to default
-		m_xVariableList->addItems(m_graph->getAvailableVariables());
-		m_xVariableList->setCurrentRow(m_graph->getAvailableVariables().indexOf(m_graph->getShownXVariable()));
-		m_yVariableList->addItems(m_graph->getAvailableVariables());
-		m_yVariableList->setCurrentRow(m_graph->getAvailableVariables().indexOf(m_graph->getShownYVariable()));
+		m_xVariableList->addItems(m_graph->getAvailableVariables(true));
+		m_xVariableList->setCurrentRow(m_graph->getAvailableVariables(true).indexOf(m_graph->getShownXVariable()));
+		m_yVariableList->addItems(m_graph->getAvailableVariables(false));
+		m_yVariableList->setCurrentRow(m_graph->getAvailableVariables(false).indexOf(m_graph->getShownYVariable()));
 		
+		m_xLogScale->setChecked(m_graph->getXLogarithmic());
+		m_yLogScale->setChecked(m_graph->getYLogarithmic());
 		m_graphTitleEdit->setText(m_graph->getTitle());
 		m_xLowLimitEdit->setValue(m_graph->getXLowLimit());
 		m_xHighLimitEdit->setValue(m_graph->getXHighLimit());
@@ -226,9 +227,9 @@ void GraphOptionsDialog::initView(bool asDefault) {
 		m_yLowLimitEdit->setValue(m_graph->getYLowLimit());
 		m_yHighLimitEdit->setValue(m_graph->getYHighLimit());
 		m_yTickSizeEdit->setValue(m_graph->getYTickSize());
-		m_xLimitsManuelCheckBox->setChecked(true);
+		m_xLimitsManualCheckBox->setChecked(true);
 		m_xTickManuelCheckBox->setChecked(true);
-		m_yLimitsManuelCheckBox->setChecked(true);
+		m_yLimitsManualCheckBox->setChecked(true);
 		m_yTickManuelCheckBox->setChecked(true);
 	}
 }
@@ -246,13 +247,16 @@ void GraphOptionsDialog::onApplyButtonClicked() {
 	m_graph->setShownVariables((m_xVariableList->currentItem() == NULL ? "" : m_xVariableList->currentItem()->text()),
 							   (m_yVariableList->currentItem() == NULL ? "" : m_yVariableList->currentItem()->text()));
 	
+	m_graph->setXLogarithmic(m_xLogScale->isChecked());
+	m_graph->setYLogarithmic(m_yLogScale->isChecked());
+	
 	/* silent error prevention by ignoring invalid values */
-	if (!m_xLimitsManuelCheckBox->isChecked() && m_xLowLimitEdit->getValue() < m_xHighLimitEdit->getValue()) {
+	if (!m_xLimitsManualCheckBox->isChecked() && m_xLowLimitEdit->getValue() < m_xHighLimitEdit->getValue()) {
 		m_graph->setXLimits(m_xLowLimitEdit->getValue(), m_xHighLimitEdit->getValue());
 	} else {
 		m_graph->setOptimalXLimits();
 	}
-	if (!m_yLimitsManuelCheckBox->isChecked() && m_yLowLimitEdit->getValue() < m_yHighLimitEdit->getValue()) {
+	if (!m_yLimitsManualCheckBox->isChecked() && m_yLowLimitEdit->getValue() < m_yHighLimitEdit->getValue()) {
 		m_graph->setYLimits(m_yLowLimitEdit->getValue(), m_yHighLimitEdit->getValue());
 	} else {
 		m_graph->setOptimalYLimits();
@@ -266,11 +270,11 @@ void GraphOptionsDialog::onApplyButtonClicked() {
 	m_graph->setXGridPen(m_xGridStyleButton->getPen());
 	m_graph->setYGridPen(m_yGridStyleButton->getPen());
 	m_graph->setMainAxesPen(m_mainAxisStyleButton->getPen());
-	m_graph->setBorderColor(m_borderStyleButton->GetColor());
-	m_graph->setBorderWidth(m_borderStyleButton->GetWidth());
-	m_graph->setBackgroundColor(m_backgroundColorButton->GetColor());
-	m_graph->setTickColor(m_tickColorButton->GetColor());
-	m_graph->setTitleColor(m_titleColorButton->GetColor());
+	m_graph->setBorderColor(m_borderStyleButton->getPen().color());
+	m_graph->setBorderWidth(m_borderStyleButton->getPen().width());
+	m_graph->setBackgroundColor(m_backgroundColorButton->getColor());
+	m_graph->setTickColor(m_tickColorButton->getColor());
+	m_graph->setTitleColor(m_titleColorButton->getColor());
 	m_graph->setTickFont(m_tickFont);
 	m_graph->setTitleFont(m_titleFont);
 	
@@ -280,30 +284,6 @@ void GraphOptionsDialog::onApplyButtonClicked() {
 void GraphOptionsDialog::onOkButtonClicked() {
 	onApplyButtonClicked();
 	accept();
-}
-
-void GraphOptionsDialog::onLineButtonClicked() {
-	LineButton *clickedButton = dynamic_cast<LineButton*> (QObject::sender());
-	
-	LinePickerDlg linePicker;
-	if (clickedButton == m_borderStyleButton) {
-		linePicker.disableLineStyle();
-	}
-	linePicker.InitDialog(clickedButton->GetStyle(), clickedButton->GetWidth(), clickedButton->GetColor());
-	if(linePicker.exec() == QDialog::Accepted) 	{
-		clickedButton->SetStyle(linePicker.GetStyle());
-		clickedButton->SetWidth(linePicker.GetWidth());
-		clickedButton->SetColor(linePicker.GetColor());
-	}	
-}
-
-void GraphOptionsDialog::onColorButtonClicked() {
-	ColorButton *clickedButton = dynamic_cast<ColorButton*> (QObject::sender());
-	
-	QColor chosenColor = QColorDialog::getColor(clickedButton->GetColor());
-	if (chosenColor.isValid()) {  // if user cancels, the color is not valid
-		clickedButton->SetColor(chosenColor);
-	}
 }
 
 void GraphOptionsDialog::onFontButtonClicked() {
@@ -333,11 +313,25 @@ void GraphOptionsDialog::setFontButtonsText(QPushButton *button, QString fontNam
 void GraphOptionsDialog::onAxisValueChanged() {
 	NumberEdit *changedEdit = dynamic_cast<NumberEdit*> (QObject::sender());
 	
-	m_yLimitsManuelCheckBox->setChecked(false);		
-	m_xLimitsManuelCheckBox->setChecked(false);		
-	if (changedEdit == m_yTickSizeEdit) {
+	if (changedEdit == m_yLowLimitEdit || changedEdit == m_yHighLimitEdit) {
+		m_yLimitsManualCheckBox->setChecked(false);		
+	} else if (changedEdit == m_xLowLimitEdit || changedEdit == m_xHighLimitEdit) {
+		m_xLimitsManualCheckBox->setChecked(false);
+	} else if (changedEdit == m_yTickSizeEdit) {
 		m_yTickManuelCheckBox->setChecked(false);
 	} else if (changedEdit == m_xTickSizeEdit) {
 		m_xTickManuelCheckBox->setChecked(false);
 	} 
+}
+
+void GraphOptionsDialog::onLogarithmicChanged() {
+	QCheckBox *changedBox = dynamic_cast<QCheckBox*> (QObject::sender());
+	
+	if (changedBox == m_xLogScale) {
+		m_xTickManuelCheckBox->setEnabled(!changedBox->isChecked());
+		m_xTickSizeEdit->setEnabled(!changedBox->isChecked());
+	} else {
+		m_yTickManuelCheckBox->setEnabled(!changedBox->isChecked());
+		m_yTickSizeEdit->setEnabled(!changedBox->isChecked());
+	}
 }

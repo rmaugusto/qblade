@@ -1,34 +1,54 @@
+/****************************************************************************
+
+    QFEMDock Class
+        Copyright (C) 2014 David Marten david.marten@tu-berlin.de
+
+    This program is free software; you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation; either version 2 of the License, or
+    (at your option) any later version.
+
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with this program; if not, write to the Free Software
+    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+
+*****************************************************************************/
+
 #ifndef QFEMDOCK_H
 #define QFEMDOCK_H
 
-#include <QObject>
-#include <QMainWindow>
-#include <QToolBar>
-#include <QAction>
-#include <QIcon>
-#include <QDockWidget>
-#include <QVBoxLayout>
-#include <QGroupBox>
-#include <QGridLayout>
-#include <QCheckBox>
-#include <QPushButton>
-#include <QLineEdit>
-#include <QProgressDialog>
-#include <QThread>
-#include <QDebug>
-#include <QLabel>
-#include <QTableView>
-#include <QStackedWidget>
-#include <QStandardItemModel>
-#include "../XWidgets.h"
-#include "../ScrolledDock.h"
-#include "QFEMModule.h"
-#include "StructDelegate.h"
-#include "QProgressDialog"
-#include "../Misc/FloatEditDelegate.h"
 
+//class LineButton;
+//class QFEMModule;
+class QLabel;
+class QComboBox;
+class QLineEdit;
+class QTableView;
+class QPushButton;
+class QCheckBox;
+class QGroupBox;
+class QHBoxLayout;
+class QSlider;
+class QStandardItemModel;
+class QStackedWidget;
+class QTabWidget;
+class QProgressDialog;
+
+#include "../ScrolledDock.h"
+#include "../StoreAssociatedComboBox_include.h"
+class ColorButton;
 class LineButton;
+class NumberEdit;
+class StructDelegate;
+class FloatEditDelegate;
 class QFEMModule;
+class BladeStructure;
+class BladeStructureLoading;
 
 
 class QFEMDock : public ScrolledDock
@@ -44,7 +64,7 @@ private:
     QLineEdit *m_pctrlNameEdit, *m_pctrlLoadingNameEdit;
     QTableView *m_pctrlStructureTableView, *m_pctrlStructureTable, *m_LoadingTableView, *m_LoadingTable;
     QPushButton *m_pctrlNew, *m_pctrlEdit, *m_pctrlDelete, *m_pctrlSave, *m_pctrlRename, *m_pctrlCancel, *m_pctrlAllSections, *m_pctrlAlignSparMaxThickness;
-    QCheckBox *m_pctrlPerspective, *m_pctrlSurfaces, *m_pctrlTopSurface, *m_pctrlInternal, *m_pctrlOutline, *m_pctrlAxes, *m_pctrlPositions, *m_pctrlFoilNames, *m_pctrlRotor;
+    QCheckBox *m_pctrlPerspective, *m_pctrlSurfaces, *m_pctrlTopSurface, *m_pctrlInternal, *m_pctrlOutline, *m_pctrlAxes, *m_pctrlRotor;
     ColorButton *m_pctrlshellColor, *m_pctrlsparColor;
     QGroupBox *viewWidget, *ModesWidget, *CurvesBox;
     QCheckBox *AbsoluteSpar, *AbsoluteShell;
@@ -88,8 +108,6 @@ public:
     QStackedWidget *structureWidget;
     QTabWidget *m_tabwidget;
 
-	void initView();
-
     bool m_cancelCalculation;
     int m_progressStep;
     int m_progressStepShown;
@@ -107,6 +125,7 @@ private slots:
 	void OnAllSections();
     void onProgressDialogCanceled();
     void onWindFieldProgress();
+    void OnResize();
 
     void OnImportLoading();
     void OnFillWindspeeds();
@@ -127,6 +146,8 @@ private slots:
     void onShowPointsCheckBoxCanged();
     void onShowCurveCheckBoxCanged();
     void SetShownBladeStructure(BladeStructure *structure);
+
+
 };
 
 #endif // QFEMDOCK_H

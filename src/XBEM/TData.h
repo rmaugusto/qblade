@@ -1,7 +1,7 @@
 /****************************************************************************
 
     TData Class
-        Copyright (C) 2010 David Marten qblade@web.de
+        Copyright (C) 2010 David Marten david.marten@tu-berlin.de
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -22,29 +22,34 @@
 #ifndef TDATA_H
 #define TDATA_H
 
+#include "../StorableObject.h"
+#include "../ParameterObject.h"
+#include "../ParameterKeys.h"
+template <class KeyType>
+class ParameterViewer;
 
-#include <QList>
-#include <QString>
-#include <QColor>
-#include "BData.h"
 
-class TData : public StorableObject
+// NM class should be split into TurbineCommon, TurbineBEM, TurbineDMS
+class TData : public StorableObject, public ParameterObject<Parameter::TData>
 {
     friend class QBEM;
 	friend class QDMS;  // new friend class JW
     friend class MainFrame;
 
 public:
-    void Serialize(QDataStream &ar, bool bIsStoring, int ArchiveFormat);
 	double getRotorRadius ();
 	
+	static QStringList prepareMissingObjectMessage(bool forDMS);
 	static TData* newBySerialize ();
 	void serialize();  // override from StorableObject
 	TData();
-
+	TData(ParameterViewer<Parameter::TData> *viewer);
 	virtual ~TData();
 
 private:
+	QVariant accessParameter(Parameter::TData::Key key, QVariant value = QVariant());
+	
+public:  //private:
     QString m_TurbineName;
     QString m_WingName;
     bool turbtype; //new JW variable 0:HAWT, 1:VAWT
@@ -58,7 +63,7 @@ private:
     bool isPrescribedRot;
 
     double VariableLosses;
-    double FixedLosses;
+    double m_fixedLosses;
     double OuterRadius;
     double Generator;
     double Rot1;
@@ -70,7 +75,7 @@ private:
     double FixedPitch;
     // new JW variables //
     double Offset;
-    double RHeight;
+    double RHeight;  // TODO NM this value is redundant and seems to be unused
     double THeight;
     double MaxRadius;
     double SweptArea;

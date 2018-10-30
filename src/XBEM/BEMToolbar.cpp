@@ -6,13 +6,16 @@
 #include "../StoreAssociatedComboBox.h"
 #include "../Store.h"
 #include "BEM.h"
-#include "../XGlobals.h"
 
 
 BEMToolbar::BEMToolbar(QMainWindow *parent)
 {
+	setObjectName("BEMToolbar");
+	
+    QRect rec = QApplication::desktop()->screenGeometry();
+    int width = rec.width();
+    setIconSize(QSize(width*0.025,width*0.025));
 
-    setIconSize(QSize(36,36));
 
 	m_SingleGraphAct = new QAction(QIcon(":/images/single.png"), tr("Single Graph View"), this);
 	m_SingleGraphAct->setCheckable(true);
@@ -141,10 +144,10 @@ BEMToolbar::BEMToolbar(QMainWindow *parent)
     connect(m_foilComboBox,SIGNAL(valueChanged(int)), g_qbem, SLOT(OnSelChangeFoil(int)));
     connect(m_polarComboBox,SIGNAL(valueChanged(int)), g_qbem, SLOT(OnSelChangePolar(int)));
     connect(m_polar360ComboBox,SIGNAL(valueChanged(int)), g_qbem, SLOT(OnSelChange360Polar(int)));
-    connect(m_bemdataComboBox,SIGNAL(valueChanged(int)), g_qbem, SLOT(OnSelChangeRotorSimulation(int)));
+	connect(m_bemdataComboBox,SIGNAL(valueChanged(int)), g_qbem, SLOT(OnSelChangeRotorSimulation()));
     connect(m_tdataComboBox,SIGNAL(valueChanged(int)), g_qbem, SLOT(OnSelChangeTurbine(int)));
-    connect(m_tbemdataComboBox,SIGNAL(valueChanged(int)), g_qbem, SLOT(OnSelChangeTurbineSimulation(int)));
-    connect(m_cbemdataComboBox,SIGNAL(valueChanged(int)), g_qbem, SLOT(OnSelChangeCharSimulation(int)));
+	connect(m_tbemdataComboBox,SIGNAL(valueChanged(int)), g_qbem, SLOT(OnSelChangeTurbineSimulation()));
+	connect(m_cbemdataComboBox,SIGNAL(valueChanged(int)), g_qbem, SLOT(OnSelChangeCharSimulation()));
 	connect(m_tsrComboBox,SIGNAL(activated(int)), g_qbem, SLOT(OnSelChangeBladeData(int)));
 	connect(m_windspeedComboBox,SIGNAL(activated(int)), g_qbem, SLOT(OnSelChangeWind(int)));
 	connect(m_pitchComboBox,SIGNAL(activated(int)), g_qbem, SLOT(OnSelChangePitch(int)));

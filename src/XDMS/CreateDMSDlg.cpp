@@ -22,7 +22,6 @@
 #include "CreateDMSDlg.h"
 #include "DMS.h"
 #include "../Globals.h"
-#include "../XGlobals.h"
 
 
 CreateDMSDlg::CreateDMSDlg(void *pParent)
@@ -31,15 +30,6 @@ setWindowTitle(tr("Define DMS Parameters"));
 
 m_pParent = pParent;
 
-
-
-/*
-RootLoss = pDMS->dlg_rootloss;
-ThreeDCorrection = pDMS->dlg_3dcorrection;
-Interpolation = pDMS->dlg_interpolation;
-NewTipLoss = pDMS->dlg_newtiploss;
-NewRootLoss = pDMS->dlg_newrootloss;
-*/
 
 SetupLayout();
 Connect();

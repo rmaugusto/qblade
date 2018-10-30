@@ -9,7 +9,8 @@
 #include "../Serializer.h"
 #include "../Graph/NewCurve.h"
 #include "../Store.h"
-
+#include "QFEMModule.h"
+#include "../ColorManager.h"
 
 
 BladeStructure* BladeStructure::newBySerialize() {
@@ -26,9 +27,9 @@ BladeStructure::BladeStructure()
 }
 
 BladeStructure::BladeStructure(QString name, CBlade *rotor)
-	: StorableObject (name, rotor) {
-	
-	m_pen.setColor(findColor (&g_bladeStructureStore));
+	: StorableObject (name, rotor)
+{
+	m_pen.setColor(g_colorManager.getLeastUsedColor(&g_bladeStructureStore));
 	m_pen.setWidth(1);
 	m_pen.setStyle(Qt::SolidLine);
 	m_numElems = rotor->m_NSurfaces+1;
@@ -111,7 +112,7 @@ void BladeStructure::ReadSectionCoordinates()
 
 		PAxisY.append(m_rotor->m_TPAxisY[i]);
 
-		PAxisZ.append(m_rotor->m_TPAxisZ[i]);
+        PAxisZ.append(m_rotor->m_TOffsetZ[i]);
 
 		////////now the coordinates for the airfoil are read from the foil data stored in the associated cblade object
 
@@ -350,7 +351,7 @@ bool BladeStructure::RunModalTest()
     //------------------Replace the previously deleted lines with zeros---------------
     ModalEquations.ReplaceRigidDOFs(FixedDOF);
 
-    ModalEquations.FitPolynomials(7);
+    ModalEquations.FitPolynomials();
 
     //---------------stroring of results in the objects arrays fo later use and visualization purposes-----------
 
@@ -381,8 +382,9 @@ bool BladeStructure::RunModalTest()
                 FlapwiseFrequencies.append(TempMode.Frequency/(2.0*3.14));
 
                 coeffs.clear();
-                for(int k=1; k<TempMode.Polynomial.rows();k++)
+                for(int k=0; k<TempMode.Polynomial.rows();k++)
                 {
+                    if (k==0) coeffs.append(0); // placeholder for x^1 due to compatibility w older project files
                     coeffs.append(TempMode.Polynomial(k,0));
                 }
                 FlapwiseCoefficients.append(coeffs);
@@ -392,8 +394,9 @@ bool BladeStructure::RunModalTest()
                 EdgewiseFrequencies.append(TempMode.Frequency/(2.0*3.14));
 
                 coeffs.clear();
-                for(int k=1; k<TempMode.Polynomial.rows();k++)
+                for(int k=0; k<TempMode.Polynomial.rows();k++)
                 {
+                    if (k==0) coeffs.append(0); // placeholder for x^1 due to compatibility w older project files
                     coeffs.append(TempMode.Polynomial(k,0));
                 }
                 EdgewiseCoefficients.append(coeffs);
@@ -403,8 +406,9 @@ bool BladeStructure::RunModalTest()
                 TorsionalFrequencies.append(TempMode.Frequency/(2.0*3.14));
 
                 coeffs.clear();
-                for(int k=1; k<TempMode.Polynomial.rows();k++)
+                for(int k=0; k<TempMode.Polynomial.rows();k++)
                 {
+                    if (k==0) coeffs.append(0); // placeholder for x^1 due to compatibility w older project files
                     coeffs.append(TempMode.Polynomial(k,0));
                 }
                 TorsionalCoefficients.append(coeffs);
@@ -415,8 +419,9 @@ bool BladeStructure::RunModalTest()
                 RadialFrequencies.append(TempMode.Frequency/(2.0*3.14));
 
                 coeffs.clear();
-                for(int k=1; k<TempMode.Polynomial.rows();k++)
+                for(int k=0; k<TempMode.Polynomial.rows();k++)
                 {
+                    if (k==0) coeffs.append(0); // placeholder for x^1 due to compatibility w older project files
                     coeffs.append(TempMode.Polynomial(k,0));
                 }
                 RadialCoefficients.append(coeffs);
@@ -428,8 +433,9 @@ bool BladeStructure::RunModalTest()
                 UnsortedFrequencies.append(TempMode.Frequency/(2.0*3.14));
 
                 coeffs.clear();
-                for(int k=1; k<TempMode.Polynomial.rows();k++)
+                for(int k=0; k<TempMode.Polynomial.rows();k++)
                 {
+                    if (k==0) coeffs.append(0); // placeholder for x^1 due to compatibility w older project files
                     coeffs.append(TempMode.Polynomial(k,0));
                 }
                 UnsortedCoefficients.append(coeffs);
@@ -533,7 +539,7 @@ void BladeStructure::FillVariableList(BladeStructureLoading *loading){
     m_availableVariables.append("Tangential Loading per Length [N/m]");
     m_availableVariables.append("Node Translations in Z [m]");
     m_availableVariables.append("Node Translations in X [m]");
-    m_availableVariables.append("Max VM Stress at Station [Pa]");
+    m_availableVariables.append("Max VM Stress at Section [Pa]");
     }
 
 }
@@ -614,7 +620,24 @@ void BladeStructure::serialize() {
 void BladeStructure::restorePointers() {
     StorableObject::restorePointers();
 
-    g_serializer.restorePointer (reinterpret_cast<StorableObject**> (&m_rotor));
+	g_serializer.restorePointer (reinterpret_cast<StorableObject**> (&m_rotor));
+}
+
+QStringList BladeStructure::prepareMissingObjectMessage() {
+	if (g_bladeStructureStore.isEmpty() && g_QFEMModule->m_structure == NULL) {
+		QStringList message = CBlade::prepareMissingObjectMessage(false);
+		if (message.isEmpty()) {
+			if (g_mainFrame->m_iApp == QFEMMODULE && g_mainFrame->m_iView == QFEMSTRUCTVIEW) {
+				message = QStringList(">>> Click 'New' to create a new Blade Structure");
+			} else {
+				message = QStringList(">>> Create a new Blade Structure in the QFEM Module");
+			}
+		}
+		message.prepend("- No Blade Structure in Database");
+		return message;
+	} else {
+		return QStringList();
+	}
 }
 
 QStringList BladeStructure::getAvailableVariables(NewGraph::GraphType /*graphType*/) {

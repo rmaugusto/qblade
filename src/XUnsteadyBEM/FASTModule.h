@@ -8,6 +8,7 @@ class FASTDock;
 class QGraph;
 class FastTwoDContextMenu;
 class FASTMenu;
+class StorableObject;
 
 
 class FASTModule : public ModuleBase, public TwoDModule
@@ -18,14 +19,14 @@ public:
 	FASTModule(QMainWindow *mainWindow, QToolBar *toolbar);
 	~FASTModule();
 	
-	QStringList getAvailableGraphVariables();  // override from TwoDWidgetInterface
+	QList<NewCurve*> prepareCurves (QString xAxis, QString yAxis, NewGraph::GraphType graphType,
+									NewGraph::GraphType graphTypeMulti);
+	QStringList getAvailableGraphVariables(bool xAxis);  // override from TwoDWidgetInterface
+	virtual QPair<ShowAsGraphInterface*,int> getHighlightDot(NewGraph::GraphType graphType);
 	FASTSimulation* getShownFASTSimulation () { return m_shownFASTSimulation; }
-	void setShownFASTSimulation (FASTSimulation *newShownFASTSimulation, bool forceReload = false);
 	
-	void reloadAllGraphCurves ();
-	void emitUpdateFastGraphs () { emit updateFastGraphs(); }
-	void emitUpdateBladeGraphs () { emit updateBladeGraphs(); }
     virtual void addMainMenuEntries();
+	virtual QStringList prepareMissingObjectMessage();
 	
 private:
 	FASTDock *m_FASTDock;
@@ -33,21 +34,17 @@ private:
 	FASTSimulation *m_shownFASTSimulation;
 	FastTwoDContextMenu *m_fastContextMenu;
     FASTMenu *m_FASTMenu;
-    int m_DockWidth;
 	
 	void initView();
 	void showAll();
 	void hideAll();
-	void setContextMenuGraphType(NewGraph::GraphType graphType);
 	
 public slots:
 	virtual void onActivationActionTriggered();  // override from ModuleBase
 	virtual void onModuleChanged ();  // override from ModuleBase
-	void onShownFASTSimulationChanged (const QString newName);  // connected to the comboBox in the toolBar
-	
-signals:
-	void updateFastGraphs ();
-	void updateBladeGraphs ();
+	void setShownFASTSimulation (FASTSimulation *newShownFASTSimulation, bool forceReload = false);
+	void reloadFastGraphs () { reloadForGraphType(NewGraph::FastSimulation); }
+	void reloadBladeGraphs () { reloadForGraphType(NewGraph::BladeGraph); }
 };
 
 extern FASTModule *g_fastModule;

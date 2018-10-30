@@ -32,14 +32,6 @@ class BEMDock : public ScrolledDock
 
 public:
 	BEMDock(const QString &title, QMainWindow *parent, Qt::WindowFlags flags);
-
-	void initView ();
-
-private:
-
-public slots:
-
-
 };
 
 

@@ -2,6 +2,7 @@
 #define SHOWASGRAPHINTERFACE_H
 
 #include <QString>
+#include <QDebug>
 class QStringList;
 
 #include "../Store_include.h"
@@ -14,46 +15,30 @@ class ShowAsGraphInterface
 {
 public:
 	ShowAsGraphInterface (bool initialise = true);
-	virtual NewCurve* newCurve (QString xAxis, QString yAxis, NewGraph::GraphType graphType) = 0;  // returns NULL if var not available
-	virtual QStringList getAvailableVariables (NewGraph::GraphType graphType) = 0;
+	virtual NewCurve* newCurve (QString xAxis, QString yAxis, NewGraph::GraphType graphType) = 0;  // returns NULL if var n.a.
 	virtual QString getObjectName () = 0;
+	// any inheriting class should implement the following function rather as static or common member function
+	//	virtual QStringList getAvailableVariables (NewGraph::GraphType graphType) = 0;
 	
 	void setDrawPoints (bool drawPoints) { m_drawPoints = drawPoints; }
 	void setDrawCurve (bool drawCurve) { m_drawCurve = drawCurve; }
 	void setShownInGraph (bool shownInGraph) { m_shownInGraph = shownInGraph; }
 	void setPen (QPen pen) { m_pen = pen; }
-	bool isDrawPoints () { return m_drawPoints; }
-	bool isDrawCurve () { return m_drawCurve; }
+	QPen* pen () { return &m_pen; }
+	virtual bool isDrawPoints () { return m_drawPoints; }
+	virtual bool isDrawCurve () { return m_drawCurve; }
 	bool isShownInGraph () { return m_shownInGraph; }
-	QPen getPen () { return m_pen; }
-	
+	QPen getPen (int curveIndex = -1, int highlightedIndex = -1, bool forTheDot = false);
+
 protected:
 	void serialize ();
-	template <class OBJECT>
-	QColor findColor (Store<OBJECT> *storeToSearch);
 	
 	bool m_shownInGraph;  // if this simulation will have a representation in the graphs
 	bool m_drawPoints, m_drawCurve;
 	QPen m_pen;
+
+private:
+	virtual QPen doGetPen (int /*curveIndex*/, int /*highlightedIndex*/, bool /*forTheDot*/) { return m_pen; }
 };
-
-
-template <class OBJECT>  // template functions must be in the header
-QColor ShowAsGraphInterface::findColor (Store<OBJECT> *storeToSearch) {
-	bool colorFound;
-	for (int i = 0; i < 24; ++i) {
-		colorFound = false;
-		for (int j = 0; j < storeToSearch->size(); ++j) {
-			if (storeToSearch->at(j)->getPen().color() == g_mainFrame->m_crColors[i]) {
-				colorFound = true;
-				break;
-			}
-		}
-		if (!colorFound) {
-			return g_mainFrame->m_crColors[i];
-		}
-	}
-	return g_mainFrame->m_crColors[storeToSearch->size() % 24];
-}
 
 #endif // SHOWASGRAPHINTERFACE_H

@@ -14,7 +14,7 @@ class FastTwoDContextMenu : public TwoDContextMenu
 public:
 	FastTwoDContextMenu(QWidget *parent, FASTModule *module);
 	
-	void setCurrentGraphType (NewGraph::GraphType graphType);
+	void setCurrentGraphType (NewGraph::GraphType graphType, NewGraph::GraphType graphTypeMulti = NewGraph::None);
 	
 private:
 	FASTModule *m_module;

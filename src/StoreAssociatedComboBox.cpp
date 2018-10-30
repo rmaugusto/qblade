@@ -7,7 +7,7 @@
 
 
 StoreAssociatedComboBoxBase::StoreAssociatedComboBoxBase () {
-	m_parentBox = NULL;
+    m_parentBox = NULL;
 }
 
 void StoreAssociatedComboBoxBase::setParentBox (StoreAssociatedComboBoxBase *parentBox) {
@@ -20,9 +20,9 @@ StoreAssociatedComboBoxBase* StoreAssociatedComboBoxBase::getParentBox() {
 	return m_parentBox;
 }
 
-StorableObject* StoreAssociatedComboBoxBase::getCurrentObjectUncasted () {
-	return (currentIndex() == -1 ? NULL : m_shownObjects.at(currentIndex()));
-}
+//StorableObject* StoreAssociatedComboBoxBase::getCurrentObjectUncasted () {
+//	return (currentIndex() == -1 ? NULL : m_shownObjects.at(currentIndex()));
+//}
 
 template <class T>
 StoreAssociatedComboBox<T>::StoreAssociatedComboBox (Store<T> *associatedStore, bool disableIfEmpty) {
@@ -41,6 +41,7 @@ template <class T>
 void StoreAssociatedComboBox<T>::onCurrentIndexChanged(int newIndex) {
 	if (m_changeSignalEnabled) {
 		emit valueChanged(newIndex);
+		emit valueChanged(m_shownObjects[newIndex]);
 	}
 }
 
@@ -66,11 +67,11 @@ void StoreAssociatedComboBox<T>::updateContent(bool searchForLastActive) {
 	m_shownObjects.clear();
 	
 	for (int i = 0; m_associatedStore->at(i) != 0; ++i) {
-		if (m_parentBox == NULL || m_parentBox->getCurrentObjectUncasted() == 
-																	m_associatedStore->at(i)->getParent()) {
+        if (m_parentBox == NULL || m_parentBox->getCurrentObjectUncasted() ==
+                                                                    m_associatedStore->at(i)->getParent()) {
 			addItem(m_associatedStore->at(i)->getName());
 			m_shownObjects.append(m_associatedStore->at(i));
-//			qDebug() << "folgende gefunden: " << m_associatedStore->at(i)->getName();
+//            qDebug() << "folgende gefunden: " << m_associatedStore->at(i)->getName();
 			if (searchForLastActive && ! lastActiveFound && m_associatedStore->at(i) == lastActive) {
 				setCurrentIndex(count() - 1);
 				lastActiveFound = true;
@@ -80,13 +81,13 @@ void StoreAssociatedComboBox<T>::updateContent(bool searchForLastActive) {
 	if (m_disableIfEmpty) {
 		setEnabled(count());
 	}
-	
+    m_changeSignalEnabled = true;
 	if (! lastActiveFound) {
 		emit valueChanged(currentIndex());
 		emit valueChanged(currentText());
+		emit valueChanged(m_shownObjects.isEmpty() ? NULL : m_shownObjects[currentIndex()]);
 	}
-	
-	m_changeSignalEnabled = true;
+
 }
 
 template <class T>
@@ -98,6 +99,12 @@ template <class T>
 T* StoreAssociatedComboBox<T>::currentObject () {
 	// a dynamic_cast is not possible here, because in case of a deleted object the dynamic typeinfo is lost
 	return (currentIndex() == -1 ? NULL : static_cast<T*> (m_shownObjects.at(currentIndex())));
+}
+
+template <class T>
+T* StoreAssociatedComboBox<T>::getObjectAt (int i) {
+    // a dynamic_cast is not possible here, because in case of a deleted object the dynamic typeinfo is lost
+    return ((i >= m_shownObjects.size() || i < 0 ) ? NULL : static_cast<T*> (m_shownObjects.at(i)));
 }
 
 template <class T>
@@ -126,5 +133,6 @@ template class StoreAssociatedComboBox<CFoil>;
 template class StoreAssociatedComboBox<OpPoint>;
 template class StoreAssociatedComboBox<BladeStructureLoading>;
 template class StoreAssociatedComboBox<QLLTSimulation>;
+template class StoreAssociatedComboBox<QLLTCutPlane>;
 template class StoreAssociatedComboBox<NoiseSimulation>;
-
+template class StoreAssociatedComboBox<Strut>;

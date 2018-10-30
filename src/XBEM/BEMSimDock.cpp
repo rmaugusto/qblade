@@ -21,7 +21,6 @@
 
 #include "BEMSimDock.h"
 #include "../Globals.h"
-#include "../XGlobals.h"
 #include "SimuWidget.h"
 
 
@@ -38,8 +37,4 @@ BEMSimDock::BEMSimDock (const QString & title, QMainWindow * parent, Qt::WindowF
 	setVisible(false);
 
 	addScrolledDock(Qt::RightDockWidgetArea , parent);
-}
-
-void BEMSimDock::initView()
-{
 }

@@ -4,16 +4,23 @@
 #include <QDebug>
 #include <QAction>
 #include <QToolBar>
+#include <QMenuBar>
+#include <QSettings>
 
 #include "TwoDWidget.h"
 #include "GLWidget.h"
 #include "MainFrame.h"
+#include "TwoDGraphMenu.h"
 
 
 ModuleBase::ModuleBase ()
 {
 	m_firstView = true;
 	connect (g_mainFrame, SIGNAL(moduleChanged()), this, SLOT(onModuleChanged()));		
+}
+
+void ModuleBase::setActionIcon(QString path){
+    m_activationAction->setIcon(QIcon(path));
 }
 
 void ModuleBase::registrateAtToolbar(QString name, QString tooltip, QString imagePath, QToolBar *toolbar) {
@@ -25,9 +32,9 @@ void ModuleBase::registrateAtToolbar(QString name, QString tooltip, QString imag
     toolbar->addAction(m_activationAction);
 }
 
-void ModuleBase::SetToolbarVisibility(bool visible){
+void ModuleBase::setToolbarVisibility (bool visible){
     /* set the action in the toolbar to visible or invisible */
-    m_activationAction->setVisible(visible);
+    m_activationAction->setVisible (visible);
 }
 
 void ModuleBase::onActivationActionTriggered() {
@@ -56,7 +63,7 @@ GLModule::GLModule () {
 }
 
 void GLModule::reportGLChange() {
-	m_glWidget->updateGL();
+	m_glWidget->update();
 }
 
 void GLModule::showModule() {
@@ -77,11 +84,12 @@ void GLModule::hideModule() {
 
 
 
-void TwoDModule::reportGraphChange() {
-	m_twoDWidget->update();
+TwoDModule::TwoDModule () {
+	m_graphMenu = new TwoDGraphMenu (g_mainFrame, this);
 }
 
-TwoDModule::TwoDModule () {
+TwoDModule::~TwoDModule() {
+	
 }
 
 void TwoDModule::showModule() {
@@ -96,7 +104,6 @@ void TwoDModule::hideModule() {
 
 
 DualModule::DualModule () {
-
 
 }
 

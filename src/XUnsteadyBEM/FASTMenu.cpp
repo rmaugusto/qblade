@@ -8,16 +8,13 @@
 #include "FASTSimulation.h"
 
 
-extern MainFrame *g_mainFrame;
-
 FASTMenu::FASTMenu(QMainWindow *parent, FASTModule *module)
     : QMenu (parent)
 {
+	setTitle (tr("FAST Simulation"));
     m_module = module;
 
     connect (this, SIGNAL(aboutToShow()), SLOT(onAboutToShow()));
-
-    setTitle (tr("FAST Simulation"));
 
 
     m_writeFASTFiles = new QAction(tr("Export the current FAST simulation setup files (no results)"), this);
@@ -27,19 +24,15 @@ FASTMenu::FASTMenu(QMainWindow *parent, FASTModule *module)
 }
 
 void FASTMenu::onWriteFASTFiles(){
-
-    if (!m_module->getShownFASTSimulation()) return;
     QString directoryName = QFileDialog::getExistingDirectory (g_mainFrame, tr("Choose directory for export"),
                                                                                 g_mainFrame->m_LastDirName);
-    if (directoryName.isEmpty()) return;
-    QDir Dir = QDir(directoryName);
-    FASTSimulation *pFASTSim = m_module->getShownFASTSimulation();
-    pFASTSim->writeAllFiles(Dir);
-
+	if (!directoryName.isEmpty()) {
+		QDir Dir = QDir(directoryName);
+		m_module->getShownFASTSimulation()->writeAllFiles(Dir);
+	}
 }
 
 void FASTMenu::onAboutToShow() {
-    bool fastSimAvailable = (m_module->getShownFASTSimulation() != NULL);
-    m_writeFASTFiles->setEnabled(fastSimAvailable);
+    m_writeFASTFiles->setEnabled(m_module->getShownFASTSimulation());
 }
 

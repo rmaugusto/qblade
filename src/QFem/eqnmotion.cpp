@@ -2,13 +2,17 @@
 #include <iostream>
 #include <assert.h>
 #include <Eigen/Dense>
+#include <Eigen/Core>
+#include <Eigen/SVD>
 #include <typeinfo>
 #include <complex>
-#include "polifitgsl.h"
 #include <map>
 #include <QVector>
 #include "mode.h"
+#include <QDebug>
+
 using namespace Eigen;
+using Eigen::MatrixXd;
 
 //Localise the indivdual element into the global matrix using the DOF provided in DOFs
 void EqnMotion::Insert(MatrixXd ElemMatrix,std::vector<int> Connectors,MatrixXd &Mat)
@@ -194,23 +198,23 @@ void EqnMotion::GetEigSoln()
 }
 
 //----------------------------------------------------------------------------------------
-void EqnMotion::FitPolynomials(int degree){
+void EqnMotion::FitPolynomials(){
 //    int DOF = EigVector.rows();
     int Modes = EigVector.cols();
     for(int i=0; i<Modes;i++)
     {
-        FitPolynomial(degree,i);
+        FitPolynomial(i);
     }
     //Sort the modes by Freq
     SortModes(ModeContainer);
 }
 
-void EqnMotion::FitPolynomial(int degree,int mode)
+void EqnMotion::FitPolynomial(int mode)
 {
     int DOF = EigVector.rows();
 //    double MagDOF = DOF/6;
     bool DoesItWork;
-    std::vector<double> dx,dy,store;
+    std::vector<double> dx,dy;
     double xCount = 0.0;
     double yCount = 0.0;
     double zCount = 0.0;
@@ -293,13 +297,15 @@ void EqnMotion::FitPolynomial(int degree,int mode)
                 NewMode.ModeShape.push_back(NewDeform);
             }
 
+
     // sort into the correct mode shape group
-    if(xCount2>1.2*yCount2&&xCount2>1.2*zCount&&xCount2>TorsionCount){
+    if(xCount2>1.2*yCount2&&xCount2>1.2*zCount&&10.0*xCount2>TorsionCount){
         NewMode.ModeType=Edge;
     }
-    else if(yCount2>1.2*xCount2&&yCount2>zCount2&&1.2*yCount2>TorsionCount)
+    else if(yCount2>1.2*xCount2&&yCount2>zCount2&&10.0*yCount2>TorsionCount)
     {
         NewMode.ModeType = Flap;
+
     }
     else if(zCount2>1.2*xCount2&&zCount2>1.2*yCount2&&zCount2>TorsionCount)
     {
@@ -344,27 +350,40 @@ void EqnMotion::FitPolynomial(int degree,int mode)
                         break;
                     }
                 }
-
             }
 //            std::cout<<"Influence Summations"<<std::endl;
 //            std::cout<<"x ="<< xCount<<"; y ="<<yCount<<"; z = "<<zCount<<"; Torsion = "<<TorsionCount<<std::endl;
 //            std::cout<<"Ideal Edge2 ="<< xCount2<<"; Ideal Flap 2 ="<<yCount2<<"; z = "<<zCount<<"; Torsion = "<<TorsionCount<<std::endl;
 
-
-    DoesItWork = polynomialfit(dx.size(), degree,dx,dy,store);
+    DoesItWork = true;
     assert(DoesItWork);
-    ConMatrix.resize(store.size(),1);
-    ConMatrix.setZero();
-    for(int i =0; i < (int)store.size();i++){
-        ConMatrix(i,0)=store.at(i);
+
+    MatrixXd xPolyVals(dx.size(),5);
+    MatrixXd yPolyVals(dy.size(),1);
+
+    for (unsigned int i = 0 ; i< dx.size(); i++)
+    {
+        //Create the x^2 + x^3.... equations
+        xPolyVals(i,0) = pow(dx.at(i),2);
+        xPolyVals(i,1) = pow(dx.at(i),3);
+        xPolyVals(i,2) = pow(dx.at(i),4);
+        xPolyVals(i,3) = pow(dx.at(i),5);
+        xPolyVals(i,4) = pow(dx.at(i),6);
+        // Create the dy matrix
+        yPolyVals(i,0) = dy.at(i);
     }
+
+    ConMatrix = xPolyVals.jacobiSvd(ComputeThinU|ComputeThinV).solve(yPolyVals);
+
     // Normalize mode shapes to a tip deflection of one
-    double summation =ConMatrix.sum();
+    double summation = ConMatrix.sum();
     ConMatrix /=summation;
+
     NewMode.Polynomial = ConMatrix;
     //assert(UngroupedFreqs.size()==0);//Otherwise your modes probably aren't sorting into the proper category because the blades are too twisted
-//    NewMode.PrintMode();
+    //    NewMode.PrintMode();
     ModeContainer.push_back(NewMode);
+
 }
 
 void EqnMotion::SortModes(QVector<Mode> &ModeCon)
@@ -390,7 +409,40 @@ void EqnMotion::SortModes(QVector<Mode> &ModeCon)
 
 }
 
+//using namespace Eigen;
+/**
+ * An SVD based implementation of the Moore-Penrose pseudo-inverse
+ */
+MatrixXd EqnMotion::pinv(MatrixXd& m, double epsilon) {
+    //    	   ei_assert(m_isInitialized && "SVD is not initialized.");
+    //    	   double  pinvtoler=1.e-6; // choose your tolerance widely!
+    //    	   SingularValuesType m_sigma_inv=m_sigma;
+    //    	   for ( long i=0; i<m_workMatrix.cols(); ++i) {
+    //    	      if ( m_sigma(i) > pinvtoler )
+    //    	         m_sigma_inv(i)=1.0/m_sigma(i);
+    //    	     else m_sigma_inv(i)=0;
+    //    	   }
+    //    	   pinvmat= (m_matV*m_sigma_inv.asDiagonal()*m_matU.transpose());
+    typedef JacobiSVD<MatrixXd> SVD;
+    SVD svd(m, ComputeFullU | ComputeFullV);
+    typedef SVD::SingularValuesType SingularValuesType;
+    const SingularValuesType singVals = svd.singularValues();
+    SingularValuesType invSingVals = singVals;
 
+    for(int i=0; i<singVals.rows(); i++) {
+        if(singVals(i) <= epsilon) {
+            invSingVals(i) = 0.0; // FIXED can not be safely inverted
+        }
+        else {
+            invSingVals(i) = 1.0 / invSingVals(i);
+        }
+    }
+
+
+    return MatrixXd(svd.matrixV() *
+            invSingVals.asDiagonal() *
+            svd.matrixU().transpose());
+}
 //void EqnMotion::CreateDeformationNode(std::vector<DeformationVector> & DeformVect):
 //{
 

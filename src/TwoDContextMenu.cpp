@@ -8,7 +8,7 @@ TwoDContextMenu::TwoDContextMenu(QWidget *parent, TwoDWidgetInterface *module)
 	m_showAllAction = new QAction (tr("Show All"), this);
 	connect(m_showAllAction, SIGNAL(triggered()), this, SLOT(callShowAll()));
 	addAction(m_showAllAction);
-	m_hideAllAction = new QAction (tr("Hide All"), this);
+    m_hideAllAction = new QAction (tr("Show Current Only"), this);
 	connect(m_hideAllAction, SIGNAL(triggered()), this, SLOT(callHideAll()));
 	addAction(m_hideAllAction);
 	m_resetScaleAction = new QAction (QString(tr("Reset Graph Scales")+"\t(R)"), this);

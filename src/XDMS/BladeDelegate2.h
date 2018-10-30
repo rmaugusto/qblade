@@ -26,14 +26,14 @@
 #include <QItemDelegate>
 #include "../Misc/NumberEdit.h"
 
+class CBlade;
+
 class BladeDelegate2 : public QItemDelegate
 {
         Q_OBJECT
-        friend class QBEM;
-        friend class QDMS;
 
 public:
-        BladeDelegate2(QObject *parent = 0);
+        BladeDelegate2 (CBlade *blade, void *pDMS, QObject *parent = 0);
 
         QWidget *createEditor(QWidget *parent, const QStyleOptionViewItem &option, const QModelIndex &index) const;
         void setEditorData(QWidget *editor, const QModelIndex &index) const;
@@ -46,8 +46,13 @@ public:
 private:
         void *m_pWingDlg;
         int *m_pNPanels;
-        int *m_Precision; ///table of float precisions for each column
+        int *m_Precision;
+        CBlade *m_pBlade;
+        void *m_pDMS;
+
+public:
         void *itemmodel;
+
 };
 
 #endif // BLADEDELEGATE2_H

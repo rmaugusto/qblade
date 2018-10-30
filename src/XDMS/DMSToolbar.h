@@ -19,6 +19,7 @@ public:
 	void setState (ToolBarState newState);
 	void EnableAll();
 	void DisableAll();
+    RotorComboBox* getRotorBox(){ return m_rotorComboBox; }
 
 private:
 	QAction *m_SingleGraphAct, *m_HideWidgetsAct, *m_rotorBox, *m_rotorSimulationBox, *m_tipSpeedRationBox, *m_multiParameterSimulationBox, *m_windspeedBox, *m_heightBox,

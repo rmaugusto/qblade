@@ -1,7 +1,7 @@
 /****************************************************************************
 
     Edit360PolarDlg Class
-        Copyright (C) 2010 David Marten qblade@web.de
+        Copyright (C) 2010 David Marten david.marten@tu-berlin.de
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -114,6 +114,11 @@ void Edit360PolarDlg::OnDeletePoint()
                 m_pPolar->m_Alpha.removeAt(curIndex);
                 m_pPolar->m_Cd.removeAt(curIndex);
                 m_pPolar->m_Cl.removeAt(curIndex);
+                m_pPolar->m_Cm.removeAt(curIndex);
+                m_pPolar->m_Cl_att.removeAt(curIndex);
+                m_pPolar->m_Cl_sep.removeAt(curIndex);
+                m_pPolar->m_fst.removeAt(curIndex);
+
                 FillTable();
                 if (curIndex >=0) CreateGraphs(curIndex);
         }
@@ -245,7 +250,7 @@ void Edit360PolarDlg::CreateGraphs(int row)
 
 
 
-    pBEM->CreateSinglePolarCurve();
+    pBEM->CreateSinglePolarCurve(false);
 
     for (int i=0;i<m_pPolar->m_Cl.size();i++)
     {
@@ -255,30 +260,56 @@ void Edit360PolarDlg::CreateGraphs(int row)
 
 
 
-    CCurve* pPolarCurve = pBEM->m_360CLGraph.AddCurve();
+    CCurve* pPolarCurve = pBEM->m_360Graph1.AddCurve();
     pPolarCurve->ShowPoints(true);
     pPolarCurve->SetWidth(4);
     pPolarCurve->SetColor(QColor(0,255,0));
-    QList <double> *X = (QList <double> *) pBEM->GetVariable(m_pPolar, pBEM->m_360CLGraph.GetXVariable());
-    QList <double> *Y = (QList <double> *) pBEM->GetVariable(m_pPolar, pBEM->m_360CLGraph.GetYVariable());
+    QList <double> *X = (QList <double> *) pBEM->GetVariable(m_pPolar, pBEM->m_360Graph1.GetXVariable());
+    QList <double> *Y = (QList <double> *) pBEM->GetVariable(m_pPolar, pBEM->m_360Graph1.GetYVariable());
 
-    if (pBEM->m_360CLGraph.GetXVariable() == 3 && pBEM->m_360CLGraph.GetYVariable() == 3) pPolarCurve->AddPoint(ClCd.at(row),ClCd.at(row));
-    else if (pBEM->m_360CLGraph.GetXVariable() == 3) pPolarCurve->AddPoint(ClCd.at(row), Y->at(row));
-    else if (pBEM->m_360CLGraph.GetYVariable() == 3) pPolarCurve->AddPoint(X->at(row),ClCd.at(row));
+    if (pBEM->m_360Graph1.GetXVariable() == 3 && pBEM->m_360Graph1.GetYVariable() == 3) pPolarCurve->AddPoint(ClCd.at(row),ClCd.at(row));
+    else if (pBEM->m_360Graph1.GetXVariable() == 3) pPolarCurve->AddPoint(ClCd.at(row), Y->at(row));
+    else if (pBEM->m_360Graph1.GetYVariable() == 3) pPolarCurve->AddPoint(X->at(row),ClCd.at(row));
     else pPolarCurve->AddPoint(X->at(row),Y->at(row));
 
 
 
-    pPolarCurve = pBEM->m_360CDGraph.AddCurve();
+    pPolarCurve = pBEM->m_360Graph2.AddCurve();
     pPolarCurve->ShowPoints(true);
     pPolarCurve->SetWidth(4);
     pPolarCurve->SetColor(QColor(0,255,0));
-    X = (QList <double> *) pBEM->GetVariable(m_pPolar, pBEM->m_360CDGraph.GetXVariable());
-    Y = (QList <double> *) pBEM->GetVariable(m_pPolar, pBEM->m_360CDGraph.GetYVariable());
+    X = (QList <double> *) pBEM->GetVariable(m_pPolar, pBEM->m_360Graph2.GetXVariable());
+    Y = (QList <double> *) pBEM->GetVariable(m_pPolar, pBEM->m_360Graph2.GetYVariable());
 
-    if (pBEM->m_360CDGraph.GetXVariable() == 3 && pBEM->m_360CDGraph.GetYVariable() == 3) pPolarCurve->AddPoint(ClCd.at(row),ClCd.at(row));
-    else if (pBEM->m_360CDGraph.GetXVariable() == 3) pPolarCurve->AddPoint(ClCd.at(row), Y->at(row));
-    else if (pBEM->m_360CDGraph.GetYVariable() == 3) pPolarCurve->AddPoint(X->at(row), ClCd.at(row));
+    if (pBEM->m_360Graph2.GetXVariable() == 3 && pBEM->m_360Graph2.GetYVariable() == 3) pPolarCurve->AddPoint(ClCd.at(row),ClCd.at(row));
+    else if (pBEM->m_360Graph2.GetXVariable() == 3) pPolarCurve->AddPoint(ClCd.at(row), Y->at(row));
+    else if (pBEM->m_360Graph2.GetYVariable() == 3) pPolarCurve->AddPoint(X->at(row), ClCd.at(row));
+    else pPolarCurve->AddPoint(X->at(row),Y->at(row));
+
+
+    pPolarCurve = pBEM->m_360Graph3.AddCurve();
+    pPolarCurve->ShowPoints(true);
+    pPolarCurve->SetWidth(4);
+    pPolarCurve->SetColor(QColor(0,255,0));
+    X = (QList <double> *) pBEM->GetVariable(m_pPolar, pBEM->m_360Graph3.GetXVariable());
+    Y = (QList <double> *) pBEM->GetVariable(m_pPolar, pBEM->m_360Graph3.GetYVariable());
+
+    if (pBEM->m_360Graph3.GetXVariable() == 3 && pBEM->m_360Graph3.GetYVariable() == 3) pPolarCurve->AddPoint(ClCd.at(row),ClCd.at(row));
+    else if (pBEM->m_360Graph3.GetXVariable() == 3) pPolarCurve->AddPoint(ClCd.at(row), Y->at(row));
+    else if (pBEM->m_360Graph3.GetYVariable() == 3) pPolarCurve->AddPoint(X->at(row), ClCd.at(row));
+    else pPolarCurve->AddPoint(X->at(row),Y->at(row));
+
+
+    pPolarCurve = pBEM->m_360Graph4.AddCurve();
+    pPolarCurve->ShowPoints(true);
+    pPolarCurve->SetWidth(4);
+    pPolarCurve->SetColor(QColor(0,255,0));
+    X = (QList <double> *) pBEM->GetVariable(m_pPolar, pBEM->m_360Graph4.GetXVariable());
+    Y = (QList <double> *) pBEM->GetVariable(m_pPolar, pBEM->m_360Graph4.GetYVariable());
+
+    if (pBEM->m_360Graph4.GetXVariable() == 3 && pBEM->m_360Graph4.GetYVariable() == 3) pPolarCurve->AddPoint(ClCd.at(row),ClCd.at(row));
+    else if (pBEM->m_360Graph4.GetXVariable() == 3) pPolarCurve->AddPoint(ClCd.at(row), Y->at(row));
+    else if (pBEM->m_360Graph4.GetYVariable() == 3) pPolarCurve->AddPoint(X->at(row), ClCd.at(row));
     else pPolarCurve->AddPoint(X->at(row),Y->at(row));
 
 

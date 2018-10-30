@@ -289,12 +289,28 @@ void GraphDlg::FillVariableList()
                 m_pctrlYSel->addItem(tr("Tip Speed Ratio"));
                 m_pctrlYSel->addItem(tr("1 / Tip Speed Ratio")); //12
 
+                m_pctrlYSel->addItem(tr("Power"));	//13
+                m_pctrlYSel->addItem(tr("Thrust"));
+                m_pctrlYSel->addItem(tr("Torque"));
+                m_pctrlYSel->addItem(tr("Rotational Speed"));
+                m_pctrlYSel->addItem(tr("Windspeed"));
+                m_pctrlYSel->addItem(tr("Root OOP Bending Moment")); //12
+
+
+
                 m_pctrlXSel->addItem(tr("Power Coefficient Cp"));	//13
                 m_pctrlXSel->addItem(tr("Thrust Coefficient Ct "));
                 m_pctrlXSel->addItem(tr("Torque Coefficient Cm"));
                 m_pctrlXSel->addItem(tr("Kp"));
                 m_pctrlXSel->addItem(tr("Tip Speed Ratio"));
                 m_pctrlXSel->addItem(tr("1 / Tip Speed Ratio")); //12
+
+                m_pctrlXSel->addItem(tr("Power"));	//13
+                m_pctrlXSel->addItem(tr("Thrust"));
+                m_pctrlXSel->addItem(tr("Torque"));
+                m_pctrlXSel->addItem(tr("Rotational Speed"));
+                m_pctrlXSel->addItem(tr("Windspeed"));
+                m_pctrlXSel->addItem(tr("Root OOP Bending Moment")); //12
 
 
 
@@ -316,6 +332,16 @@ void GraphDlg::FillVariableList()
                 m_pctrlYSel->addItem(tr("Drag Coefficient"));
                 m_pctrlYSel->addItem(tr("Lift to Drag Ratio"));
                 m_pctrlYSel->addItem(tr("Prandtl Tip Loss Factor"));
+
+                m_pctrlYSel->addItem(tr("Reynolds Number"));
+                m_pctrlYSel->addItem(tr("Delta Re (Re Blade - Re Polar)"));
+                m_pctrlYSel->addItem(tr("Tangential Force"));
+                m_pctrlYSel->addItem(tr("Normal Force"));
+                m_pctrlYSel->addItem(tr("Circulation"));
+                m_pctrlYSel->addItem(tr("Local Inflow Speed"));
+
+
+
                 m_pctrlYSel->addItem(tr("Iterations"));
                 m_pctrlYSel->addItem(tr("Annulus averaged axial ind."));
                 m_pctrlYSel->addItem(tr("Annulus averaged tangential ind."));
@@ -335,6 +361,14 @@ void GraphDlg::FillVariableList()
                 m_pctrlXSel->addItem(tr("Drag Coefficient"));
                 m_pctrlXSel->addItem(tr("Lift to Drag Ratio"));
                 m_pctrlXSel->addItem(tr("Prandtl Tip Loss Factor"));
+
+                m_pctrlXSel->addItem(tr("Reynolds Number"));
+                m_pctrlXSel->addItem(tr("Delta Re (Re Blade - Re Polar)"));
+                m_pctrlXSel->addItem(tr("Tangential Force"));
+                m_pctrlXSel->addItem(tr("Normal Force"));
+                m_pctrlXSel->addItem(tr("Circulation"));
+                m_pctrlXSel->addItem(tr("Local Inflow Speed"));
+
                 m_pctrlXSel->addItem(tr("Iterations"));
                 m_pctrlXSel->addItem(tr("Annulus averaged axial ind."));
                 m_pctrlXSel->addItem(tr("Annulus averaged tangential ind."));
@@ -404,7 +438,7 @@ void GraphDlg::FillVariableList()
                 m_pctrlYSel->addItem(tr("Reynolds Number"));
                 m_pctrlYSel->addItem(tr("Re Polar - Re Blade"));
                 m_pctrlYSel->addItem(tr("Critical Roughness"));
-                m_pctrlYSel->addItem(tr("Resultant Velocity at Station"));
+                m_pctrlYSel->addItem(tr("Resultant Velocity at Section"));
                 m_pctrlYSel->addItem(tr("Tangential Blade Force"));
                 m_pctrlYSel->addItem(tr("Axial Blade Force"));
                 m_pctrlYSel->addItem(tr("Iterations"));
@@ -438,7 +472,7 @@ void GraphDlg::FillVariableList()
                 m_pctrlXSel->addItem(tr("Reynolds Number"));
                 m_pctrlXSel->addItem(tr("Re Polar - Re Blade"));
                 m_pctrlXSel->addItem(tr("Critical Roughness"));
-                m_pctrlXSel->addItem(tr("Resultant Velocity at Station"));
+                m_pctrlXSel->addItem(tr("Resultant Velocity at Section"));
                 m_pctrlXSel->addItem(tr("Tangential Blade Force"));
                 m_pctrlXSel->addItem(tr("Axial Blade Force"));
                 m_pctrlXSel->addItem(tr("Iterations"));
@@ -459,6 +493,9 @@ void GraphDlg::FillVariableList()
                 m_pctrlYSel->addItem(tr("Cl")); //12
                 m_pctrlYSel->addItem(tr("Cd"));	//13
                 m_pctrlYSel->addItem(tr("Cl / Cd"));
+                m_pctrlYSel->addItem(tr("Cl attached"));
+                m_pctrlYSel->addItem(tr("Cl separated"));
+                m_pctrlYSel->addItem(tr("f function"));
                                                 //17
 
 
@@ -467,6 +504,9 @@ void GraphDlg::FillVariableList()
                 m_pctrlXSel->addItem(tr("Cl")); //12
                 m_pctrlXSel->addItem(tr("Cd"));	//13
                 m_pctrlXSel->addItem(tr("Cl / Cd"));
+                m_pctrlXSel->addItem(tr("Cl attached"));
+                m_pctrlXSel->addItem(tr("Cl separated"));
+                m_pctrlXSel->addItem(tr("f function"));
                                                         //17
 
 
@@ -527,28 +567,32 @@ void GraphDlg::FillVariableList()
             m_pctrlXSel->addItem(tr("Cp"));
             m_pctrlXSel->addItem(tr("Cp upwind"));
             m_pctrlXSel->addItem(tr("Cp downwind"));
-//            m_pctrlXSel->addItem(tr("Ct"));
-//            m_pctrlXSel->addItem(tr("Ct upwind"));
-//            m_pctrlXSel->addItem(tr("Ct downwind"));
             m_pctrlXSel->addItem(tr("Cm"));
             m_pctrlXSel->addItem(tr("Cm upwind"));
             m_pctrlXSel->addItem(tr("Cm downwind"));
             m_pctrlXSel->addItem(tr("Kp"));
             m_pctrlXSel->addItem(tr("Tip Speed Ratio"));
             m_pctrlXSel->addItem(tr("1 / Tip Speed Ratio"));
+            m_pctrlXSel->addItem(tr("Power"));
+            m_pctrlXSel->addItem(tr("Thrust"));
+            m_pctrlXSel->addItem(tr("Torque"));
+            m_pctrlXSel->addItem(tr("Rotational Speed"));
+            m_pctrlXSel->addItem(tr("Windspeed"));
 
             m_pctrlYSel->addItem(tr("Cp"));
             m_pctrlYSel->addItem(tr("Cp upwind"));
             m_pctrlYSel->addItem(tr("Cp downwind"));
-//            m_pctrlYSel->addItem(tr("Ct"));
-//            m_pctrlYSel->addItem(tr("Ct upwind"));
-//            m_pctrlYSel->addItem(tr("Ct downwind"));
             m_pctrlYSel->addItem(tr("Cm"));
             m_pctrlYSel->addItem(tr("Cm upwind"));
             m_pctrlYSel->addItem(tr("Cm downwind"));
             m_pctrlYSel->addItem(tr("Kp"));
             m_pctrlYSel->addItem(tr("Tip Speed Ratio"));
             m_pctrlYSel->addItem(tr("1 / Tip Speed Ratio"));
+            m_pctrlYSel->addItem(tr("Power"));
+            m_pctrlYSel->addItem(tr("Thrust"));
+            m_pctrlYSel->addItem(tr("Torque"));
+            m_pctrlYSel->addItem(tr("Rotational Speed"));
+            m_pctrlYSel->addItem(tr("Windspeed"));
 
 
         }
@@ -609,6 +653,7 @@ void GraphDlg::FillVariableList()
             m_pctrlXSel->addItem(tr("induced velocity V"));
             m_pctrlXSel->addItem(tr("relative velocity W"));
             m_pctrlXSel->addItem(tr("Reynolds number Re"));
+            m_pctrlXSel->addItem(tr("Delta Re (Re Blade - Re Polar)"));
             m_pctrlXSel->addItem(tr("tiploss factor F"));
             m_pctrlXSel->addItem(tr("angle of attack alpha"));
             m_pctrlXSel->addItem(tr("lift coefficient Cl"));
@@ -616,11 +661,9 @@ void GraphDlg::FillVariableList()
             m_pctrlXSel->addItem(tr("lift/drag ratio (Cl/Cd)"));
             m_pctrlXSel->addItem(tr("normal force coefficient Cn"));
             m_pctrlXSel->addItem(tr("tangential force coefficient Ct"));
-//            m_pctrlXSel->addItem(tr("blade normal force coefficient F_n"));
 			m_pctrlXSel->addItem(tr("blade tangential force coefficient CF_t_bla"));
 			m_pctrlXSel->addItem(tr("blade lengthwise force coefficient CF_x_bla"));
 			m_pctrlXSel->addItem(tr("blade crosswise force coefficient CF_y_bla"));
-//            m_pctrlXSel->addItem(tr("rotor normal force coefficient F_nTot"));
 			m_pctrlXSel->addItem(tr("rotor tangential force coefficient CF_t_rot"));
 			m_pctrlXSel->addItem(tr("rotor lengthwise force coefficient CF_x_rot"));
 			m_pctrlXSel->addItem(tr("rotor crosswise force coefficient CF_y_rot"));
@@ -632,6 +675,7 @@ void GraphDlg::FillVariableList()
             m_pctrlYSel->addItem(tr("induced velocity V"));
             m_pctrlYSel->addItem(tr("relative velocity W"));
             m_pctrlYSel->addItem(tr("Reynolds number Re"));
+            m_pctrlYSel->addItem(tr("Delta Re (Re Blade - Re Polar)"));
             m_pctrlYSel->addItem(tr("tiploss factor F"));
             m_pctrlYSel->addItem(tr("angle of attack alpha"));
             m_pctrlYSel->addItem(tr("lift coefficient Cl"));
@@ -639,11 +683,9 @@ void GraphDlg::FillVariableList()
             m_pctrlYSel->addItem(tr("lift/drag ratio (Cl/Cd)"));
             m_pctrlYSel->addItem(tr("normal force coefficient Cn"));
             m_pctrlYSel->addItem(tr("tangential force coefficient Ct"));
-//            m_pctrlYSel->addItem(tr("blade normal force coefficient CF_n"));
 			m_pctrlYSel->addItem(tr("blade tangential force coefficient CF_t_bla"));
 			m_pctrlYSel->addItem(tr("blade lengthwise force coefficient CF_x_bla"));
 			m_pctrlYSel->addItem(tr("blade crosswise force coefficient CF_y_bla"));
-//            m_pctrlYSel->addItem(tr("rotor normal force coefficient CF_nTot"));
 			m_pctrlYSel->addItem(tr("rotor tangential force coefficient CF_t_rot"));
 			m_pctrlYSel->addItem(tr("rotor lengthwise force coefficient CF_x_rot"));
 			m_pctrlYSel->addItem(tr("rotor crosswise force coefficient CF_y_rot"));
@@ -926,7 +968,9 @@ void GraphDlg::OnApply()
 
 	for(int i=0; i<m_NGraph; i++)
 	{
-		m_GraphArray[i]->CopySettings(m_pGraph);
+		if (m_GraphArray[i]) {
+			m_GraphArray[i]->CopySettings(m_pGraph);
+		}
 	}
 
 	MainFrame* pMainFrame = (MainFrame*)s_pMainFrame;
@@ -1101,7 +1145,9 @@ void GraphDlg::OnOK()
 
 	for(int i=0; i<m_NGraph; i++)
 	{
-		m_GraphArray[i]->CopySettings(m_pGraph);
+		if (m_GraphArray[i]) {
+			m_GraphArray[i]->CopySettings(m_pGraph);
+		}
 	}
 
 	m_XSel = m_pctrlXSel->currentRow();
@@ -1117,7 +1163,9 @@ void GraphDlg::OnRestoreParams()
 
 	for(int i=0; i<m_NGraph; i++)
 	{
-		m_GraphArray[i]->CopySettings(m_pMemGraph);
+		if (m_GraphArray[i]) {
+			m_GraphArray[i]->CopySettings(m_pMemGraph);
+		}
 	}
 
 	SetParams();
@@ -1151,7 +1199,7 @@ void GraphDlg::OnTitleColor()
 void GraphDlg::OnTitleFont()
 {
 	bool ok;
-	QFont TitleFont("Arial");
+    QFont TitleFont(g_mainFrame->m_TextFont.family());
 	m_pGraph->GetTitleLogFont(&TitleFont);
 
 	QFont font = QFontDialog::getFont(&ok, TitleFont, this);

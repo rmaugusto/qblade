@@ -57,35 +57,6 @@ class DMSDock : public ScrolledDock
 
 public:
 	DMSDock(const QString &title, QMainWindow *parent, Qt::WindowFlags flags);
-
-	void initView ();
-
-private:
-
-	/*
-	//--------------------Wing Table Layout--------------//
-	QLabel *m_pctrlWingNameLabel;
-	QLabel *m_pctrlHeightLabel, *m_pctrlHeightUnitLabel, *m_pctrlBladesAndHeightLabel;
-	QTableView *m_pctrlBladeTableView;
-	QPushButton *m_pctrlEditWing, *m_pctrlNewWing;
-	QPushButton *m_pctrlInsertBefore, *m_pctrlInsertAfter, *m_pctrlDeleteSection;
-
-	//-----------Wing Edit Layout-------------//
-	QLineEdit *m_pctrlWingName;
-	ColorButton *m_pctrlWingColor, *m_pctrlSectionColor;
-	QSpinBox *m_pctrlBlades;
-	QLabel *m_pctrlBladesLabel, *m_pctrlHubRadiusLabel, *m_pctrlHubRadiusUnitLabel, *m_pctrlSolidityLabel;
-	FloatEdit *m_pctrlHubRadius;
-	QTableView *m_pctrlBladeTable;
-	QPushButton *m_pctrlSave, *m_pctrlScale, *m_pctrlOptimize, *m_pctrlBack;
-	*/
-
-
-
-
-public slots:
-
-
 };
 
 

@@ -15,10 +15,10 @@ public:
 	static CBEMData* newBySerialize ();
     CBEMData();
     virtual ~CBEMData();
+	static QStringList prepareMissingObjectMessage();
 
 public:
     void Compute(BData *pBData, CBlade *pWing, double lambda, double pitch, double windspeed);
-    void Serialize(QDataStream &ar, bool bIsStoring, int ArchiveFormat);
 	void serialize ();  // override from StorableObject
     void initArrays(int wtimes, int rtimes, int ptimes);
     void DeleteArrays();

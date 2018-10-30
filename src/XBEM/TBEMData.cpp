@@ -1,7 +1,7 @@
 /****************************************************************************
 
     TBEMData Class
-        Copyright (C) 2010 David Marten qblade@web.de
+        Copyright (C) 2010 David Marten david.marten@tu-berlin.de
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -94,257 +94,27 @@ void TBEMData::Compute(BData *pBData, CBlade *pWing, double lambda, double pitch
     pBData->m_bCdReynolds = m_bCdReynolds;
 
 
-    pBData->windspeed = windspeed;
-
-
     pBData->Init(pWing,lambda);
-    pBData->OnBEM(pitch);
+    pBData->OnBEM(pitch, pWing, windspeed);
 
 
 }
 
-void TBEMData::Serialize(QDataStream &ar, bool bIsStoring, int ArchiveFormat)
-{
-    int i,n,j;
-    float f;
-
-    if (bIsStoring)
-    {
-        n= (int) m_P.size();
-
-        if (m_bIsVisible)  ar<<1; else ar<<0;
-        if (m_bShowPoints) ar<<1; else ar<<0;
-        ar << (int) m_Style;
-        ar << (int) m_Width;
-        ar << (float) elements;
-        ar << (float) rho;
-        ar << (float) epsilon;
-        ar << (float) iterations;
-		ar << (float) relax;
-		//ar << (float) k;// JW modification
-		//ar << (float) A;// JW modification
-        ar << (float) visc;
-
-        if (m_bTipLoss) ar << 1; else ar<<0;
-        if (m_bRootLoss) ar << 1; else ar<<0;
-        if (m_b3DCorrection) ar << 1; else ar<<0;
-        if (m_bInterpolation) ar << 1; else ar<<0;
-        if (m_bNewTipLoss) ar << 1; else ar<<0;
-        if (m_bNewRootLoss) ar << 1; else ar<<0;
-        if (m_bCdReynolds) ar << 1; else ar<<0;
-
-
-        WriteCOLORREF(ar,m_Color);
-        WriteCString(ar, m_TurbineName);
-        WriteCString(ar, m_SimName);
-        ar << (int) n;
-
-        for (i=0;i<n;i++)
-        {
-            ar<< (float) m_P[i] << (float) m_S [i] << (float) m_V[i] << (float) m_Omega[i];
-            ar << (float) m_Lambda[i] << (float) m_Cp[i] << (float) m_Ct[i] << (float) m_Pitch[i];
-			ar << (float) m_Weibull[i] /*<< (float) m_WeibullV3[i] JW modification*/ << (float) m_Bending[i];
-			ar << (float)m_Cp_loss[i] << (float) m_Kp[i] << (float) m_one_over_Lambda[i] << (float) m_Torque[i] << (float) m_Cm[i];
-        }
-        for (i=0;i<n;i++)
-        {
-            m_BData.at(i)->Serialize(ar,bIsStoring);
-        }
-
-        ar << (float) OuterRadius;
-    }
-    else
-    {
-        ar >> f;
-        if (f) m_bIsVisible = true; else m_bIsVisible = false;
-        ar >> f;
-        if (f) m_bShowPoints = true; else m_bShowPoints = false;
-        ar >> j;
-        m_Style = j;
-        ar >> j;
-        m_Width = j;
-        ar >> f;
-        elements = f;
-        ar >> f;
-        rho = f;
-        ar >> f;
-        epsilon = f;
-        ar >> f;
-        iterations = f;
-        ar >> f;
-        relax = f;
-		if (ArchiveFormat<100024)
-		{
-			ar >> f;
-			//k = f;// JW modification
-			ar >> f;
-			//A = f;// JW modification
-		}
-        ar >> f;
-        visc = f;
-        ar >> f;
-        if (f) m_bTipLoss = true; else m_bTipLoss = false;
-        ar >> f;
-        if (f) m_bRootLoss = true; else m_bRootLoss = false;
-        ar >> f;
-        if (f) m_b3DCorrection = true; else m_b3DCorrection = false;
-        ar >> f;
-        if (f) m_bInterpolation = true; else m_bInterpolation = false;
-        ar >> f;
-        if (f) m_bNewTipLoss = true; else m_bNewTipLoss = false;
-        ar >> f;
-        if (f) m_bNewRootLoss = true; else m_bNewRootLoss = false;
-        if (ArchiveFormat >= 100021)
-        {
-            ar >> f;
-            if (f) m_bCdReynolds = true; else m_bCdReynolds = false;
-        }
-        ReadCOLORREF(ar,m_Color);
-        ReadCString(ar,m_TurbineName);
-//		setParentName(m_TurbineName);  // NM REPLACE
-		setSingleParent(g_tdataStore.getObjectByNameOnly(m_TurbineName));  // NM needed for downwards compatibility
-        ReadCString(ar,m_SimName);
-		setName(m_SimName);
-
-        ar >> n;
-
-        for (i=0;i<n;i++)
-        {
-            ar >> f;
-            m_P.append(f);
-            ar >> f;
-            m_S.append(f);
-            ar >> f;
-            m_V.append(f);
-            ar >> f;
-            m_Omega.append(f);
-            ar >> f;
-            m_Lambda.append(f);
-            ar >> f;
-            m_Cp.append(f);
-            ar >> f;
-            m_Ct.append(f);
-            ar >> f;
-            m_Pitch.append(f);
-			ar >> f;
-			m_Weibull.append(f);
-			if (ArchiveFormat<100024)
-			{
-				ar >> f;
-				//m_WeibullV3.append(f);//JW modification
+QStringList TBEMData::prepareMissingObjectMessage() {
+	if (g_tbemdataStore.isEmpty()) {
+		QStringList message = TData::prepareMissingObjectMessage(false);
+		if (message.isEmpty()) {
+			if (g_mainFrame->m_iApp == BEM && g_mainFrame->m_iView == TURBINEVIEW) {
+				message = QStringList(">>> Click 'Define Simulation' to create a new Turbine Simulation");
+			} else {
+				message = QStringList(">>> unknown hint");
 			}
-            ar >> f;
-            m_Bending.append(f);
-            ar >> f;
-            m_Cp_loss.append(f);
-            ar >> f;
-            m_Kp.append(f);
-            ar >> f;
-            m_one_over_Lambda.append(f);
-            if (ArchiveFormat >= 100015)
-            {
-                ar >> f;
-                m_Torque.append(f);
-            }
-            else m_Torque.append(0);
-            if (ArchiveFormat >= 100017)
-            {
-                ar >> f;
-                m_Cm.append(f);
-            }
-            else m_Cm.append(0);
-        }
-
-        for (i=0;i<n;i++)
-        {
-            BData *pBData = new BData;
-            pBData->Serialize(ar,bIsStoring);
-            m_BData.append(pBData);
-        }
-
-        ar >> f;
-        OuterRadius = f;
-    }
-}
-
-void TBEMData::SerializeDummy(QDataStream &ar, bool bIsStoring, int ArchiveFormat)
-{
-	int i,n,j;
-    float f;
-
-	if (bIsStoring) {
-		// NM won't happen!
+		}
+		message.prepend("- No Turbine Simulation in Database");
+		return message;
 	} else {
-        ar >> f;
-        ar >> f;
-        ar >> j;
-        ar >> j;
-        ar >> f;
-        ar >> f;
-        ar >> f;
-        ar >> f;
-        ar >> f;
-		if (ArchiveFormat<100024)
-		{
-			ar >> f;
-			ar >> f;
-		}
-        ar >> f;
-        ar >> f;
-        ar >> f;
-        ar >> f;
-        ar >> f;
-        ar >> f;
-        ar >> f;
-        if (ArchiveFormat >= 100021)
-        {
-            ar >> f;
-        }
-		QColor dummyColor;
-        ReadCOLORREF(ar, dummyColor);
-		QString dummyString;
-        ReadCString(ar, dummyString);
-        ReadCString(ar,dummyString);
-
-        ar >> n;
-        for (i = 0; i < n; ++i)
-        {
-            ar >> f;
-            ar >> f;
-            ar >> f;
-            ar >> f;
-            ar >> f;
-            ar >> f;
-            ar >> f;
-            ar >> f;
-			ar >> f;
-			if (ArchiveFormat<100024)
-			{
-				ar >> f;
-			}
-            ar >> f;
-            ar >> f;
-            ar >> f;
-            ar >> f;
-            if (ArchiveFormat >= 100015)
-            {
-                ar >> f;
-            }
-            if (ArchiveFormat >= 100017)
-            {
-                ar >> f;
-            }
-        }
-
-        for (i = 0; i < n; ++i)
-        {
-            BData *pBData = new BData;
-            pBData->Serialize(ar,bIsStoring);
-			delete pBData;
-        }
-
-        ar >> f;
-    }
+		return QStringList();
+	}
 }
 
 TBEMData* TBEMData::newBySerialize() {

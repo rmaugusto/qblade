@@ -1,6 +1,10 @@
 #ifndef FASTDOCK_H
 #define FASTDOCK_H
 
+class QLabel;
+class QCheckBox;
+class QPushButton;
+
 #include "../ScrolledDock.h"
 class FASTSimulation;
 class FASTModule;
@@ -15,7 +19,6 @@ class FASTDock : public ScrolledDock
 public:
 	FASTDock (const QString &title, QMainWindow *parent, Qt::WindowFlags flags, FASTModule *module);
 	
-	void initView ();
 	void setShownFASTSimulation (FASTSimulation *newSimulation);
 	void adjustShowCheckBox ();  // necessary because showAll and hideAll can change the status
 	

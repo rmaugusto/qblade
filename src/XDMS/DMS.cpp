@@ -21,18 +21,16 @@
 
 #include "DMS.h"
 #include "../Globals.h"
-#include "../Misc/RenameDlg.h"
 #include "OptimizeDlgVAWT.h"
 #include "BladeScaleDlgVAWT.h"
 #include "CreateDMSDlg.h"
 #include "../Graph/GraphDlg.h"
 #include "../XBEM/PrescribedValuesDlg.h"
 #include "QDebug"
-#include "../XGlobals.h"
 #include "../StoreAssociatedComboBox.h"
 #include "../ScrolledDock.h"
 #include "../GlobalFunctions.h"
-
+#include "../GLWidget.h"
 
 using namespace std;
 
@@ -52,6 +50,8 @@ QDMS::QDMS(QWidget *parent)
 	m_pDMSData = NULL;
 	m_pTDMSData = NULL;
 	m_pCDMSData = NULL;
+    m_pBladeDelegate = NULL;
+    m_pWingModel = NULL;
 
     dlg_powerlaw = false;
     dlg_constant = false;
@@ -231,11 +231,28 @@ QDMS::QDMS(QWidget *parent)
 	SetCharGraphTitles(&m_CharGraph3);
 	SetCharGraphTitles(&m_CharGraph4);
 
+    m_bisHeight = true;
+
     
     /////////////// new NM ///////////////
     // connect signals
     connect (g_mainFrame, SIGNAL(moduleChanged()), this, SLOT(onModuleChanged()));
-    /////////// end new NM ///////////////
+	/////////// end new NM ///////////////
+}
+
+QStringList QDMS::prepareMissingObjectMessage() {
+	switch (g_mainFrame->m_iView) {
+	case BLADEVIEW:
+		return CBlade::prepareMissingObjectMessage(true);
+	case BEMSIMVIEW:
+		return DMSData::prepareMissingObjectMessage();
+	case TURBINEVIEW:
+		return TDMSData::prepareMissingObjectMessage();
+	case CHARSIMVIEW:
+		return CDMSData::prepareMissingObjectMessage();
+	default:
+		return QStringList("unknown view");
+	}
 }
 
 
@@ -259,6 +276,7 @@ void QDMS::CheckButtons()
     g_mainFrame->ExportCurrentRotorAct->setVisible(false); // new code NM - should always be disabled
     g_mainFrame->ExportBladeTableAct->setVisible(false);  // new code DM - should always be disabled
     g_mainFrame->OnImportBladeGeometry->setVisible(false);  // new code DM - should always be disabled
+    g_mainFrame->ExportCurrentRotorAeroDynAct->setVisible(false);
 
 
     InitTurbineData(m_pTData);
@@ -273,15 +291,23 @@ void QDMS::CheckButtons()
 	pSimuWidgetDMS->m_pctrlWind1->setEnabled(m_pTDMSData);
 	pSimuWidgetDMS->m_pctrlWind2->setEnabled(m_pTDMSData);
 	pSimuWidgetDMS->m_pctrlWindDelta->setEnabled(m_pTDMSData);
+    pSimuWidgetDMS->m_pctrlDeleteTDMS->setEnabled(m_pTDMSData);
+
 
     pSimuWidgetDMS->m_pctrlCreateDMS->setEnabled(m_pBlade);
 	pSimuWidgetDMS->m_pctrlStartDMS->setEnabled(m_pDMSData);
 	pSimuWidgetDMS->m_pctrlLSLineEdit->setEnabled(m_pDMSData);
 	pSimuWidgetDMS->m_pctrlLELineEdit->setEnabled(m_pDMSData);
 	pSimuWidgetDMS->m_pctrlLDLineEdit->setEnabled(m_pDMSData);
+    pSimuWidgetDMS->m_pctrlWindspeed->setEnabled(m_pDMSData);
+    pSimuWidgetDMS->m_pctrlDeleteDMS->setEnabled(m_pDMSData);
+
+
 
     pSimuWidgetDMS->CreateCharSim->setEnabled(m_pBlade);
 	pSimuWidgetDMS->StartCharSim->setEnabled(m_pCDMSData);
+    pSimuWidgetDMS->m_pctrlDeleteCDMS->setEnabled(m_pCDMSData);
+
 	pSimuWidgetDMS->WindStart->setEnabled(m_pCDMSData);
 	pSimuWidgetDMS->WindEnd->setEnabled(m_pCDMSData);
 	pSimuWidgetDMS->WindDelta->setEnabled(m_pCDMSData);
@@ -313,11 +339,14 @@ void QDMS::CheckButtons()
     m_pctrlNewWing->setEnabled(g_360PolarStore.size());
     m_pctrlDeleteWing->setEnabled(m_pBlade);
 
+
     ///init values in simuwidget
 
 	pSimuWidgetDMS->m_pctrlLSLineEdit->setValue(dlg_lambdastart);
 	pSimuWidgetDMS->m_pctrlLELineEdit->setValue(dlg_lambdaend);
 	pSimuWidgetDMS->m_pctrlLDLineEdit->setValue(dlg_lambdadelta);
+    pSimuWidgetDMS->m_pctrlWindspeed->setValue(dlg_windspeed);
+
 
 	pSimuWidgetDMS->m_pctrlWind1->setValue(dlg_windstart);
 	pSimuWidgetDMS->m_pctrlWind2->setValue(dlg_windend);
@@ -350,10 +379,14 @@ void QDMS::CheckButtons()
 
 	g_mainFrame->AziGraphAct->setVisible(true);
 
+    if (m_pCurGraph){
+        g_mainFrame->autoResetCurGraphScales->setChecked(!m_pCurGraph->m_autoReset);
+    }
+
     if(!m_pCurGraph)
 	{
-
-		g_mainFrame->BladeGraphAct->setEnabled(false);
+        g_mainFrame->autoResetCurGraphScales->setChecked(false);
+        g_mainFrame->BladeGraphAct->setEnabled(false);
 		g_mainFrame->RotorGraphAct->setEnabled(false);
 		g_mainFrame->AziGraphAct->setEnabled(false);
 		g_mainFrame->WeibullGraphAct->setEnabled(false);
@@ -510,26 +543,10 @@ void QDMS::CheckWing()
 
     for (int i=0;i<=m_pBlade->m_NPanel;i++)
     {
-        if (m_pBlade->m_Polar.at(i) == "") finished = false;
-        if (m_pBlade->m_Airfoils.at(i) == "") finished = false;
+        if (m_pBlade->m_Polar.at(i) == "-----") finished = false;
+        if (m_pBlade->m_Airfoils.at(i) == "-----") finished = false;
+        if (!m_pBlade->m_bisSinglePolar && m_pBlade->m_Range.at(i) == "-----") finished = false;
     }
-
-    /*
-    for (int i=0;i<=m_pBlade->m_NPanel;i++)
-    {
-        if (m_pBlade->blades*m_pBlade->m_TChord[i]/(m_pBlade->m_TPos[i]*2*PI) > max)
-        {
-        max = m_pBlade->blades*m_pBlade->m_TChord[i]*cos(m_pBlade->m_TTwist[i]/360*2*PI)/(m_pBlade->m_TPos[i]*2*PI);
-        station = i;
-        }
-    }
-
-    if (max >= 1)
-    {
-        text = "<font color='Red'> Solidity is " +var.sprintf("%.2f",double(max))+ " at station " +var2.sprintf("%.0f",double(station+1))+" it has to be smaller than one - reduce the chord length or change twist angle at station " +var2+"</font>";
-        finished = false;
-    }
-    */
 
     //// check if stations are in ascending order
 
@@ -574,38 +591,11 @@ void QDMS::CheckWing()
 
 void QDMS::Connect()
 {
-    /*
-    //---------------------------------------------------------------------------------
-    // all 360 polars
-    //---------------------------------------------------------------------------------
-    connect(m_pctrlNew360, SIGNAL(clicked()),this, SLOT (OnNew360Polar()));
-    connect(m_ComparePolars, SIGNAL(clicked()), SLOT(OnComparePolars()));
-    connect(m_pctrlSave360, SIGNAL(clicked()), this, SLOT (OnSave360Polar()));
-
-    // viterna 360 polar
-    //---------------------------------------------------------------------------------
-    connect(m_pctrlStallModelVit, SIGNAL(clicked()), SLOT(OnStallModel()));
-    connect(m_pctrlStallModelMontg, SIGNAL(clicked()), SLOT(OnStallModel()));
-    connect(m_pctrlAR, SIGNAL(valueChanged(double)), SLOT(OnSetAR(double)));
-
-    // montgomery 360 polar
-    //---------------------------------------------------------------------------------
-    connect(m_pctrlA, SIGNAL(valueChanged(int)), this, SLOT (Compute360Polar()));
-    connect(m_pctrlB, SIGNAL(valueChanged(int)), this, SLOT (Compute360Polar()));
-    connect(m_pctrlAm, SIGNAL(valueChanged(int)), this, SLOT (Compute360Polar()));
-    connect(m_pctrlBm, SIGNAL(valueChanged(int)), this, SLOT (Compute360Polar()));
-    connect(m_pctrlA, SIGNAL(valueChanged(int)), this, SLOT (CreatePolarCurve()));
-    connect(m_pctrlB, SIGNAL(valueChanged(int)), this, SLOT (CreatePolarCurve()));
-    connect(m_pctrlAm, SIGNAL(valueChanged(int)), this, SLOT (CreatePolarCurve()));
-    connect(m_pctrlBm, SIGNAL(valueChanged(int)), this, SLOT (CreatePolarCurve()));
-    connect(m_pctrlCD90, SIGNAL(valueChanged(double)), SLOT(OnSetCD90(double)));
-    */
-
     //---------------------------------------------------------------------------------
     // wing design
     //---------------------------------------------------------------------------------
     connect(m_pctrlNewWing, SIGNAL(clicked()), this, SLOT (OnNewBlade()));
-    connect(m_pctrlEditWing, SIGNAL(clicked()), this, SLOT (OnEditWing()));
+    connect(m_pctrlEditWing, SIGNAL(clicked()), this, SLOT (OnEditBlade()));
     connect(m_pctrlDeleteWing, SIGNAL(clicked()), this, SLOT (OnDeleteBlade()));
 
     connect(m_pctrlInsertBefore, SIGNAL(clicked()),this, SLOT(OnInsertBefore()));
@@ -613,30 +603,26 @@ void QDMS::Connect()
     connect(m_pctrlDeleteSection, SIGNAL(clicked()),this, SLOT(OnDeleteSection()));
     connect(m_pctrlScale, SIGNAL(clicked()), this, SLOT (OnScaleBlade()));
     connect(m_pctrlOptimize, SIGNAL(clicked()), SLOT(OnOptimize()));
-    connect(m_pctrlBack, SIGNAL(clicked()), SLOT(OnDiscardWing()));
-    connect(m_pctrlSave, SIGNAL(clicked()),this, SLOT (OnSaveWing()));
+    connect(m_pctrlBack, SIGNAL(clicked()), SLOT(OnDiscardBlade()));
+    connect(m_pctrlSave, SIGNAL(clicked()),this, SLOT (OnSaveBlade()));
 
     //connect(m_pctrlIsOrtho, SIGNAL(clicked()),this, SLOT(OnOrtho()));
     connect(m_pctrlWingColor, SIGNAL(clicked()),this, SLOT(OnBladeColor()));
     connect(m_pctrlSectionColor, SIGNAL(clicked()),this, SLOT(OnSectionColor()));
-
     connect(m_pctrlSurfaces, SIGNAL(clicked()),this, SLOT(UpdateGeom()));
     connect(m_pctrlOutline, SIGNAL(clicked()),this, SLOT(UpdateGeom()));
+    connect(m_pctrlOutlineEdge, SIGNAL(clicked()),this, SLOT(UpdateGeom()));
     connect(m_pctrlAirfoils, SIGNAL(clicked()),this, SLOT(UpdateGeom()));
     connect(m_pctrlAxes, SIGNAL(clicked()),this, SLOT(UpdateGeom()));
     connect(m_pctrlPositions, SIGNAL(clicked()),this, SLOT(UpdateGeom()));
     connect(m_pctrlFoilNames, SIGNAL(clicked()),this, SLOT(UpdateGeom()));
 
-
-//    connect(m_pctrlCurveStyle, SIGNAL(activated(int)), this, SLOT(OnCurveStyle(int)));
-//    connect(m_pctrlCurveWidth, SIGNAL(activated(int)), this, SLOT(OnCurveWidth(int)));
-//    connect(m_pctrlCurveColor, SIGNAL(clicked()), this, SLOT(OnCurveColor()));
+    connect(m_SingleMultiGroup, SIGNAL(buttonToggled(int,bool)), this, SLOT(OnSingleMultiPolarChanged()));
 
     //connect(m_pctrlAdvancedDesign, SIGNAL(clicked()),this, SLOT(OnAdvancedDesign()));
-    connect(m_pctrlHubRadius,  SIGNAL(editingFinished()), this, SLOT(OnHubChanged()));
     connect(m_pctrlBlades,  SIGNAL(valueChanged(int)), this, SLOT(OnCellChanged()));
 
-    connect(m_pctrlPerspective, SIGNAL(clicked()), SLOT(UpdateView()));
+    connect(m_pctrlPerspective, SIGNAL(clicked()), SLOT(onPerspectiveChanged()));
     connect(m_pctrlShowTurbine, SIGNAL(clicked()), SLOT(UpdateView()));
     connect(m_pctrlShowTurbine, SIGNAL(clicked()), SLOT(OnCenterScene()));
 
@@ -663,12 +649,34 @@ void QDMS::Connect()
 
     connect(m_pctrlRotList, SIGNAL(clicked()), SLOT(OnPrescribeRot()));
 
+    connect(m_pctrlInvertBox, SIGNAL(clicked()),this, SLOT(InvertedClicked()));
+
+    connect (m_heightLengthGroup, SIGNAL(buttonToggled(int,bool)), this, SLOT(OnLengthHeightChanged()));
+    connect (hubEdit, SIGNAL(editingFinished()), this, SLOT(OnHubValChanged()));
 
 
+}
 
+void QDMS::OnHubValChanged(){
+    if (!m_pBlade) return;
 
+    m_pBlade->m_TOffsetX[0] = hubEdit->getValue() / g_mainFrame->m_mtoUnit;
+    for (int i=0; i< m_pWingModel->rowCount();  i++) {
+        ReadSectionData(i);
+    }
+    m_bResetglGeom = true;
+    ComputeGeometry(true);
+    UpdateView();
 
+}
 
+void QDMS::InvertedClicked(){
+
+    m_bResetglGeom = true;
+    m_bResetglSectionHighlight = true;
+    m_pBlade->m_bIsInverted = m_pctrlInvertBox->isChecked();
+    ComputeGeometry(true);
+    UpdateView();
 
 }
 
@@ -814,77 +822,74 @@ void QDMS::CheckTurbineButtons()
 
 void QDMS::CreateRotorCurves()
 {
-    m_RotorGraph1.DeleteCurves();
-    m_RotorGraph2.DeleteCurves();
-    m_RotorGraph3.DeleteCurves();
+	m_RotorGraph1.DeleteCurves();
+	m_RotorGraph2.DeleteCurves();
+	m_RotorGraph3.DeleteCurves();
 
-   
 
-    if (m_RotorGraph1.m_Type != 2 && m_RotorGraph2.m_Type != 2 && m_RotorGraph3.m_Type != 2)
-    {
+
+	if (m_RotorGraph1.m_Type != 2 && m_RotorGraph2.m_Type != 2 && m_RotorGraph3.m_Type != 2)
+	{
 		m_DMSToolBar->m_heightComboBox->setEnabled(false);
-    }
+	}
 	else if (m_DMSToolBar->m_heightComboBox->count()>=1)
-    {
+	{
 		m_DMSToolBar->m_heightComboBox->setEnabled(true);
-    }
+	}
 
 
 	for (int i=0;i<g_dmsdataStore.size();i++)
-    {
-        // rotor graph
-        if (m_RotorGraph1.m_Type == 0)
-        {
+	{
+		// rotor graph
+		if (m_RotorGraph1.m_Type == 0)
+		{
 
 			if (g_dmsdataStore.at(i)->m_bIsVisible)
-            {
+			{
 
-            CCurve *pCurve = m_RotorGraph1.AddCurve();
+				CCurve *pCurve = m_RotorGraph1.AddCurve();
 
-			pCurve->ShowPoints(g_dmsdataStore.at(i)->m_bShowPoints);
-			pCurve->SetStyle(g_dmsdataStore.at(i)->m_Style);
-			pCurve->SetColor(g_dmsdataStore.at(i)->m_Color);
-			pCurve->SetWidth(g_dmsdataStore.at(i)->m_Width);
-			FillRotorCurve(pCurve, g_dmsdataStore.at(i), m_RotorGraph1.GetXVariable(), m_RotorGraph1.GetYVariable());
-			pCurve->SetTitle(g_dmsdataStore.at(i)->m_DMSName);
-            }
+				pCurve->ShowPoints(g_dmsdataStore.at(i)->m_bShowPoints);
+				pCurve->SetStyle(g_dmsdataStore.at(i)->m_Style);
+				pCurve->SetColor(g_dmsdataStore.at(i)->m_Color);
+				pCurve->SetWidth(g_dmsdataStore.at(i)->m_Width);
+				FillRotorCurve(pCurve, g_dmsdataStore.at(i), m_RotorGraph1.GetXVariable(), m_RotorGraph1.GetYVariable());
+				pCurve->SetTitle(g_dmsdataStore.at(i)->m_DMSName);
+			}
 
-        }
-
-        else if (m_pDMSData && m_pDData)
-        {
+		} else if (m_pDMSData && m_pDData) {
 
 			same_height = selected_height;
 
-            if(m_bIsolateBladeCurve)
-            {
-                if (m_pDMSData->m_bIsVisible)
-                {
-                CCurve *pCurve = m_RotorGraph1.AddCurve();
-                pCurve->ShowPoints(m_pDMSData->m_bShowPoints);
-                pCurve->SetStyle(m_pDMSData->m_Style);
-                pCurve->SetColor(m_pDMSData->m_Color);
-                pCurve->SetWidth(m_pDMSData->m_Width);
-                FillRotorCurve(pCurve, m_pDData, m_RotorGraph1.GetXVariable(), m_RotorGraph1.GetYVariable());
-                pCurve->SetTitle(m_pDData->m_DMSName);
-                }
+			if(m_bIsolateBladeCurve)
+			{
+				if (m_pDMSData->m_bIsVisible)
+				{
+					CCurve *pCurve = m_RotorGraph1.AddCurve();
+					pCurve->ShowPoints(m_pDMSData->m_bShowPoints);
+					pCurve->SetStyle(m_pDMSData->m_Style);
+					pCurve->SetColor(m_pDMSData->m_Color);
+					pCurve->SetWidth(m_pDMSData->m_Width);
+					FillRotorCurve(pCurve, m_pDData, m_RotorGraph1.GetXVariable(), m_RotorGraph1.GetYVariable());
+					pCurve->SetTitle(m_pDData->m_DMSName);
+				}
 
-                if (m_bCompareBladeCurve)
-                {
-					 for (int k=0; k<g_dmsdataStore.size();k++)
-                        {
+				if (m_bCompareBladeCurve)
+				{
+					for (int k=0; k<g_dmsdataStore.size();k++)
+					{
 						for (int l=0;l<g_dmsdataStore.at(k)->m_DData.size();l++)
-                         {
-						 if (g_dmsdataStore.at(k)->m_DData.at(l)->lambdaglobal == m_pDData->lambdaglobal)
-                            {
-							if (g_dmsdataStore.at(k)->m_bIsVisible)
-                             {
-
-
-								for (int z=0; z<g_dmsdataStore.at(k)->m_DData.at(l)->elements;z++)
+						{
+							if (g_dmsdataStore.at(k)->m_DData.at(l)->lambdaglobal == m_pDData->lambdaglobal)
+							{
+								if (g_dmsdataStore.at(k)->m_bIsVisible)
 								{
-									if (fabs(g_dmsdataStore.at(k)->m_DData.at(l)->m_zeta.at(z)-m_pDData->m_zeta.at(selected_height)) < 0.001)
+
+
+									for (int z=0; z<g_dmsdataStore.at(k)->m_DData.at(l)->elements;z++)
 									{
+										if (fabs(g_dmsdataStore.at(k)->m_DData.at(l)->m_zeta.at(z)-m_pDData->m_zeta.at(selected_height)) < 0.001)
+										{
 											same_height = z;
 											CCurve *pCurve = m_RotorGraph1.AddCurve();
 
@@ -894,105 +899,106 @@ void QDMS::CreateRotorCurves()
 											pCurve->SetWidth(g_dmsdataStore.at(k)->m_Width);
 											FillRotorCurve(pCurve, g_dmsdataStore.at(k)->m_DData.at(l), m_RotorGraph1.GetXVariable(), m_RotorGraph1.GetYVariable());
 											pCurve->SetTitle(g_dmsdataStore.at(k)->m_DData.at(l)->m_DMSName);
-									}
+										}
 
 
 
 									}
-								if (m_RotorGraph1.m_Type == 1)
-								{
-									CCurve *pCurve = m_RotorGraph1.AddCurve();
+									if (m_RotorGraph1.m_Type == 1)
+									{
+										CCurve *pCurve = m_RotorGraph1.AddCurve();
 
-									pCurve->ShowPoints(g_dmsdataStore.at(k)->m_bShowPoints);
-									pCurve->SetStyle(g_dmsdataStore.at(k)->m_Style);
-									pCurve->SetColor(g_dmsdataStore.at(k)->m_Color);
-									pCurve->SetWidth(g_dmsdataStore.at(k)->m_Width);
-									FillRotorCurve(pCurve, g_dmsdataStore.at(k)->m_DData.at(l), m_RotorGraph1.GetXVariable(), m_RotorGraph1.GetYVariable());
-									pCurve->SetTitle(g_dmsdataStore.at(k)->m_DData.at(l)->m_DMSName);
+										pCurve->ShowPoints(g_dmsdataStore.at(k)->m_bShowPoints);
+										pCurve->SetStyle(g_dmsdataStore.at(k)->m_Style);
+										pCurve->SetColor(g_dmsdataStore.at(k)->m_Color);
+										pCurve->SetWidth(g_dmsdataStore.at(k)->m_Width);
+										FillRotorCurve(pCurve, g_dmsdataStore.at(k)->m_DData.at(l),
+													   m_RotorGraph1.GetXVariable(), m_RotorGraph1.GetYVariable());
+										pCurve->SetTitle(g_dmsdataStore.at(k)->m_DData.at(l)->m_DMSName);
+									}
 								}
-                            }
-                         }
-                        }
-                }
-            }
+							}
+						}
+					}
+				}
 			}
 
-            else
-            {
-            for (int j=0; j< m_pDMSData->m_DData.size();j++)
-                {
+			else
+			{
+				for (int j=0; j< m_pDMSData->m_DData.size();j++)
+				{
 
-                CCurve *pCurve = m_RotorGraph1.AddCurve();
+					CCurve *pCurve = m_RotorGraph1.AddCurve();
 
-                pCurve->ShowPoints(m_pDMSData->m_DData.at(j)->m_bShowPoints);
-                pCurve->SetStyle(m_pDMSData->m_DData.at(j)->m_Style);
-                pCurve->SetColor(m_pDMSData->m_DData.at(j)->m_Color);
-                if (m_pDMSData->m_DData.at(j)==m_pDData)
-                {
-                pCurve->SetWidth(m_pDMSData->m_DData.at(j)->m_Width+4);
-                }
-                else
-                {
-                pCurve->SetWidth(m_pDMSData->m_DData.at(j)->m_Width);
-                }
-                FillRotorCurve(pCurve, m_pDMSData->m_DData.at(j), m_RotorGraph1.GetXVariable(), m_RotorGraph1.GetYVariable());
-                pCurve->SetTitle(m_pDMSData->m_DData.at(j)->m_DMSName);
-                }
-            }
-        }
-    }
+					pCurve->ShowPoints(m_pDMSData->m_DData.at(j)->m_bShowPoints);
+					pCurve->SetStyle(m_pDMSData->m_DData.at(j)->m_Style);
+					pCurve->SetColor(m_pDMSData->m_DData.at(j)->m_Color);
+					if (m_pDMSData->m_DData.at(j)==m_pDData)
+					{
+						pCurve->SetWidth(m_pDMSData->m_DData.at(j)->m_Width+4);
+					}
+					else
+					{
+						pCurve->SetWidth(m_pDMSData->m_DData.at(j)->m_Width);
+					}
+					FillRotorCurve(pCurve, m_pDMSData->m_DData.at(j), m_RotorGraph1.GetXVariable(), m_RotorGraph1.GetYVariable());
+					pCurve->SetTitle(m_pDMSData->m_DData.at(j)->m_DMSName);
+				}
+			}
+		}
+	}
 
 	for (int i=0;i<g_dmsdataStore.size();i++)
-    {
+	{
 
-        if (m_RotorGraph2.m_Type == 0)
-        {
+		if (m_RotorGraph2.m_Type == 0)
+		{
 
 			if (g_dmsdataStore.at(i)->m_bIsVisible)
-            {
+			{
 
-            CCurve *pCurve = m_RotorGraph2.AddCurve();
+				CCurve *pCurve = m_RotorGraph2.AddCurve();
 
-			pCurve->ShowPoints(g_dmsdataStore.at(i)->m_bShowPoints);
-			pCurve->SetStyle(g_dmsdataStore.at(i)->m_Style);
-			pCurve->SetColor(g_dmsdataStore.at(i)->m_Color);
-			pCurve->SetWidth(g_dmsdataStore.at(i)->m_Width);
-			FillRotorCurve(pCurve, g_dmsdataStore.at(i), m_RotorGraph2.GetXVariable(), m_RotorGraph2.GetYVariable());
-			pCurve->SetTitle(g_dmsdataStore.at(i)->m_DMSName);
-            }
-        }
-        else if (m_pDMSData && m_pDData)
-        {
+				pCurve->ShowPoints(g_dmsdataStore.at(i)->m_bShowPoints);
+				pCurve->SetStyle(g_dmsdataStore.at(i)->m_Style);
+				pCurve->SetColor(g_dmsdataStore.at(i)->m_Color);
+				pCurve->SetWidth(g_dmsdataStore.at(i)->m_Width);
+				FillRotorCurve(pCurve, g_dmsdataStore.at(i), m_RotorGraph2.GetXVariable(), m_RotorGraph2.GetYVariable());
+				pCurve->SetTitle(g_dmsdataStore.at(i)->m_DMSName);
+			}
+		}
+		else if (m_pDMSData && m_pDData)
+		{
 			same_height = selected_height;
 
-            if(m_bIsolateBladeCurve)
-            {
-                if (m_pDMSData->m_bIsVisible)
-                {
-                CCurve *pCurve = m_RotorGraph2.AddCurve();
+			if(m_bIsolateBladeCurve)
+			{
+				if (m_pDMSData->m_bIsVisible)
+				{
+					CCurve *pCurve = m_RotorGraph2.AddCurve();
 
-                pCurve->ShowPoints(m_pDMSData->m_bShowPoints);
-                pCurve->SetStyle(m_pDMSData->m_Style);
-                pCurve->SetColor(m_pDMSData->m_Color);
-                pCurve->SetWidth(m_pDMSData->m_Width);
-                FillRotorCurve(pCurve, m_pDData, m_RotorGraph2.GetXVariable(), m_RotorGraph2.GetYVariable());
-                pCurve->SetTitle(m_pDData->m_DMSName);
-                }
+					pCurve->ShowPoints(m_pDMSData->m_bShowPoints);
+					pCurve->SetStyle(m_pDMSData->m_Style);
+					pCurve->SetColor(m_pDMSData->m_Color);
+					pCurve->SetWidth(m_pDMSData->m_Width);
+					FillRotorCurve(pCurve, m_pDData, m_RotorGraph2.GetXVariable(), m_RotorGraph2.GetYVariable());
+					pCurve->SetTitle(m_pDData->m_DMSName);
+				}
 
-                if (m_bCompareBladeCurve)
-                {
-					 for (int k=0; k<g_dmsdataStore.size();k++)
-                        {
+				if (m_bCompareBladeCurve)
+				{
+					for (int k=0; k<g_dmsdataStore.size();k++)
+					{
 						for (int l=0;l<g_dmsdataStore.at(k)->m_DData.size();l++)
-                         {
-						 if (g_dmsdataStore.at(k)->m_DData.at(l)->lambdaglobal == m_pDData->lambdaglobal)
-                            {
-							if (g_dmsdataStore.at(k)->m_bIsVisible)
-                             {
-								for (int z=0; z<g_dmsdataStore.at(k)->m_DData.at(l)->elements;z++)
+						{
+							if (g_dmsdataStore.at(k)->m_DData.at(l)->lambdaglobal == m_pDData->lambdaglobal)
+							{
+								if (g_dmsdataStore.at(k)->m_bIsVisible)
 								{
-									if (fabs(g_dmsdataStore.at(k)->m_DData.at(l)->m_zeta.at(z)-m_pDData->m_zeta.at(selected_height)) < 0.001)
+									for (int z=0; z<g_dmsdataStore.at(k)->m_DData.at(l)->elements;z++)
 									{
+										if (fabs(g_dmsdataStore.at(k)->m_DData.at(l)->m_zeta.at(z)-m_pDData->m_zeta.at(selected_height)) < 0.001)
+										{
 											same_height = z;
 											CCurve *pCurve = m_RotorGraph2.AddCurve();
 
@@ -1002,104 +1008,104 @@ void QDMS::CreateRotorCurves()
 											pCurve->SetWidth(g_dmsdataStore.at(k)->m_Width);
 											FillRotorCurve(pCurve, g_dmsdataStore.at(k)->m_DData.at(l), m_RotorGraph2.GetXVariable(), m_RotorGraph2.GetYVariable());
 											pCurve->SetTitle(g_dmsdataStore.at(k)->m_DData.at(l)->m_DMSName);
-									}
+										}
 
 
 
 									}
-								if (m_RotorGraph2.m_Type == 1)
-								{
-									CCurve *pCurve = m_RotorGraph2.AddCurve();
+									if (m_RotorGraph2.m_Type == 1)
+									{
+										CCurve *pCurve = m_RotorGraph2.AddCurve();
 
-									pCurve->ShowPoints(g_dmsdataStore.at(k)->m_bShowPoints);
-									pCurve->SetStyle(g_dmsdataStore.at(k)->m_Style);
-									pCurve->SetColor(g_dmsdataStore.at(k)->m_Color);
-									pCurve->SetWidth(g_dmsdataStore.at(k)->m_Width);
-									FillRotorCurve(pCurve, g_dmsdataStore.at(k)->m_DData.at(l), m_RotorGraph2.GetXVariable(), m_RotorGraph2.GetYVariable());
-									pCurve->SetTitle(g_dmsdataStore.at(k)->m_DData.at(l)->m_DMSName);
+										pCurve->ShowPoints(g_dmsdataStore.at(k)->m_bShowPoints);
+										pCurve->SetStyle(g_dmsdataStore.at(k)->m_Style);
+										pCurve->SetColor(g_dmsdataStore.at(k)->m_Color);
+										pCurve->SetWidth(g_dmsdataStore.at(k)->m_Width);
+										FillRotorCurve(pCurve, g_dmsdataStore.at(k)->m_DData.at(l), m_RotorGraph2.GetXVariable(), m_RotorGraph2.GetYVariable());
+										pCurve->SetTitle(g_dmsdataStore.at(k)->m_DData.at(l)->m_DMSName);
+									}
+
 								}
+							}
+						}
+					}
+				}
+			}
+			else
+			{
+				for (int j=0; j< m_pDMSData->m_DData.size();j++)
+				{
 
-                             }
-                            }
-                         }
-                        }
-                }
-            }
-            else
-            {
-            for (int j=0; j< m_pDMSData->m_DData.size();j++)
-            {
-
-            CCurve *pCurve = m_RotorGraph2.AddCurve();
-            pCurve->ShowPoints(m_pDMSData->m_DData.at(j)->m_bShowPoints);
-            pCurve->SetStyle(m_pDMSData->m_DData.at(j)->m_Style);
-            pCurve->SetColor(m_pDMSData->m_DData.at(j)->m_Color);
-            if (m_pDMSData->m_DData.at(j)==m_pDData)
-            {
-            pCurve->SetWidth(m_pDMSData->m_DData.at(j)->m_Width+4);
-            }
-            else
-            {
-            pCurve->SetWidth(m_pDMSData->m_DData.at(j)->m_Width);
-            }
-            FillRotorCurve(pCurve, m_pDMSData->m_DData.at(j), m_RotorGraph2.GetXVariable(), m_RotorGraph2.GetYVariable());
-            pCurve->SetTitle(m_pDMSData->m_DData.at(j)->m_DMSName);
-            }
-            }
-        }
-    }
+					CCurve *pCurve = m_RotorGraph2.AddCurve();
+					pCurve->ShowPoints(m_pDMSData->m_DData.at(j)->m_bShowPoints);
+					pCurve->SetStyle(m_pDMSData->m_DData.at(j)->m_Style);
+					pCurve->SetColor(m_pDMSData->m_DData.at(j)->m_Color);
+					if (m_pDMSData->m_DData.at(j)==m_pDData)
+					{
+						pCurve->SetWidth(m_pDMSData->m_DData.at(j)->m_Width+4);
+					}
+					else
+					{
+						pCurve->SetWidth(m_pDMSData->m_DData.at(j)->m_Width);
+					}
+					FillRotorCurve(pCurve, m_pDMSData->m_DData.at(j), m_RotorGraph2.GetXVariable(), m_RotorGraph2.GetYVariable());
+					pCurve->SetTitle(m_pDMSData->m_DData.at(j)->m_DMSName);
+				}
+			}
+		}
+	}
 
 
 	for (int i=0;i<g_dmsdataStore.size();i++)
-    {
-        if (m_RotorGraph3.m_Type == 0)
-        {
+	{
+		if (m_RotorGraph3.m_Type == 0)
+		{
 
 			if (g_dmsdataStore.at(i)->m_bIsVisible)
-            {
+			{
 
-            CCurve *pCurve = m_RotorGraph3.AddCurve();
+				CCurve *pCurve = m_RotorGraph3.AddCurve();
 
-			pCurve->ShowPoints(g_dmsdataStore.at(i)->m_bShowPoints);
-			pCurve->SetStyle(g_dmsdataStore.at(i)->m_Style);
-			pCurve->SetColor(g_dmsdataStore.at(i)->m_Color);
-			pCurve->SetWidth(g_dmsdataStore.at(i)->m_Width);
-			FillRotorCurve(pCurve, g_dmsdataStore.at(i), m_RotorGraph3.GetXVariable(), m_RotorGraph3.GetYVariable());
-			pCurve->SetTitle(g_dmsdataStore.at(i)->m_DMSName);
-            }
-        }
-        else if (m_pDMSData && m_pDData)
-        {
+				pCurve->ShowPoints(g_dmsdataStore.at(i)->m_bShowPoints);
+				pCurve->SetStyle(g_dmsdataStore.at(i)->m_Style);
+				pCurve->SetColor(g_dmsdataStore.at(i)->m_Color);
+				pCurve->SetWidth(g_dmsdataStore.at(i)->m_Width);
+				FillRotorCurve(pCurve, g_dmsdataStore.at(i), m_RotorGraph3.GetXVariable(), m_RotorGraph3.GetYVariable());
+				pCurve->SetTitle(g_dmsdataStore.at(i)->m_DMSName);
+			}
+		}
+		else if (m_pDMSData && m_pDData)
+		{
 			same_height = selected_height;
 
-            if(m_bIsolateBladeCurve)
-            {
-                if (m_pDMSData->m_bIsVisible)
-                {
-                CCurve *pCurve = m_RotorGraph3.AddCurve();
+			if(m_bIsolateBladeCurve)
+			{
+				if (m_pDMSData->m_bIsVisible)
+				{
+					CCurve *pCurve = m_RotorGraph3.AddCurve();
 
-                pCurve->ShowPoints(m_pDMSData->m_bShowPoints);
-                pCurve->SetStyle(m_pDMSData->m_Style);
-                pCurve->SetColor(m_pDMSData->m_Color);
-                pCurve->SetWidth(m_pDMSData->m_Width);
-                FillRotorCurve(pCurve, m_pDData, m_RotorGraph3.GetXVariable(), m_RotorGraph3.GetYVariable());
-                pCurve->SetTitle(m_pDData->m_DMSName);
-                }
+					pCurve->ShowPoints(m_pDMSData->m_bShowPoints);
+					pCurve->SetStyle(m_pDMSData->m_Style);
+					pCurve->SetColor(m_pDMSData->m_Color);
+					pCurve->SetWidth(m_pDMSData->m_Width);
+					FillRotorCurve(pCurve, m_pDData, m_RotorGraph3.GetXVariable(), m_RotorGraph3.GetYVariable());
+					pCurve->SetTitle(m_pDData->m_DMSName);
+				}
 
-                if (m_bCompareBladeCurve)
-                {
-					 for (int k=0; k<g_dmsdataStore.size();k++)
-                        {
+				if (m_bCompareBladeCurve)
+				{
+					for (int k=0; k<g_dmsdataStore.size();k++)
+					{
 						for (int l=0;l<g_dmsdataStore.at(k)->m_DData.size();l++)
-                         {
-						 if (g_dmsdataStore.at(k)->m_DData.at(l)->lambdaglobal == m_pDData->lambdaglobal)
-                            {
-							if (g_dmsdataStore.at(k)->m_bIsVisible)
-                             {
-								for (int z=0; z<g_dmsdataStore.at(k)->m_DData.at(l)->elements;z++)
+						{
+							if (g_dmsdataStore.at(k)->m_DData.at(l)->lambdaglobal == m_pDData->lambdaglobal)
+							{
+								if (g_dmsdataStore.at(k)->m_bIsVisible)
 								{
-									if (fabs(g_dmsdataStore.at(k)->m_DData.at(l)->m_zeta.at(z)-m_pDData->m_zeta.at(selected_height)) < 0.001)
+									for (int z=0; z<g_dmsdataStore.at(k)->m_DData.at(l)->elements;z++)
 									{
+										if (fabs(g_dmsdataStore.at(k)->m_DData.at(l)->m_zeta.at(z)-m_pDData->m_zeta.at(selected_height)) < 0.001)
+										{
 											same_height = z;
 											CCurve *pCurve = m_RotorGraph3.AddCurve();
 
@@ -1109,91 +1115,91 @@ void QDMS::CreateRotorCurves()
 											pCurve->SetWidth(g_dmsdataStore.at(k)->m_Width);
 											FillRotorCurve(pCurve, g_dmsdataStore.at(k)->m_DData.at(l), m_RotorGraph3.GetXVariable(), m_RotorGraph3.GetYVariable());
 											pCurve->SetTitle(g_dmsdataStore.at(k)->m_DData.at(l)->m_DMSName);
+										}
 									}
+									if (m_RotorGraph3.m_Type == 1)
+									{
+										CCurve *pCurve = m_RotorGraph3.AddCurve();
+
+										pCurve->ShowPoints(g_dmsdataStore.at(k)->m_bShowPoints);
+										pCurve->SetStyle(g_dmsdataStore.at(k)->m_Style);
+										pCurve->SetColor(g_dmsdataStore.at(k)->m_Color);
+										pCurve->SetWidth(g_dmsdataStore.at(k)->m_Width);
+										FillRotorCurve(pCurve, g_dmsdataStore.at(k)->m_DData.at(l), m_RotorGraph3.GetXVariable(), m_RotorGraph3.GetYVariable());
+										pCurve->SetTitle(g_dmsdataStore.at(k)->m_DData.at(l)->m_DMSName);
+									}
+
 								}
-								if (m_RotorGraph3.m_Type == 1)
-								{
-									CCurve *pCurve = m_RotorGraph3.AddCurve();
+							}
+						}
+					}
+				}
+			}
+			else
+			{
+				for (int j=0; j< m_pDMSData->m_DData.size();j++)
+				{
+					CCurve *pCurve = m_RotorGraph3.AddCurve();
 
-									pCurve->ShowPoints(g_dmsdataStore.at(k)->m_bShowPoints);
-									pCurve->SetStyle(g_dmsdataStore.at(k)->m_Style);
-									pCurve->SetColor(g_dmsdataStore.at(k)->m_Color);
-									pCurve->SetWidth(g_dmsdataStore.at(k)->m_Width);
-									FillRotorCurve(pCurve, g_dmsdataStore.at(k)->m_DData.at(l), m_RotorGraph3.GetXVariable(), m_RotorGraph3.GetYVariable());
-									pCurve->SetTitle(g_dmsdataStore.at(k)->m_DData.at(l)->m_DMSName);
-								}
-
-                             }
-                            }
-                         }
-                        }
-                }
-            }
-            else
-            {
-            for (int j=0; j< m_pDMSData->m_DData.size();j++)
-                {
-                CCurve *pCurve = m_RotorGraph3.AddCurve();
-
-                pCurve->ShowPoints(m_pDMSData->m_DData.at(j)->m_bShowPoints);
-                pCurve->SetStyle(m_pDMSData->m_DData.at(j)->m_Style);
-                pCurve->SetColor(m_pDMSData->m_DData.at(j)->m_Color);
-                if (m_pDMSData->m_DData.at(j)==m_pDData)
-                {
-                pCurve->SetWidth(m_pDMSData->m_DData.at(j)->m_Width+4);
-                }
-                else
-                {
-                pCurve->SetWidth(m_pDMSData->m_DData.at(j)->m_Width);
-                }
-                FillRotorCurve(pCurve, m_pDMSData->m_DData.at(j), m_RotorGraph3.GetXVariable(), m_RotorGraph3.GetYVariable());
-                pCurve->SetTitle(m_pDMSData->m_DData.at(j)->m_DMSName);
-                }
-            }
-        }
-    }
+					pCurve->ShowPoints(m_pDMSData->m_DData.at(j)->m_bShowPoints);
+					pCurve->SetStyle(m_pDMSData->m_DData.at(j)->m_Style);
+					pCurve->SetColor(m_pDMSData->m_DData.at(j)->m_Color);
+					if (m_pDMSData->m_DData.at(j)==m_pDData)
+					{
+						pCurve->SetWidth(m_pDMSData->m_DData.at(j)->m_Width+4);
+					}
+					else
+					{
+						pCurve->SetWidth(m_pDMSData->m_DData.at(j)->m_Width);
+					}
+					FillRotorCurve(pCurve, m_pDMSData->m_DData.at(j), m_RotorGraph3.GetXVariable(), m_RotorGraph3.GetYVariable());
+					pCurve->SetTitle(m_pDMSData->m_DData.at(j)->m_DMSName);
+				}
+			}
+		}
+	}
 
 
-    if (m_pDMSData && selected_lambda >= 0 && m_bShowOpPoint)
-    {
+	if (m_pDMSData && selected_lambda >= 0 && m_bShowOpPoint)
+	{
 
-        if (m_pDMSData->m_bIsVisible && m_RotorGraph1.m_Type == 0)
-        {
-            CCurve* pRotorCurve = m_RotorGraph1.AddCurve();
-            pRotorCurve->ShowPoints(true);
-            pRotorCurve->SetWidth(m_pDMSData->m_Width+3);
-            pRotorCurve->SetColor(m_pDMSData->m_Color);
-            QList <double> *X = (QList <double> *) GetRotorVariable(m_pDMSData, m_RotorGraph1.GetXVariable());
-            QList <double> *Y = (QList <double> *) GetRotorVariable(m_pDMSData, m_RotorGraph1.GetYVariable());
-            pRotorCurve->AddPoint(X->at(selected_lambda),Y->at(selected_lambda));
-        }
+		if (m_pDMSData->m_bIsVisible && m_RotorGraph1.m_Type == 0)
+		{
+			CCurve* pRotorCurve = m_RotorGraph1.AddCurve();
+			pRotorCurve->ShowPoints(true);
+			pRotorCurve->SetWidth(m_pDMSData->m_Width+3);
+			pRotorCurve->SetColor(m_pDMSData->m_Color);
+			QList <double> *X = (QList <double> *) GetRotorVariable(m_pDMSData, m_RotorGraph1.GetXVariable());
+			QList <double> *Y = (QList <double> *) GetRotorVariable(m_pDMSData, m_RotorGraph1.GetYVariable());
+			pRotorCurve->AddPoint(X->at(selected_lambda),Y->at(selected_lambda));
+		}
 
-        if (m_pDMSData->m_bIsVisible && m_RotorGraph2.m_Type == 0)
-        {
-            CCurve* pRotorCurve = m_RotorGraph2.AddCurve();
-            pRotorCurve->ShowPoints(true);
-            pRotorCurve->SetWidth(m_pDMSData->m_Width+3);
-            pRotorCurve->SetColor(m_pDMSData->m_Color);
-            QList <double> *X = (QList <double> *) GetRotorVariable(m_pDMSData, m_RotorGraph2.GetXVariable());
-            QList <double> *Y = (QList <double> *) GetRotorVariable(m_pDMSData, m_RotorGraph2.GetYVariable());
-            pRotorCurve->AddPoint(X->at(selected_lambda),Y->at(selected_lambda));
-        }
+		if (m_pDMSData->m_bIsVisible && m_RotorGraph2.m_Type == 0)
+		{
+			CCurve* pRotorCurve = m_RotorGraph2.AddCurve();
+			pRotorCurve->ShowPoints(true);
+			pRotorCurve->SetWidth(m_pDMSData->m_Width+3);
+			pRotorCurve->SetColor(m_pDMSData->m_Color);
+			QList <double> *X = (QList <double> *) GetRotorVariable(m_pDMSData, m_RotorGraph2.GetXVariable());
+			QList <double> *Y = (QList <double> *) GetRotorVariable(m_pDMSData, m_RotorGraph2.GetYVariable());
+			pRotorCurve->AddPoint(X->at(selected_lambda),Y->at(selected_lambda));
+		}
 
-        if (m_pDMSData->m_bIsVisible && m_RotorGraph3.m_Type == 0)
-        {
-            CCurve* pRotorCurve = m_RotorGraph3.AddCurve();
-            pRotorCurve->ShowPoints(true);
-            pRotorCurve->SetWidth(m_pDMSData->m_Width+3);
-            pRotorCurve->SetColor(m_pDMSData->m_Color);
-            QList <double> *X = (QList <double> *) GetRotorVariable(m_pDMSData, m_RotorGraph3.GetXVariable());
-            QList <double> *Y = (QList <double> *) GetRotorVariable(m_pDMSData, m_RotorGraph3.GetYVariable());
-            pRotorCurve->AddPoint(X->at(selected_lambda),Y->at(selected_lambda));
-        }
+		if (m_pDMSData->m_bIsVisible && m_RotorGraph3.m_Type == 0)
+		{
+			CCurve* pRotorCurve = m_RotorGraph3.AddCurve();
+			pRotorCurve->ShowPoints(true);
+			pRotorCurve->SetWidth(m_pDMSData->m_Width+3);
+			pRotorCurve->SetColor(m_pDMSData->m_Color);
+			QList <double> *X = (QList <double> *) GetRotorVariable(m_pDMSData, m_RotorGraph3.GetXVariable());
+			QList <double> *Y = (QList <double> *) GetRotorVariable(m_pDMSData, m_RotorGraph3.GetYVariable());
+			pRotorCurve->AddPoint(X->at(selected_lambda),Y->at(selected_lambda));
+		}
 
-    }
+	}
 
 
-    UpdateView();
+	UpdateView();
 }
 
 
@@ -1398,52 +1404,35 @@ void QDMS::CreatePowerCurves()
 
 	for (int i=0;i<g_tdmsdataStore.size();i++)
     {
-        if (m_PowerGraph1.m_Type == 0)
-        {
-
-			if (g_tdmsdataStore.at(i)->m_bIsVisible)
-            {
-
-            CCurve *pCurve = m_PowerGraph1.AddCurve();
-
-			pCurve->ShowPoints(g_tdmsdataStore.at(i)->m_bShowPoints);
-			pCurve->SetStyle(g_tdmsdataStore.at(i)->m_Style);
-			pCurve->SetColor(g_tdmsdataStore.at(i)->m_Color);
-			pCurve->SetWidth(g_tdmsdataStore.at(i)->m_Width);
-			FillPowerCurve(pCurve, g_tdmsdataStore.at(i), m_PowerGraph1.GetXVariable(), m_PowerGraph1.GetYVariable());
-			pCurve->SetTitle(g_tdmsdataStore.at(i)->m_TurbineName);
+        if (m_PowerGraph1.m_Type == 0) {
+			if (g_tdmsdataStore.at(i)->m_bIsVisible) {
+				CCurve *pCurve = m_PowerGraph1.AddCurve();
+	
+				pCurve->ShowPoints(g_tdmsdataStore.at(i)->m_bShowPoints);
+				pCurve->SetStyle(g_tdmsdataStore.at(i)->m_Style);
+				pCurve->SetColor(g_tdmsdataStore.at(i)->m_Color);
+				pCurve->SetWidth(g_tdmsdataStore.at(i)->m_Width);
+				FillPowerCurve(pCurve, g_tdmsdataStore.at(i), m_PowerGraph1.GetXVariable(), m_PowerGraph1.GetYVariable());
+				pCurve->SetTitle(g_tdmsdataStore.at(i)->m_TurbineName);
             }
-        }
-
-        else if (m_pTDMSData && m_pTurbineDData)
-        {
+        } else if (m_pTDMSData && m_pTurbineDData) {
 			same_height = selected_height;
 
-			if (m_PowerGraph1.m_Type == 3)
-			{
+			if (m_PowerGraph1.m_Type == 3) {
+				for (int k=0; k<g_tdmsdataStore.size();k++) {
+					if (g_tdmsdataStore.at(k)->m_bIsVisible) {
+						CCurve *pCurve = m_PowerGraph1.AddCurve();
 
-						for (int k=0; k<g_tdmsdataStore.size();k++)
-						{
-							if (g_tdmsdataStore.at(k)->m_bIsVisible)
-							{
-								CCurve *pCurve = m_PowerGraph1.AddCurve();
+						pCurve->ShowPoints(g_tdmsdataStore.at(k)->m_bShowPoints);
+						pCurve->SetStyle(g_tdmsdataStore.at(k)->m_Style);
+						pCurve->SetColor(g_tdmsdataStore.at(k)->m_Color);
+						pCurve->SetWidth(g_tdmsdataStore.at(k)->m_Width);
 
-								pCurve->ShowPoints(g_tdmsdataStore.at(k)->m_bShowPoints);
-								pCurve->SetStyle(g_tdmsdataStore.at(k)->m_Style);
-								pCurve->SetColor(g_tdmsdataStore.at(k)->m_Color);
-								pCurve->SetWidth(g_tdmsdataStore.at(k)->m_Width);
-
-								FillWeibullCurve(pCurve, g_tdmsdataStore.at(k), m_PowerGraph1.GetXVariable());
-								pCurve->SetTitle(g_tdmsdataStore.at(k)->m_DMSName);
-
-							}
-						}
-
-
-			}
-
-			else
-			{
+						FillWeibullCurve(pCurve, g_tdmsdataStore.at(k), m_PowerGraph1.GetXVariable());
+						pCurve->SetTitle(g_tdmsdataStore.at(k)->m_DMSName);
+					}
+				}
+			} else {
 
 				if(m_bIsolateBladeCurve)
 				{
@@ -1854,12 +1843,18 @@ void QDMS::DisableAllButtons()
 	pSimuWidgetDMS->m_pctrlWind1->setEnabled(false);
 	pSimuWidgetDMS->m_pctrlWind2->setEnabled(false);
 	pSimuWidgetDMS->m_pctrlWindDelta->setEnabled(false);
+    pSimuWidgetDMS->m_pctrlDeleteTDMS->setEnabled(false);
+
 
 	pSimuWidgetDMS->m_pctrlCreateDMS->setEnabled(false);
 	pSimuWidgetDMS->m_pctrlStartDMS->setEnabled(false);
 	pSimuWidgetDMS->m_pctrlLSLineEdit->setEnabled(false);
 	pSimuWidgetDMS->m_pctrlLELineEdit->setEnabled(false);
 	pSimuWidgetDMS->m_pctrlLDLineEdit->setEnabled(false);
+    pSimuWidgetDMS->m_pctrlWindspeed->setEnabled(false);
+    pSimuWidgetDMS->m_pctrlDeleteDMS->setEnabled(false);
+
+
 }
 
 
@@ -1931,19 +1926,72 @@ void QDMS::FillComboBoxes(bool bEnable)
 
 }
 
+void QDMS::OnLengthHeightChanged(){
+
+    if (!m_pBlade) return;
+
+    if (m_heightLengthGroup->button(0)->isChecked()) m_bisHeight = true;
+    else m_bisHeight = false;
+
+    QString str;
+    GetLengthUnit(str, g_mainFrame->m_LengthUnit);
+
+    if (!m_bisHeight){
+        hubEdit->setEnabled(true);
+        m_pWingModel->setHeaderData(0, Qt::Horizontal, tr("Length(")+str+")");
+        m_pWingModel->setHeaderData(2, Qt::Horizontal, tr("Angle(deg)"));
+    }
+    else{
+        hubEdit->setEnabled(false);
+        m_pWingModel->setHeaderData(0, Qt::Horizontal, tr("Height(")+str+")");
+        m_pWingModel->setHeaderData(2, Qt::Horizontal, tr("Radius(")+str+")");
+    }
+
+    for (int i=0; i<=m_pBlade->m_NPanel;i++){
+        FillTableRow(i);
+    }
+
+}
+
 
 void QDMS::FillTableRow(int row)
 {
         QModelIndex ind;
 
-        ind = m_pWingModel->index(row, 0, QModelIndex());
-        m_pWingModel->setData(ind, m_pBlade->m_TPos[row] * g_mainFrame->m_mtoUnit);
+
+        if (m_bisHeight){
+            ind = m_pWingModel->index(row, 0, QModelIndex());
+            m_pWingModel->setData(ind, m_pBlade->m_TPos[row] * g_mainFrame->m_mtoUnit);
+        }
+        else{
+            ind = m_pWingModel->index(row, 0, QModelIndex());
+            if (row == 0){
+                m_pWingModel->setData(ind, m_pBlade->m_TPos[row] * g_mainFrame->m_mtoUnit);
+            }
+            else{
+                double angle = atan((m_pBlade->m_TOffsetX[row]-m_pBlade->m_TOffsetX[row-1])/(m_pBlade->m_TPos[row]-m_pBlade->m_TPos[row-1])) /PI *180.0;
+                double length = (m_pBlade->m_TPos[row]-m_pBlade->m_TPos[row-1]) / cos (angle/180.0*PI);
+                m_pWingModel->setData(ind, length * g_mainFrame->m_mtoUnit);
+            }
+        }
 
         ind = m_pWingModel->index(row, 1, QModelIndex());
         m_pWingModel->setData(ind, m_pBlade->m_TChord[row] * g_mainFrame->m_mtoUnit);
 
-        ind = m_pWingModel->index(row, 2, QModelIndex());
-        m_pWingModel->setData(ind, m_pBlade->m_TOffset[row] * g_mainFrame->m_mtoUnit);
+        if (m_bisHeight){
+            ind = m_pWingModel->index(row, 2, QModelIndex());
+            m_pWingModel->setData(ind, m_pBlade->m_TOffsetX[row] * g_mainFrame->m_mtoUnit);
+        }
+        else{
+            ind = m_pWingModel->index(row, 2, QModelIndex());
+            if (row == 0){
+                m_pWingModel->setData(ind, 0);
+            }
+            else{
+                double angle = atan((m_pBlade->m_TOffsetX[row]-m_pBlade->m_TOffsetX[row-1])/(m_pBlade->m_TPos[row]-m_pBlade->m_TPos[row-1])) /PI *180.0;
+                m_pWingModel->setData(ind, angle * g_mainFrame->m_mtoUnit);
+            }
+        }
 
         ind = m_pWingModel->index(row, 3, QModelIndex());
         m_pWingModel->setData(ind, 90-m_pBlade->m_TTwist[row]);
@@ -1952,20 +2000,15 @@ void QDMS::FillTableRow(int row)
         m_pWingModel->setData(ind, m_pBlade->m_TCircAngle[row]);
 
         ind = m_pWingModel->index(row, 5, QModelIndex());
-        m_pWingModel->setData(ind, m_pBlade->m_Airfoils[row]);
-
+        m_pWingModel->setData(ind, m_pBlade->m_TFoilPAxisX[row]);
 
         ind = m_pWingModel->index(row, 6, QModelIndex());
+        m_pWingModel->setData(ind, m_pBlade->m_Airfoils[row]);
 
-        if (m_pBlade->m_Polar.length()>row)
-        {
-        m_pWingModel->setData(ind, m_pBlade->m_Polar.at(row));
-        }
-        else
-        {
-        QString strong = "";
-        m_pWingModel->setData(ind, strong);
-        }
+        ind = m_pWingModel->index(row, 7, QModelIndex());
+
+        if (m_pBlade->m_bisSinglePolar) m_pWingModel->setData(ind, m_pBlade->m_Polar.at(row));
+        else m_pWingModel->setData(ind, m_pBlade->m_Range.at(row));
 
 }
 
@@ -2113,81 +2156,39 @@ CBlade * QDMS::GetWing(QString WingName)
         return NULL;
 }
 
-void QDMS::GLCallViewLists()
-{
-//        glDisable(GL_LIGHTING);
-//        glDisable(GL_LIGHT0);
-
-        if (GLscreenMessage(g_mainFrame->m_iApp,g_mainFrame->m_iView,m_pGLWidget)) return;
-
-
-        if (m_pBlade) drawRotorName();
-
-//        if(m_bglLight)
-//        {
-//                glEnable(GL_LIGHTING);
-//                glEnable(GL_LIGHT0);
-//        }
-//        else
-//        {
-//                glDisable(GL_LIGHTING);
-//                glDisable(GL_LIGHT0);
-//        }
-
-        if(m_bSurfaces)
-        {
-                if(m_pBlade)  glCallList(WINGSURFACES);
-
-
-        }
-
-        if(m_bOutline)
-        {
-                if(m_pBlade)  glCallList(WINGOUTLINE);
-
-        }
-
-                        if(m_iSection>=0)
-                        {
-                               glCallList(SECTIONHIGHLIGHT);
-                       }
-
-        if (m_pBlade)
-        {
-        if (m_pctrlShowTurbine->isChecked())
-        {
-            for (int i=1;i<m_pBlade->m_blades;i++)
-            {
-                glRotated(360.0/m_pBlade->m_blades,0,1,0);
-                if(m_bSurfaces)
-                {
-                        if(m_pBlade)  glCallList(WINGSURFACES);
-
-
-                }
-
-                if(m_bOutline)
-                {
-                        if(m_pBlade)  glCallList(WINGOUTLINE);
-
-                }
-
-                                if(m_iSection>=0)
-                                {
-                                       glCallList(SECTIONHIGHLIGHT);
-                               }
-            }
-        }
-        }
-
-
-
-        glDisable(GL_LIGHTING);
-        glDisable(GL_LIGHT0);
-
-
-
-
+void QDMS::GLCallViewLists() {
+	if(m_bSurfaces) {
+		if(m_pBlade)
+			glCallList(WINGSURFACES);
+	}
+	
+	if(m_bOutline) {
+		if(m_pBlade)
+			glCallList(WINGOUTLINE);
+	}
+	
+	if(m_iSection>=0) {
+		glCallList(SECTIONHIGHLIGHT);
+	}
+	
+	if (m_pBlade) {
+		if (m_pctrlShowTurbine->isChecked()) {
+			for (int i=1;i<m_pBlade->m_blades;i++) {
+				glRotated(360.0/m_pBlade->m_blades,0,1,0);
+				if(m_bSurfaces) {
+					if(m_pBlade)
+						glCallList(WINGSURFACES);
+				}
+				if(m_bOutline) {
+					if(m_pBlade)
+						glCallList(WINGOUTLINE);
+				}
+				if(m_iSection>=0) {
+					glCallList(SECTIONHIGHLIGHT);
+				}
+			}
+		}
+	}
 }
 
 
@@ -2207,15 +2208,6 @@ void* QDMS::GetRotorVariable(void *Data, int iVar)
                 case 2:
                         pVar = &pDMSData->m_Cp2;
                         break;
-//                case 3:
-//                        pVar = &pDMSData->m_Ct;
-//                        break;
-//                case 4:
-//                        pVar = &pDMSData->m_Ct1;
-//                        break;
-//                case 5:
-//                        pVar = &pDMSData->m_Ct2;
-//                        break;
 				case 3:
                         pVar = &pDMSData->m_Cm;
                         break;
@@ -2234,6 +2226,23 @@ void* QDMS::GetRotorVariable(void *Data, int iVar)
 				case 8:
                         pVar = &pDMSData->m_one_over_Lambda;
                         break;
+                case 9:
+                        pVar = &pDMSData->m_P;
+                        break;
+                case 10:
+                        pVar = &pDMSData->m_Thrust;
+                        break;
+                case 11:
+                        pVar = &pDMSData->m_T;
+                        break;
+                case 12:
+                        pVar = &pDMSData->m_Omega;
+                        break;
+                case 13:
+                        pVar = &pDMSData->m_V;
+                        break;
+
+
                 default:
                         pVar = &pDMSData->m_Lambda;
                         break;
@@ -2368,60 +2377,53 @@ void * QDMS::GetAziVariable(void *Data, int iVar)
         case 5:
 				pVar = &pDData->m_Re[same_height];
                 break;
-
         case 6:
-				pVar = &pDData->m_Ftip[same_height];
+                pVar = &pDData->m_DeltaRe[same_height];
                 break;
 
         case 7:
-				pVar = &pDData->m_alpha_deg[same_height];
+				pVar = &pDData->m_Ftip[same_height];
                 break;
 
         case 8:
-				pVar = &pDData->m_CL[same_height];
+				pVar = &pDData->m_alpha_deg[same_height];
                 break;
 
         case 9:
-				pVar = &pDData->m_CD[same_height];
+				pVar = &pDData->m_CL[same_height];
                 break;
 
         case 10:
-				pVar = &pDData->m_LD[same_height];
+				pVar = &pDData->m_CD[same_height];
                 break;
 
         case 11:
-				pVar = &pDData->m_Cn[same_height];
+				pVar = &pDData->m_LD[same_height];
                 break;
 
         case 12:
+				pVar = &pDData->m_Cn[same_height];
+                break;
+
+        case 13:
 				pVar = &pDData->m_Ct[same_height];
                 break;
-
-//        case 13:
-//                pVar = &pDData->m_FN;
-//                break;
-
-		case 13:
+        case 14:
                 pVar = &pDData->m_FT;
                 break;
-		case 14:
+        case 15:
 				pVar = &pDData->m_CF_length;
                 break;
-		case 15:
+        case 16:
 				pVar = &pDData->m_CF_cross;
                 break;
-
-//        case 17:
-//                pVar = &pDData->m_FN_tot;
-//                break;
-
-		case 16:
+        case 17:
                 pVar = &pDData->m_FT_tot;
                 break;
-		case 17:
+        case 18:
 				pVar = &pDData->m_CF_length_tot;
                 break;
-		case 18:
+        case 19:
 				pVar = &pDData->m_CF_cross_tot;
                 break;
 
@@ -2832,23 +2834,6 @@ void * QDMS::GetWeibullYVariable(void *Data, int iVar)
 }
 
 
-DMSData* QDMS::GetRotorSimulation(QString WingName, QString DMSName)
-{
-
-	if (!WingName.length() || !DMSName.length()) return NULL;
-
-	for (int i=0; i<g_dmsdataStore.size(); i++)
-	{
-		if (g_dmsdataStore.at(i)->m_WingName == WingName && g_dmsdataStore.at(i)->m_DMSName == DMSName)
-		{
-			return g_dmsdataStore.at(i);
-		}
-	}
-
-	return NULL;
-}
-
-
 DData* QDMS::GetBladeData(QString Lambda)
 {
 
@@ -2864,40 +2849,6 @@ DData* QDMS::GetBladeData(QString Lambda)
 
     return NULL;
 }
-
-
-CDMSData* QDMS::GetCharSimulation(QString WingName, QString SimName)
-{
-
-	if (!WingName.length() || !SimName.length()) return NULL;
-
-	for (int i=0; i<g_cdmsdataStore.size(); i++)
-	{
-		if (g_cdmsdataStore.at(i)->m_WingName == WingName && g_cdmsdataStore.at(i)->m_SimName == SimName)
-		{
-			return g_cdmsdataStore.at(i);
-		}
-	}
-
-	return NULL;
-}
-
-
-TDMSData* QDMS::GetTurbineSimulation(QString TurbineName, QString SimName)
-{
-    if (!TurbineName.length() || !SimName.length()) return NULL;
-
-	for (int i=0; i<g_tdmsdataStore.size(); i++)
-    {
-		if (g_tdmsdataStore.at(i)->m_TurbineName == TurbineName && g_tdmsdataStore.at(i)->m_SimName == SimName)
-        {
-			return g_tdmsdataStore.at(i);
-        }
-    }
-
-    return NULL;
-}
-
 
 DData* QDMS::GetTurbineBladeData(QString Windspeed)
 {
@@ -2955,28 +2906,35 @@ void QDMS::OnDeleteSection()
                 return;
         }
 
-        int ny, k, size;
+        int k, size;
 
         size = m_pWingModel->rowCount();
-        if(size<=2) return;
-        int n=m_iSection;
-        ny = m_pBlade->m_NYPanels[m_iSection-1] + m_pBlade->m_NYPanels[m_iSection];
+        if(size<=2){
+            QMessageBox::warning(this, tr("Warning"),tr("At least two sections must remain"));
+            return;
+        }
 
-        m_pBlade->m_Airfoils.append("");// add new dummy station to temporarily store values
+        m_pBlade->m_Airfoils.append("-----");// add new dummy station to temporarily store values
+        m_pBlade->m_Polar.append("-----");// add new dummy station to temporarily store values
+        m_pBlade->m_Range.append("-----");// add new dummy station to temporarily store values
+
 
         for (k=m_iSection; k<size; k++)
         {
                 m_pBlade->m_TRelPos[k]      = m_pBlade->m_TRelPos[k+1];
                 m_pBlade->m_TChord[k]    = m_pBlade->m_TChord[k+1];
-                m_pBlade->m_TOffset[k]   = m_pBlade->m_TOffset[k+1];
+                m_pBlade->m_TOffsetX[k]   = m_pBlade->m_TOffsetX[k+1];
                 m_pBlade->m_TTwist[k]     = m_pBlade->m_TTwist[k+1];
                 m_pBlade->m_TDihedral[k]  = m_pBlade->m_TDihedral[k+1];
                 m_pBlade->m_NXPanels[k]   = m_pBlade->m_NXPanels[k+1];
                 m_pBlade->m_NYPanels[k]   = m_pBlade->m_NYPanels[k+1];
                 m_pBlade->m_Airfoils[k]      = m_pBlade->m_Airfoils[k+1];
+                m_pBlade->m_Polar[k]      = m_pBlade->m_Polar[k+1];
+                m_pBlade->m_Range[k]      = m_pBlade->m_Range[k+1];
+
                 m_pBlade->m_TPos[k]      = m_pBlade->m_TPos[k+1];
                 m_pBlade->m_TPAxisX[k] =   m_pBlade->m_TPAxisX[k+1];
-                m_pBlade->m_TPAxisZ[k] =   m_pBlade->m_TPAxisZ[k+1];
+                m_pBlade->m_TOffsetZ[k] =   m_pBlade->m_TOffsetZ[k+1];
                 m_pBlade->m_TFoilPAxisX[k] = m_pBlade->m_TFoilPAxisX[k+1];
                 m_pBlade->m_TFoilPAxisZ[k] = m_pBlade->m_TFoilPAxisZ[k+1];
                 m_pBlade->m_TLength[k] = m_pBlade->m_TLength[k+1];
@@ -2988,12 +2946,16 @@ void QDMS::OnDeleteSection()
         m_pBlade->m_Airfoils.removeLast(); //delete the 2 last stations, now one less than before section was deleted
         m_pBlade->m_Airfoils.removeLast();
 
+        m_pBlade->m_Polar.removeLast(); //delete the 2 last stations, now one less than before section was deleted
+        m_pBlade->m_Polar.removeLast();
 
-        m_pBlade->m_NYPanels[m_iSection-1] = ny;
-        m_pBlade->m_Polar.removeAt(n);
+        m_pBlade->m_Range.removeLast(); //delete the 2 last stations, now one less than before section was deleted
+        m_pBlade->m_Range.removeLast();
+
+        m_iSection--;
+
         FillDataTable();
         ComputeGeometry(true);
-        m_bChanged = true;
         ReadParams(true);
 }
 
@@ -3005,52 +2967,48 @@ bool QDMS::InitDialog(CBlade *pWing)
         QString str;
         m_iSection = 0;
 
-        delete m_pWingModel;
+        if (m_pWingModel) delete m_pWingModel;
+        if (m_pBladeDelegate) delete m_pBladeDelegate;
 
         m_pBlade = pWing;
 
+        if(!m_pBlade) return false;
+
+        CheckButtons();
 
         m_pBlade->CreateSurfaces(true);
-
 
         m_pctrlSave->setEnabled(false);
         m_pctrlOptimize->setEnabled(false);
 
-
-        if(!m_pBlade) return false;
         ComputeGeometry(true);
 
         GetLengthUnit(str, g_mainFrame->m_LengthUnit);
 
         m_pctrlWingName->setText(m_pBlade->getName());
 
-
         m_pWingModel = new QStandardItemModel;
         m_pWingModel->setRowCount(100);//temporary
-        m_pWingModel->setColumnCount(7);
+        m_pWingModel->setColumnCount(8);
 
-        m_pWingModel->setHeaderData(0, Qt::Horizontal, tr("Height (")+str+")");
-        m_pWingModel->setHeaderData(1, Qt::Horizontal, tr("Chord (")+str+")");
-        m_pWingModel->setHeaderData(2, Qt::Horizontal, tr("Radius (")+str+")");
-        m_pWingModel->setHeaderData(3, Qt::Horizontal, tr("Twist in deg"));
-        m_pWingModel->setHeaderData(4, Qt::Horizontal, tr("Circ. Angle in deg"));
-        m_pWingModel->setHeaderData(5, Qt::Horizontal, QObject::tr("Foil"));
-        m_pWingModel->setHeaderData(6, Qt::Horizontal, QObject::tr("Polar"));
+        m_pWingModel->setHeaderData(0, Qt::Horizontal, tr("Height(")+str+")");
+        m_pWingModel->setHeaderData(1, Qt::Horizontal, tr("Chord(")+str+")");
+        m_pWingModel->setHeaderData(2, Qt::Horizontal, tr("Radius(")+str+")");
+        m_pWingModel->setHeaderData(3, Qt::Horizontal, tr("Twist"));
+        m_pWingModel->setHeaderData(4, Qt::Horizontal, tr("Circ Ang"));
+        m_pWingModel->setHeaderData(5, Qt::Horizontal, tr("P Axis"));
+        m_pWingModel->setHeaderData(6, Qt::Horizontal, QObject::tr("Foil"));
+        m_pWingModel->setHeaderData(7, Qt::Horizontal, QObject::tr("Polar"));
 
         m_pctrlBladeTable->setModel(m_pWingModel);
 
-        for (int i=0;i<6;i++)
-        {
-        if (i<5) m_pctrlBladeTable->setColumnWidth(i,90);
-        if (i==5) m_pctrlBladeTable->setColumnWidth(i,100);
-        if (i==6) m_pctrlBladeTable->setColumnWidth(i,150);
-        }
+        OnResize();
 
         QItemSelectionModel *selectionModel = new QItemSelectionModel(m_pWingModel);
         m_pctrlBladeTable->setSelectionModel(selectionModel);
         connect(selectionModel, SIGNAL(currentChanged(QModelIndex,QModelIndex)), this, SLOT(OnItemClicked(QModelIndex)));
 
-        m_pBladeDelegate = new BladeDelegate2;
+        m_pBladeDelegate = new BladeDelegate2(m_pBlade, this);
         m_pctrlBladeTable->setItemDelegate(m_pBladeDelegate);
         connect(m_pBladeDelegate,  SIGNAL(closeEditor(QWidget *)), this, SLOT(OnCellChanged()));
 
@@ -3060,12 +3018,17 @@ bool QDMS::InitDialog(CBlade *pWing)
         precision[2] = 3;
         precision[3] = 2;
         precision[4] = 2;
+        precision[5] = 2;
+
 
         m_pBladeDelegate->SetPointers(precision,&m_pBlade->m_NPanel);
 
         m_pBladeDelegate->itemmodel = m_pWingModel;
 
         FillDataTable();
+
+        hubEdit->setValue(m_pBlade->m_TOffsetX[0] * g_mainFrame->m_mtoUnit);
+
         m_pctrlBladeTable->selectRow(m_iSection);
         SetCurrentSection(m_iSection);
         m_bResetglGeom = true;
@@ -3290,7 +3253,7 @@ void QDMS::InitTurbineData(TData *pTData)
         CutIn->setText(strong.number(pTData->CutIn*g_mainFrame->m_mstoUnit,'f',2));
         CutOut->setText(strong.number(pTData->CutOut*g_mainFrame->m_mstoUnit,'f',2));
 //        Switch->setText(strong.number(pTData->Switch*g_mainFrame->m_mstoUnit,'f',2));
-        FixedLosses->setText(strong.number(pTData->FixedLosses*g_mainFrame->m_WtoUnit,'f',2));
+        FixedLosses->setText(strong.number(pTData->m_fixedLosses*g_mainFrame->m_WtoUnit,'f',2));
         VariableLosses->setText(strong.number(pTData->VariableLosses,'f',3));
         Blade->setText(pTData->m_WingName);
 //        FixedPitch->setText(strong.number(pTData->FixedPitch,'f',2));
@@ -3496,53 +3459,78 @@ void QDMS::InitTurbineData(TData *pTData)
 
 }
 
+void QDMS::OnResize()
+{
+    m_pctrlBladeTable->setMaximumWidth(0.9*g_mainFrame->m_pctrlDMSWidget->width());
+    m_pctrlBladeTable->setMinimumWidth(0.9*g_mainFrame->m_pctrlDMSWidget->width());
+    int unitwidth = (int)((m_pctrlBladeTable->width())/9.0);
+    m_pctrlBladeTable->setColumnWidth(0,unitwidth);
+    m_pctrlBladeTable->setColumnWidth(1,unitwidth);
+    m_pctrlBladeTable->setColumnWidth(2,unitwidth);
+    m_pctrlBladeTable->setColumnWidth(3,unitwidth);
+    m_pctrlBladeTable->setColumnWidth(4,unitwidth);
+    m_pctrlBladeTable->setColumnWidth(5,unitwidth);
+    m_pctrlBladeTable->setColumnWidth(6,1.5*unitwidth);
+    m_pctrlBladeTable->setColumnWidth(7,1.5*unitwidth);
 
-void QDMS::InitWingTable()
+    m_pctrlBladeTableView->setMaximumWidth(0.9*g_mainFrame->m_pctrlDMSWidget->width());
+    m_pctrlBladeTableView->setMinimumWidth(0.9*g_mainFrame->m_pctrlDMSWidget->width());
+    unitwidth = (int)((m_pctrlBladeTableView->width())/9.0);
+    m_pctrlBladeTableView->setColumnWidth(0,unitwidth);
+    m_pctrlBladeTableView->setColumnWidth(1,unitwidth);
+    m_pctrlBladeTableView->setColumnWidth(2,unitwidth);
+    m_pctrlBladeTableView->setColumnWidth(3,unitwidth);
+    m_pctrlBladeTableView->setColumnWidth(4,unitwidth);
+    m_pctrlBladeTableView->setColumnWidth(5,unitwidth);
+    m_pctrlBladeTableView->setColumnWidth(6,1.5*unitwidth);
+    m_pctrlBladeTableView->setColumnWidth(7,1.5*unitwidth);
+}
+
+
+void QDMS::InitBladeTable()
 {
     m_bResetglSectionHighlight = true;
-
-   
 
     if (m_pBlade)
     {
     delete m_pWingModel;
 
     m_pctrlWingNameLabel->setText(m_pBlade->getName());
-
+    if (m_pBlade->m_bisSinglePolar) m_pctrlSingleMultiLabel->setText("");
+    else m_pctrlSingleMultiLabel->setText("Multi Reynolds Number Polars");
 
     QString str;
     GetLengthUnit(str, g_mainFrame->m_LengthUnit);
 
-    QString text, blades, hub;//height;
+    QString text, blades;//height;
     blades.sprintf("%.0f",double(m_pBlade->m_blades));
 
     //height.sprintf("%.2f",fabs(m_pBlade->m_TPos[m_pBlade->m_NPanel]-m_pBlade->m_TPos[0])*g_mainFrame->m_mtoUnit);
     //text = "Rotor has "+blades+" blades and "+height+" "+str+" Height";
-    hub.sprintf("%.2f",m_pBlade->m_HubRadius*g_mainFrame->m_mtoUnit);
-    text = "Rotor has "+blades+" blades and "+hub+" "+str+" hub radius";
+    text = "Rotor has "+blades+" blades";
+    if (m_pBlade->m_bIsInverted) text += "; airfoil suction side facing outwards";
+    else text += "; airfoil suction side facing inwards";
 
     m_pctrlBladesAndHeightLabel->setText(text);
 
     m_pWingModel = new QStandardItemModel;
     m_pWingModel->setRowCount(100);//temporary
-    m_pWingModel->setColumnCount(7);
+    m_pWingModel->setColumnCount(8);
 
-    m_pWingModel->setHeaderData(0, Qt::Horizontal, tr("Height (")+str+")");
-    m_pWingModel->setHeaderData(1, Qt::Horizontal, tr("Chord (")+str+")");
-    m_pWingModel->setHeaderData(2, Qt::Horizontal, tr("Radius (")+str+")");
+    m_pWingModel->setHeaderData(0, Qt::Horizontal, tr("Height(")+str+")");
+    m_pWingModel->setHeaderData(1, Qt::Horizontal, tr("Chord(")+str+")");
+    m_pWingModel->setHeaderData(2, Qt::Horizontal, tr("Radius(")+str+")");
     m_pWingModel->setHeaderData(3, Qt::Horizontal, tr("Twist"));
-    m_pWingModel->setHeaderData(4, Qt::Horizontal, tr("Circ. Angle"));
-    m_pWingModel->setHeaderData(5, Qt::Horizontal, QObject::tr("Foil"));
-    m_pWingModel->setHeaderData(6, Qt::Horizontal, QObject::tr("Polar"));
+    m_pWingModel->setHeaderData(4, Qt::Horizontal, tr("Circ Ang"));
+    m_pWingModel->setHeaderData(5, Qt::Horizontal, tr("P Axis"));
+    m_pWingModel->setHeaderData(6, Qt::Horizontal, QObject::tr("Foil"));
+    m_pWingModel->setHeaderData(7, Qt::Horizontal, QObject::tr("Polar"));
+    if (m_pBlade->m_bisSinglePolar) m_pWingModel->setHeaderData(7, Qt::Horizontal, QObject::tr("Polar"));
+    else m_pWingModel->setHeaderData(7, Qt::Horizontal, QObject::tr("Polar Range"));
 
     m_pctrlBladeTableView->setModel(m_pWingModel);
 
-    for (int i=0;i<6;i++)
-    {
-    if (i<5) m_pctrlBladeTableView->setColumnWidth(i,70);
-    if (i==5) m_pctrlBladeTableView->setColumnWidth(i,80);
-    if (i==6) m_pctrlBladeTableView->setColumnWidth(i,140);
-    }
+    OnResize();
 
     m_iSection = -1;
     FillDataTable();
@@ -3773,11 +3761,6 @@ void QDMS::PaintCharLegend(QPoint place, int bottom, QPainter &painter)
 void QDMS::PaintView(QPainter &painter)
 {
         //Refresh the active view
-
-        if (TwoDscreenMessage(g_mainFrame->m_iApp,g_mainFrame->m_iView,painter,m_p2DWidget)) return;
-
-        painter.fillRect(m_rCltRect, g_mainFrame->m_BackgroundColor);
-
         if (g_mainFrame->m_iView==POLARVIEW)// new JW, old: m_iView
         {
                 Paint360Graphs(painter);
@@ -3917,6 +3900,9 @@ void QDMS::LoadSettings(QSettings *pSettings)
 	dlg_variable    =       pSettings->value("Variable").toBool();
 
     dlg_lambdastart =       pSettings->value("lambdastart").toDouble();
+    dlg_lambdastart =       pSettings->value("lambdastart").toDouble();
+    dlg_windspeed   =       pSettings->value("tsrwindspeed").toDouble();
+
     dlg_lambdaend   =       pSettings->value("lambdaend").toDouble();
     dlg_lambdadelta =       pSettings->value("lambdadelta").toDouble();
     dlg_windstart   =       pSettings->value("windstart").toDouble();
@@ -3950,8 +3936,10 @@ void QDMS::LoadSettings(QSettings *pSettings)
 	m_CharGraph2.LoadSettings(pSettings);
 	m_CharGraph3.LoadSettings(pSettings);
 	m_CharGraph4.LoadSettings(pSettings);
-	m_360CLGraph.LoadSettings(pSettings);
-	m_360CDGraph.LoadSettings(pSettings);
+	m_360Graph1.LoadSettings(pSettings);
+	m_360Graph2.LoadSettings(pSettings);
+    m_360Graph3.LoadSettings(pSettings);
+    m_360Graph4.LoadSettings(pSettings);
 
     SetPowerGraphTitles(&m_PowerGraph1);
     SetPowerGraphTitles(&m_PowerGraph2);
@@ -3962,8 +3950,10 @@ void QDMS::LoadSettings(QSettings *pSettings)
     SetRotorGraphTitles(&m_RotorGraph1);
     SetRotorGraphTitles(&m_RotorGraph2);
     SetRotorGraphTitles(&m_RotorGraph3);
-    SetPolarGraphTitles(&m_360CLGraph);
-    SetPolarGraphTitles(&m_360CDGraph);
+    SetPolarGraphTitles(&m_360Graph1);
+    SetPolarGraphTitles(&m_360Graph2);
+    SetPolarGraphTitles(&m_360Graph3);
+    SetPolarGraphTitles(&m_360Graph4);
 	SetCharGraphTitles(&m_CharGraph1);
 	SetCharGraphTitles(&m_CharGraph2);
 	SetCharGraphTitles(&m_CharGraph3);
@@ -3972,16 +3962,13 @@ void QDMS::LoadSettings(QSettings *pSettings)
 }
 
 
-void QDMS::OnWingView()
+void QDMS::OnBladeView()
 {
 
 	g_mainFrame->setIView(BLADEVIEW,DMS);// new JW //m_iView = BLADEVIEW;
 	g_mainFrame->setIApp(DMS);  // NM vorher: g_mainFrame->m_iApp = DMS;
 
-	//g_mainFrame->m_pctrlDMSWidget->setMaximumWidth(700);
-	//g_mainFrame->m_pctrlDMSWidget->setMaximumHeight(4000);
-
-    if (!m_WingEdited) UpdateWings();
+    if (!m_WingEdited) UpdateBlades();
 
     OnCenterScene();
 
@@ -3989,18 +3976,21 @@ void QDMS::OnWingView()
 
     CheckButtons();
 	g_mainFrame->SetCentralWidget();
+
+    QRect rec = QApplication::desktop()->screenGeometry();
+    int width = rec.width();
+    g_mainFrame->m_pctrlDMSWidget->setMinimumWidth(width/m_widthfrac*2);
+
     UpdateView();
-	g_mainFrame->setIView(BLADEVIEW,DMS);// new JW, important for size change!
+    configureGL();
 }
 
 
 void QDMS::OnRotorsimView()
 {
 
-	g_mainFrame->setIView(BEMSIMVIEW,DMS);// new JW //m_iView = BEMSIMVIEW;
-	g_mainFrame->setIApp(DMS);  // NM vorher: g_mainFrame->m_iApp = DMS;
-
-	//g_mainFrame->m_pctrlDMSWidget->setMaximumWidth(300);
+    g_mainFrame->setIView(BEMSIMVIEW,DMS);
+    g_mainFrame->setIApp(DMS);
 
     int h  = m_rCltRect.height();
     int h2  = (int)(h/2);
@@ -4008,7 +3998,7 @@ void QDMS::OnRotorsimView()
     m_CharLegendOffset.rx() = 10;
     m_CharLegendOffset.ry() = h2 + 30;
 
-    if(!m_WingEdited) UpdateWings();
+    if(!m_WingEdited) UpdateBlades();
 	g_mainFrame->OnDMS();
 
     CheckButtons();
@@ -4029,7 +4019,7 @@ void QDMS::OnCharView()
 	m_CharLegendOffset.rx() = 10;
 	m_CharLegendOffset.ry() = h2 + 30;
 
-	if(!m_WingEdited) UpdateWings();
+	if(!m_WingEdited) UpdateBlades();
 
 	g_mainFrame->OnDMS();
 
@@ -4040,13 +4030,10 @@ void QDMS::OnCharView()
 }
 
 
-void QDMS::OnPowerView()
+void QDMS::OnTurbineView()
 {
-    g_mainFrame->setIView(TURBINEVIEW,DMS);// new JW //m_iView = TURBINEVIEW;
-    g_mainFrame->setIApp(DMS);  // NM vorher: g_mainFrame->m_iApp = DMS;
-
-	//g_mainFrame->m_pctrlDMSWidget->setMaximumWidth(300);
-	//g_mainFrame->m_pctrlDMSWidget->setMaximumHeight(1000);
+    g_mainFrame->setIView(TURBINEVIEW,DMS);
+    g_mainFrame->setIApp(DMS);
 
     int h  = m_rCltRect.height();
     int h2  = (int)(h/2);
@@ -4060,9 +4047,12 @@ void QDMS::OnPowerView()
 
     CheckButtons();
 	g_mainFrame->SetCentralWidget();
-    UpdateView();
-	g_mainFrame->setIView(TURBINEVIEW,DMS);// new JW, important for size change!
 
+    QRect rec = QApplication::desktop()->screenGeometry();
+    int width = rec.width();
+    g_mainFrame->m_pctrlDMSWidget->setFixedWidth(width/m_widthfrac);
+
+    UpdateView();
 }
 
 void QDMS::OnNewBlade()
@@ -4072,90 +4062,71 @@ void QDMS::OnNewBlade()
     ObjectIsEdited = true;
 
 	m_WingEdited = true;
-	DisableAllButtons();
-	
-	m_pctrlBlades->setValue(3);
-	
-	CBlade *pWing = new CBlade;
-	pWing->m_Airfoils.append(" ");  // NM dirty fix. First two entries are needed for the table in the dock
-	pWing->m_Airfoils.append(" ");		
-	for (int i=0;i<2;i++) pWing->m_TPos[i]=0+i*0.5;
-	for (int i=0;i<2;i++) pWing->m_TChord[i]=0.2;
-	for (int i=0;i<2;i++) pWing->m_TOffset[i]=0.2;
-	for (int i=0;i<2;i++) pWing->m_TTwist[i]=90;
-	for (int i=0;i<2;i++) pWing->m_TDihedral[i]=0;
-	for (int i=0;i<2;i++) pWing->m_Polar.append("");
-    pWing->setName("New Blade");
 
-    QString newname(pWing->getName());
+	DisableAllButtons();
+		
+	CBlade *pWing = new CBlade;
+
+    m_pBlade=pWing;
+
+    m_pBlade->m_Airfoils.append("-----");  // NM dirty fix. First two entries are needed for the table in the dock
+    m_pBlade->m_Airfoils.append("-----");
+
+    m_pBlade->m_Polar.append("-----");  // NM dirty fix. First two entries are needed for the table in the dock
+    m_pBlade->m_Polar.append("-----");
+
+    m_pBlade->m_Range.append("-----");  // NM dirty fix. First two entries are needed for the table in the dock
+    m_pBlade->m_Range.append("-----");
+
+    for (int i=0;i<2;i++) m_pBlade->m_TPos[i]=0+i*0.5;
+    for (int i=0;i<2;i++) m_pBlade->m_TChord[i]=0.2;
+    for (int i=0;i<2;i++) m_pBlade->m_TOffsetX[i]=0.2;
+    for (int i=0;i<2;i++) m_pBlade->m_TTwist[i]=90;
+    for (int i=0;i<2;i++) m_pBlade->m_TDihedral[i]=0;
+    for (int i=0;i<2;i++) m_pBlade->m_TFoilPAxisX[i]=0.5;
+
+    m_pBlade->setName("New Blade");
+
+    QString newname(m_pBlade->getName());
     for (int i=0;i<g_verticalRotorStore.size();i++){
         if (newname == g_verticalRotorStore.at(i)->getName()){
             newname = makeNameWithHigherNumber(newname);
-            i=0;
+            i = 0;
         }
     }
 
-    pWing->setName(newname);
+    m_pBlade->setName(newname);
 
-	m_pctrlHubRadius->setValue(0.2*g_mainFrame->m_mtoUnit);
-	pWing->m_MaxRadius=0.2*g_mainFrame->m_mtoUnit;
-	pWing->m_bIsOrtho = true;
+    m_pctrlInvertBox->setChecked(false);
 	
-	m_pBlade=pWing;
+    m_SingleMultiGroup->button(0)->setChecked(m_pBlade->m_bisSinglePolar);
 	
-	InitDialog(pWing);
-
     OnCenterScene();
+    InitDialog(m_pBlade);
 
-	
+    m_pctrlBlades->setValue(3);
+
+
 	bladeWidget->setCurrentIndex(1);
-	
 	mainWidget->setCurrentIndex(0);
-//	SimWidget->show();
-//	PowWidget->hide();
 }
 
 
 void QDMS::OnCellChanged()
 {
-        m_bChanged = true;
         ReadParams(true);
-        //m_pctrlHeight->SetValue(fabs(m_pBlade->m_TPos[m_pBlade->m_NPanel]-m_pBlade->m_TPos[0])*g_mainFrame->m_mtoUnit);
         double max=0;
 
         if (m_pBlade)
         {
         for (int i=0;i<=m_pBlade->m_NPanel;i++)
         {
-            if (m_pBlade->m_TOffset[i]>max)
-                max=m_pBlade->m_TOffset[i];
+            if (m_pBlade->m_TOffsetX[i]>max)
+                max=m_pBlade->m_TOffsetX[i];
         }
         m_pBlade->m_MaxRadius=max;
         }
 }
-
-
-void QDMS::OnHubChanged()
-{
-    /////if the hub radius was changed, the blade radius is updated
-
-   
-
-    double oldHub = m_pBlade->m_HubRadius;
-    m_pBlade->m_HubRadius = m_pctrlHubRadius->getValue() / g_mainFrame->m_mtoUnit;
-    double add;
-    //add = m_pBlade->m_HubRadius - m_pBlade->m_TOffset[0];
-    add = m_pBlade->m_HubRadius - oldHub;
-
-    for (int i = 0;i<=m_pBlade->m_NPanel;i++)
-    {
-        m_pBlade->m_TOffset[i]+=add;
-        FillTableRow(i);
-    }
-
-    ReadParams(true);
-}
-
 
 void QDMS::OnShowOpPoint()
 {
@@ -4191,19 +4162,19 @@ void QDMS::OnGraphSettings()
         pGraph = m_pCurGraph;
         if(!pGraph) return;
 
-		if (g_mainFrame->m_iView == BEMSIMVIEW && m_pCurGraph->m_Type == 0)  dlg.m_iGraphType = 103;// new JW, old: m_iView
-		if (g_mainFrame->m_iView == BEMSIMVIEW && m_pCurGraph->m_Type == 1)  dlg.m_iGraphType = 104;// new JW, old: m_iView
-		if (g_mainFrame->m_iView == BEMSIMVIEW && m_pCurGraph->m_Type == 2)  dlg.m_iGraphType = 105;// new JW, old: m_iView
+		if (g_mainFrame->m_iView == BEMSIMVIEW && m_pCurGraph->m_Type == 0)  dlg.m_iGraphType = 103;
+		if (g_mainFrame->m_iView == BEMSIMVIEW && m_pCurGraph->m_Type == 1)  dlg.m_iGraphType = 104;
+		if (g_mainFrame->m_iView == BEMSIMVIEW && m_pCurGraph->m_Type == 2)  dlg.m_iGraphType = 105;
 
-		if (g_mainFrame->m_iView == TURBINEVIEW && m_pCurGraph->m_Type == 0) dlg.m_iGraphType = 106;// new JW, old: m_iView
-		if (g_mainFrame->m_iView == TURBINEVIEW && m_pCurGraph->m_Type == 1) dlg.m_iGraphType = 107;// new JW, old: m_iView
-		if (g_mainFrame->m_iView == TURBINEVIEW && m_pCurGraph->m_Type == 2) dlg.m_iGraphType = 108;// new JW, old: m_iView
+		if (g_mainFrame->m_iView == TURBINEVIEW && m_pCurGraph->m_Type == 0) dlg.m_iGraphType = 106;
+		if (g_mainFrame->m_iView == TURBINEVIEW && m_pCurGraph->m_Type == 1) dlg.m_iGraphType = 107;
+		if (g_mainFrame->m_iView == TURBINEVIEW && m_pCurGraph->m_Type == 2) dlg.m_iGraphType = 108;
 
-		if (g_mainFrame->m_iView == CHARSIMVIEW && m_pCurGraph->m_MainVar == 0) dlg.m_iGraphType = 109;// new JW, old: m_iView
-		if (g_mainFrame->m_iView == CHARSIMVIEW && m_pCurGraph->m_MainVar == 1) dlg.m_iGraphType = 110;// new JW, old: m_iView
-		if (g_mainFrame->m_iView == CHARSIMVIEW && m_pCurGraph->m_MainVar == 2) dlg.m_iGraphType = 111;// new JW, old: m_iView
+		if (g_mainFrame->m_iView == CHARSIMVIEW && m_pCurGraph->m_MainVar == 0) dlg.m_iGraphType = 109;
+		if (g_mainFrame->m_iView == CHARSIMVIEW && m_pCurGraph->m_MainVar == 1) dlg.m_iGraphType = 110;
+		if (g_mainFrame->m_iView == CHARSIMVIEW && m_pCurGraph->m_MainVar == 2) dlg.m_iGraphType = 111;
 
-		if (g_mainFrame->m_iView == TURBINEVIEW && m_pCurGraph->m_Type == 3) dlg.m_iGraphType = 112;// new JW, old: m_iView
+		if (g_mainFrame->m_iView == TURBINEVIEW && m_pCurGraph->m_Type == 3) dlg.m_iGraphType = 112;
 
         QGraph graph;
         graph.CopySettings(pGraph);
@@ -4244,13 +4215,21 @@ void QDMS::OnGraphSettings()
                                 SetPowerGraphTitles(&m_PowerGraph3);
 								SetWeibullGraphTitles(&m_PowerGraph3);
                         }
-                        else if(&m_360CLGraph == pGraph)
+                        else if(&m_360Graph1 == pGraph)
                         {
-                                SetPolarGraphTitles(&m_360CLGraph);
+                                SetPolarGraphTitles(&m_360Graph1);
                         }
-                        else if(&m_360CDGraph == pGraph)
+                        else if(&m_360Graph2 == pGraph)
                         {
-                                SetPolarGraphTitles(&m_360CDGraph);
+                                SetPolarGraphTitles(&m_360Graph2);
+                        }
+                        else if(&m_360Graph3 == pGraph)
+                        {
+                                SetPolarGraphTitles(&m_360Graph3);
+                        }
+                        else if(&m_360Graph4 == pGraph)
+                        {
+                                SetPolarGraphTitles(&m_360Graph4);
                         }
 						else if(&m_CharGraph1 == pGraph)
 						{
@@ -4296,6 +4275,7 @@ void QDMS::OnHideAllRotorCurves()
 		for (int i=0; i< g_dmsdataStore.size();i++)
         {
 			g_dmsdataStore.at(i)->m_bIsVisible = false;
+            if (m_pDMSData) m_pDMSData->m_bIsVisible = true;
         }
     }
 	if (g_mainFrame->m_iView == TURBINEVIEW)// new JW, old: m_iView
@@ -4304,6 +4284,7 @@ void QDMS::OnHideAllRotorCurves()
 		for (int i=0;i<g_tdmsdataStore.size();i++)
         {
 			g_tdmsdataStore.at(i)->m_bIsVisible = false;
+            if (m_pTDMSData) m_pTDMSData->m_bIsVisible = true;
         }
 
     }
@@ -4332,21 +4313,26 @@ void QDMS::OnInsertBefore()
         }
         int k,n,ny;
 
-        m_pBlade->m_Airfoils.append("");// add new dummy station to temporarily store values
+        m_pBlade->m_Airfoils.append("-----");// add new dummy station to temporarily store values
+        m_pBlade->m_Polar.append("-----");// add new dummy station to temporarily store values
+        m_pBlade->m_Range.append("-----");// add new dummy station to temporarily store values
+
 
         n  = m_iSection;
         for (k=m_pBlade->m_NPanel; k>=n; k--)
         {
                 m_pBlade->m_TPos[k+1]      = m_pBlade->m_TPos[k];
                 m_pBlade->m_TChord[k+1]    = m_pBlade->m_TChord[k];
-                m_pBlade->m_TOffset[k+1]   = m_pBlade->m_TOffset[k];
+                m_pBlade->m_TOffsetX[k+1]   = m_pBlade->m_TOffsetX[k];
                 m_pBlade->m_TTwist[k+1]     = m_pBlade->m_TTwist[k];
                 m_pBlade->m_TDihedral[k+1]  = m_pBlade->m_TDihedral[k];
                 m_pBlade->m_NXPanels[k+1]   = m_pBlade->m_NXPanels[k];
                 m_pBlade->m_NYPanels[k+1]   = m_pBlade->m_NYPanels[k];
                 m_pBlade->m_Airfoils[k+1]      = m_pBlade->m_Airfoils[k];
+                m_pBlade->m_Polar[k+1]      = m_pBlade->m_Polar[k];
+                m_pBlade->m_Range[k+1]      = m_pBlade->m_Range[k];
                 m_pBlade->m_TPAxisX[k+1] =   m_pBlade->m_TPAxisX[k];
-                m_pBlade->m_TPAxisZ[k+1] =   m_pBlade->m_TPAxisZ[k];
+                m_pBlade->m_TOffsetZ[k+1] =   m_pBlade->m_TOffsetZ[k];
                 m_pBlade->m_TFoilPAxisX[k+1] = m_pBlade->m_TFoilPAxisX[k];
                 m_pBlade->m_TFoilPAxisZ[k+1] = m_pBlade->m_TFoilPAxisZ[k];
                 m_pBlade->m_TCircAngle[k+1] = m_pBlade->m_TCircAngle[k];
@@ -4356,9 +4342,9 @@ void QDMS::OnInsertBefore()
         ny = m_pBlade->m_NYPanels[n-1];
         m_pBlade->m_TPos[n]    = (m_pBlade->m_TPos[n+1]    + m_pBlade->m_TPos[n-1])   /2.0;
         m_pBlade->m_TChord[n]  = (m_pBlade->m_TChord[n+1]  + m_pBlade->m_TChord[n-1]) /2.0;
-        m_pBlade->m_TOffset[n] = (m_pBlade->m_TOffset[n+1] + m_pBlade->m_TOffset[n-1])/2.0;
+        m_pBlade->m_TOffsetX[n] = (m_pBlade->m_TOffsetX[n+1] + m_pBlade->m_TOffsetX[n-1])/2.0;
         m_pBlade->m_TPAxisX[n] = (m_pBlade->m_TPAxisX[n+1]+m_pBlade->m_TPAxisX[n-1]) /2.0;
-        m_pBlade->m_TPAxisZ[n] = (m_pBlade->m_TPAxisZ[n+1]+m_pBlade->m_TPAxisZ[n-1]) / 2.0;
+        m_pBlade->m_TOffsetZ[n] = (m_pBlade->m_TOffsetZ[n+1]+m_pBlade->m_TOffsetZ[n-1]) / 2.0;
         m_pBlade->m_TFoilPAxisX[n] = (m_pBlade->m_TFoilPAxisX[n+1]+ m_pBlade->m_TFoilPAxisX[n-1]) /2.0;
         m_pBlade->m_TFoilPAxisZ[n] = (m_pBlade->m_TFoilPAxisZ[n+1] + m_pBlade->m_TFoilPAxisZ[n-1]) / 2.0;
         m_pBlade->m_TCircAngle[n] = (m_pBlade->m_TCircAngle[n+1] + m_pBlade->m_TCircAngle[n-1]) / 2.0;
@@ -4371,14 +4357,14 @@ void QDMS::OnInsertBefore()
         if(m_pBlade->m_NYPanels[n-1]==0) m_pBlade->m_NYPanels[n-1]++;
 
         m_pBlade->m_NPanel++;
-        m_pBlade->m_Polar.insert(n,"");;
+
+        m_iSection++;
 
         FillDataTable();
         ComputeGeometry(true);
 
         //SetWingData();
 
-        m_bChanged = true;
         m_bResetglSectionHighlight = true;
         ReadParams(true);
 }
@@ -4399,21 +4385,26 @@ void QDMS::OnInsertAfter()
         if(n<0) n=m_pBlade->m_NPanel;
         ny = m_pBlade->m_NYPanels[n];
 
-        m_pBlade->m_Airfoils.append("");// add new dummy station to temporarily store values
+        m_pBlade->m_Airfoils.append("-----");// add new dummy station to temporarily store values
+        m_pBlade->m_Polar.append("-----");// add new dummy station to temporarily store values
+        m_pBlade->m_Range.append("-----");// add new dummy station to temporarily store values
+
 
 
         for (k=m_pBlade->m_NPanel+1; k>n; k--)
         {
                 m_pBlade->m_TPos[k]       = m_pBlade->m_TPos[k-1];
                 m_pBlade->m_TChord[k]     = m_pBlade->m_TChord[k-1];
-                m_pBlade->m_TOffset[k]    = m_pBlade->m_TOffset[k-1];
+                m_pBlade->m_TOffsetX[k]    = m_pBlade->m_TOffsetX[k-1];
                 m_pBlade->m_TTwist[k]     = m_pBlade->m_TTwist[k-1];
                 m_pBlade->m_TDihedral[k]  = m_pBlade->m_TDihedral[k-1];
                 m_pBlade->m_NXPanels[k]   = m_pBlade->m_NXPanels[k-1];
                 m_pBlade->m_NYPanels[k]   = m_pBlade->m_NYPanels[k-1];
                 m_pBlade->m_Airfoils[k]      = m_pBlade->m_Airfoils[k-1];
+                m_pBlade->m_Polar[k]      = m_pBlade->m_Polar[k-1];
+                m_pBlade->m_Range[k]      = m_pBlade->m_Range[k-1];
                 m_pBlade->m_TPAxisX[k] =   m_pBlade->m_TPAxisX[k-1];
-                m_pBlade->m_TPAxisZ[k] =   m_pBlade->m_TPAxisZ[k-1];
+                m_pBlade->m_TOffsetZ[k] =   m_pBlade->m_TOffsetZ[k-1];
                 m_pBlade->m_TFoilPAxisX[k] = m_pBlade->m_TFoilPAxisX[k-1];
                 m_pBlade->m_TFoilPAxisZ[k] = m_pBlade->m_TFoilPAxisZ[k-1];
                 m_pBlade->m_TCircAngle[k] = m_pBlade->m_TCircAngle[k-1];
@@ -4424,9 +4415,9 @@ void QDMS::OnInsertAfter()
         {
                 m_pBlade->m_TPos[n+1]    = (m_pBlade->m_TPos[n]    + m_pBlade->m_TPos[n+2])   /2.0;
                 m_pBlade->m_TChord[n+1]  = (m_pBlade->m_TChord[n]  + m_pBlade->m_TChord[n+2]) /2.0;
-                m_pBlade->m_TOffset[n+1] = (m_pBlade->m_TOffset[n] + m_pBlade->m_TOffset[n+2])/2.0;
+                m_pBlade->m_TOffsetX[n+1] = (m_pBlade->m_TOffsetX[n] + m_pBlade->m_TOffsetX[n+2])/2.0;
                 m_pBlade->m_TPAxisX[n+1] = (m_pBlade->m_TPAxisX[n]+m_pBlade->m_TPAxisX[n+2]) /2.0;
-                m_pBlade->m_TPAxisZ[n+1] = (m_pBlade->m_TPAxisZ[n]+m_pBlade->m_TPAxisZ[n+2]) / 2.0;
+                m_pBlade->m_TOffsetZ[n+1] = (m_pBlade->m_TOffsetZ[n]+m_pBlade->m_TOffsetZ[n+2]) / 2.0;
                 m_pBlade->m_TFoilPAxisX[n+1] = (m_pBlade->m_TFoilPAxisX[n]+ m_pBlade->m_TFoilPAxisX[n+2]) /2.0;
                 m_pBlade->m_TFoilPAxisZ[n+1] = (m_pBlade->m_TFoilPAxisZ[n] + m_pBlade->m_TFoilPAxisZ[n+2]) / 2.0;
                 m_pBlade->m_TCircAngle[n+1] = (m_pBlade->m_TCircAngle[n] + m_pBlade->m_TCircAngle[n+2]) / 2.0;
@@ -4435,35 +4426,34 @@ void QDMS::OnInsertAfter()
         else
         {
                 m_pBlade->m_TPos[n+1]     = m_pBlade->m_TPos[n+1]*1.1;
-                m_pBlade->m_TChord[n+1]   = m_pBlade->m_TChord[n+1]/1.1;
-                //m_pBlade->m_TOffset[n+1]  = 0;//m_pBlade->m_TOffset[n+1] + m_pBlade->m_TChord[n] - m_pBlade->m_TChord[n+1] ;
+                m_pBlade->m_TChord[n+1]   = m_pBlade->m_TChord[n+1];
+                m_pBlade->m_TOffsetX[n+1]  = m_pBlade->m_TOffsetX[n];
+                m_pBlade->m_TTwist[n+1]     = m_pBlade->m_TTwist[n];
+
+
+                //m_pBlade->m_TOffsetX[n+1]  = 0;//m_pBlade->m_TOffsetX[n+1] + m_pBlade->m_TChord[n] - m_pBlade->m_TChord[n+1] ;
         }
 
-        m_pBlade->m_TChord[n+1]     = m_pBlade->m_TChord[n];
-        m_pBlade->m_TOffset[n+1]    = m_pBlade->m_TOffset[n];
-        m_pBlade->m_TTwist[n+1]     = m_pBlade->m_TTwist[n];
         m_pBlade->m_TDihedral[n+1]  = m_pBlade->m_TDihedral[n];
+        m_pBlade->m_Airfoils[n+1]      = m_pBlade->m_Airfoils[n];
+        m_pBlade->m_Polar[n+1]      = m_pBlade->m_Polar[n];
+        m_pBlade->m_Range[n+1]      = m_pBlade->m_Range[n];
+
         m_pBlade->m_NXPanels[n+1]   = m_pBlade->m_NXPanels[n];
         m_pBlade->m_NYPanels[n+1]   = m_pBlade->m_NYPanels[n];
-        m_pBlade->m_Airfoils[n+1]      = m_pBlade->m_Airfoils[n];
         m_pBlade->m_NYPanels[n+1] = qMax(1,(int)(ny/2));
         m_pBlade->m_NYPanels[n]   = qMax(1,ny-m_pBlade->m_NYPanels[n+1]);
 
         m_pBlade->m_NPanel++;
-        m_pBlade->m_Polar.insert(n+1,"");;
-
 
         FillDataTable();
         ComputeGeometry(true);
-        //SetWingData();
-        m_bChanged = true;
         ReadParams(true);
-        //m_pctrlHeight->SetValue(fabs(m_pBlade->m_TPos[m_pBlade->m_NPanel]-m_pBlade->m_TPos[0])*g_mainFrame->m_mtoUnit);
         double max=0;
         for (int i=0;i<=m_pBlade->m_NPanel;i++)
         {
-            if (m_pBlade->m_TOffset[i]>max)
-                max=m_pBlade->m_TOffset[i];
+            if (m_pBlade->m_TOffsetX[i]>max)
+                max=m_pBlade->m_TOffsetX[i];
         }
         m_pBlade->m_MaxRadius=max;
 
@@ -4491,7 +4481,7 @@ void QDMS::OnScaleBlade()
 
     BladeScaleDlgVAWT dlg;
     dlg.move(g_mainFrame->m_DlgPos);
-    dlg.InitDialog(fabs(m_pBlade->m_TPos[m_pBlade->m_NPanel]-m_pBlade->m_TPos[0]), m_pBlade->m_TPos[0], m_pBlade->m_TChord[m_iSection], m_pBlade->m_TOffset[m_iSection], m_pBlade->m_TTwist[m_iSection]);
+    dlg.InitDialog(fabs(m_pBlade->m_TPos[m_pBlade->m_NPanel]-m_pBlade->m_TPos[0]), m_pBlade->m_TPos[0], m_pBlade->m_TChord[m_iSection], m_pBlade->m_TOffsetX[m_iSection], m_pBlade->m_TTwist[m_iSection]);
 
     if(QDialog::Accepted == dlg.exec())
     {
@@ -4508,8 +4498,10 @@ void QDMS::OnScaleBlade()
 
             }
 
+
+
             FillDataTable();
-            m_bChanged = true;
+            OnCellChanged();
             m_bResetglGeom = true;
             m_bResetglSectionHighlight = true;
             ComputeGeometry(true);
@@ -4520,91 +4512,83 @@ void QDMS::OnScaleBlade()
 }
 
 
-void QDMS::OnSaveWing()
+void QDMS::OnSaveBlade()
 {
     ReadParams(true);
 
     m_pBlade->m_blades = m_pctrlBlades->value();
 
-    for (int i=0;i<=m_pBlade->m_NPanel;i++)
-    {
-        m_pBlade->addParent(Get360Polar(m_pBlade->m_Airfoils.at(i),m_pBlade->m_Polar.at(i)));
+    m_pBlade->m_bIsInverted = m_pctrlInvertBox->isChecked();
+
+
+    // adds all polars from the blade as parent
+    if (m_pBlade->m_bisSinglePolar){
+        for (int i=0;i<=m_pBlade->m_NPanel;i++)
+        {
+            m_pBlade->addParent(Get360Polar(m_pBlade->m_Airfoils.at(i),m_pBlade->m_Polar.at(i)));
+        }
+    }
+    else{
+        for (int i=0;i<m_pBlade->m_PolarAssociatedFoils.size();i++)
+        {
+            for (int j=0;j<m_pBlade->m_MultiPolars.at(i).size();j++)
+            {
+            m_pBlade->addParent(Get360Polar(m_pBlade->m_PolarAssociatedFoils.at(i),m_pBlade->m_MultiPolars.at(i).at(j)));
+            }
+        }
     }
 
+    // adds all polars from the struts as parent
+    for (int i=0; i<m_pBlade->m_StrutList.size();i++){
+        m_pBlade->addParent(m_pBlade->m_StrutList.at(i)->getPolar());
+        if (m_pBlade->m_StrutList.at(i)->isMulti){
+            for (int j=0;j<m_pBlade->m_StrutList.at(i)->m_MultiPolars.size();j++){
+                m_pBlade->addParent(m_pBlade->m_StrutList.at(i)->m_MultiPolars.at(j));
+            }
+        }
+    }
+
+    double max = 0;
+    for (int i=0;i<=m_pBlade->m_NPanel;i++)
+    {
+        if (m_pBlade->m_TOffsetX[i]>max)
+            max=m_pBlade->m_TOffsetX[i];
+    }
+    m_pBlade->m_MaxRadius=max;
 
     if (!g_verticalRotorStore.add(m_pBlade)) m_pBlade = NULL;
-
-
-    m_bChanged=false;
 
     ObjectIsEdited = false;
 
     m_WingEdited = false;
 
-    UpdateWings();
+    UpdateBlades();
 
     EnableAllButtons();
 
     CheckButtons();
-
-
 }
 
 
 void QDMS::OnSelChangeWing(int /*i*/)
 {
-
-        // Gets the new selected wing name and notifies Miarex
-        // then updates WPolar combobox
-        // and selects either the current WPolar
-        // or the first one in the list, if any
-//        QString strong;
-//        bool changed=false;
-
-//		if (i >=0)
-//		{
-//			if (g_mainFrame->m_iView != CHARSIMVIEW && g_mainFrame->m_iView != BEMSIMVIEW) strong = g_mainFrame->m_rotorBox1->itemText(i);// new JW, old: m_iView
-//			else if (g_mainFrame->m_iView == CHARSIMVIEW) strong = g_mainFrame->m_rotorBox2->itemText(i);// new JW, old: m_iView
-//			else strong = g_mainFrame->m_rotorBox3->itemText(i);
-//		}
-
-//        CBlade *pWing;
-//        for (int i=0; i < g_verticalRotorStore.size(); i++)
-//        {
-//            pWing = g_verticalRotorStore.at(i);
-//            if (pWing->getName()==strong)
-//            {
-//                m_pBlade=pWing;
-//                changed=true;
-//            }
-//        }
-
         m_pBlade = m_DMSToolBar->m_rotorComboBox->currentObject();
         OnCenterScene();
 
-//        if (changed)
-//        {
-            InitWingTable();
+            InitBladeTable();
             SetScale();
-            UpdateWings();
+            UpdateBlades();
             CheckButtons();
-            m_bChanged=false;
-//        }
 
 }
 
 void QDMS::OnSelChangeTurbine(int /*i*/)
 {
-
 	m_pTData = m_DMSToolBar->m_verttdataComboBox->currentObject();
-
 
 	InitTurbineData(m_pTData);
 	UpdateTurbines();
-	m_bChanged=false;
 	CheckButtons();
-
-
 }
 
 
@@ -4649,35 +4633,19 @@ void QDMS::OnSelChangeTurbineHeightData(int i)
 }
 
 
-void QDMS::OnSelChangeRotorSimulation(int i)
-{
-
-    QString strong;
-   
-
+void QDMS::OnSelChangeRotorSimulation() {
     CheckButtons();
 
-	if (i>=0) strong = m_DMSToolBar->m_dmsdataComboBox->itemText(i);
-
-    m_pDMSData = GetRotorSimulation(m_pBlade->getName(), strong);
+    m_pDMSData = m_DMSToolBar->m_dmsdataComboBox->currentObject();
 
     UpdateRotorSimulation();
     SetCurveParams();
     CheckButtons();
-
-
 }
 
 
-void QDMS::OnSelChangeCharSimulation(int i)
-{
-
-	QString strong;
-
-
-	if (i>=0) strong = m_DMSToolBar->m_cdmsdataComboBox->itemText(i);
-
-    m_pCDMSData = GetCharSimulation(m_pBlade->getName(), strong);
+void QDMS::OnSelChangeCharSimulation() {
+    m_pCDMSData = m_DMSToolBar->m_cdmsdataComboBox->currentObject();
 
 	UpdateCharacteristicsSimulation();
 
@@ -4685,22 +4653,14 @@ void QDMS::OnSelChangeCharSimulation(int i)
 }
 
 
-void QDMS::OnSelChangeTurbineSimulation(int i)
-{
-
-    QString strong;
-   
-
+void QDMS::OnSelChangeTurbineSimulation() {
     CheckButtons();
 
-	if (i>=0) strong = m_DMSToolBar->m_tdmsdataComboBox->itemText(i);
-
-    m_pTDMSData = GetTurbineSimulation(m_pTData->m_TurbineName, strong);
+    m_pTDMSData = m_DMSToolBar->m_tdmsdataComboBox->currentObject();
 
     UpdateTurbineSimulation();
     SetCurveParams();
     CheckButtons();
-
 }
 
 
@@ -4748,7 +4708,7 @@ void QDMS::OnDeleteBlade()
 
         g_verticalRotorStore.remove(pBlade);
 
-        UpdateWings();
+        UpdateBlades();
         UpdateTurbines();
         CheckButtons();
 
@@ -4757,44 +4717,48 @@ void QDMS::OnDeleteBlade()
     {
         return;
     }
+
 }
 
 
-void QDMS::OnEditWing()
+void QDMS::OnEditBlade()
 {
+
         if (!m_pBlade) return;
-
-
 
         DisableAllButtons();
 
-		if (g_mainFrame->m_iView != BLADEVIEW) OnWingView();// new JW, old: m_iView
-
+		if (g_mainFrame->m_iView != BLADEVIEW) OnBladeView();// new JW, old: m_iView
        
         ObjectIsEdited = true;
 
 		m_WingEdited = true;
 
 
-
         CBlade *pWing = new CBlade;
-        pWing->m_bIsOrtho = true;
 
         pWing->Duplicate(m_pBlade);
 
-        //m_pctrlHeight->SetValue((m_pBlade->m_TPos[m_pBlade->m_NPanel]-m_pBlade->m_TPos[0])*g_mainFrame->m_mtoUnit);
-        m_pctrlHubRadius->setValue(pWing->m_HubRadius * g_mainFrame->m_mtoUnit);
+        m_SingleMultiGroup->button(0)->setChecked(pWing->m_bisSinglePolar);
+        m_SingleMultiGroup->button(1)->setChecked(!pWing->m_bisSinglePolar);
+
+        m_pctrlInvertBox->setChecked(pWing->m_bIsInverted);
+        m_SingleMultiGroup->button(0)->setChecked(pWing->m_bisSinglePolar);
+        m_SingleMultiGroup->button(1)->setChecked(!pWing->m_bisSinglePolar);
 
         double max=0;
         for (int i=0;i<=m_pBlade->m_NPanel;i++)
         {
-            if (m_pBlade->m_TOffset[i]>max)
-                max=m_pBlade->m_TOffset[i];
+            if (m_pBlade->m_TOffsetX[i]>max)
+                max=m_pBlade->m_TOffsetX[i];
         }
         pWing->m_MaxRadius=max;
 
         InitDialog(pWing);
-        m_pctrlBlades->setValue(m_pBlade->m_blades);
+
+        m_pctrlBlades->setValue(pWing->m_blades);
+
+        OnSingleMultiPolarChanged();
 
 		mainWidget->setCurrentIndex(0);
 //		SimWidget->show();
@@ -4918,7 +4882,7 @@ void QDMS::OnNewTurbine()
         for (int i=0;i<g_verttdataStore.size();i++){
             if (newname == g_verttdataStore.at(i)->getName()){
                 newname = makeNameWithHigherNumber(newname);
-                i=0;
+                i = 0;
             }
         }
 
@@ -4958,7 +4922,7 @@ length0->setText(str);
 
 if (!m_pTData) return;
 
-if (g_mainFrame->m_iView != TURBINEVIEW) OnPowerView();// new JW, old: m_iView
+if (g_mainFrame->m_iView != TURBINEVIEW) OnTurbineView();// new JW, old: m_iView
 
 m_TurbineEdited = true;
 
@@ -4982,7 +4946,7 @@ m_pctrlLambda->setValue(m_pTData->Lambda0);
 //m_pctrlGenerator->SetValue(m_pTData->Generator*g_mainFrame->m_WtoUnit);
 
 m_pctrlVariableLosses->setValue(m_pTData->VariableLosses);
-m_pctrlFixedLosses->setValue(m_pTData->FixedLosses*g_mainFrame->m_WtoUnit);
+m_pctrlFixedLosses->setValue(m_pTData->m_fixedLosses*g_mainFrame->m_WtoUnit);
 
 
 CBlade *pWing;
@@ -5063,7 +5027,7 @@ void QDMS::OnSaveTurbine()
 //        pTData->isStall = m_pctrlStall->isChecked();
         pTData->isPrescribedRot = m_pctrlPrescribedRot->isChecked();
 
-        pTData->FixedLosses = m_pctrlFixedLosses->getValue()/g_mainFrame->m_WtoUnit;
+        pTData->m_fixedLosses = m_pctrlFixedLosses->getValue()/g_mainFrame->m_WtoUnit;
         pTData->VariableLosses = m_pctrlVariableLosses->getValue();
         pTData->Offset = m_pctrlOffset->getValue()/g_mainFrame->m_mtoUnit;
         pTData->RHeight = fabs(pWing->m_TPos[pWing->m_NPanel]-pWing->m_TPos[0]);
@@ -5162,7 +5126,6 @@ void QDMS::OnCreateRotorSimulation()
 		pDMSData->relax = pDMSDlg.RelaxEdit->getValue();
 		pDMSData->m_Color = g_mainFrame->GetColor(13);
         pDMSData->m_WingName = m_pBlade->getName();
-//		pDMSData->setParentName(m_pBlade->getName());  // NM REPLACE
         pDMSData->setSingleParent(m_pBlade);
 		pDMSData->visc = pDMSDlg.ViscEdit->getValue();
 		pDMSData->rho = pDMSDlg.RhoEdit->getValue();
@@ -5214,17 +5177,20 @@ void QDMS::OnStartRotorSimulation()
    
 	SimuWidgetDMS *pSimuWidgetDMS = (SimuWidgetDMS *) m_pSimuWidgetDMS;
 
-    double lstart, lend, ldelta;
+    double lstart, lend, ldelta, inflowspeed;
     int times;
 
 	lstart  =   pSimuWidgetDMS->m_pctrlLSLineEdit->getValue();
 	lend    =   pSimuWidgetDMS->m_pctrlLELineEdit->getValue();
 	ldelta  =   pSimuWidgetDMS->m_pctrlLDLineEdit->getValue();
+    inflowspeed = pSimuWidgetDMS->m_pctrlWindspeed->getValue();
     times   =   int((lend-lstart)/ldelta);
 
 	dlg_lambdastart = pSimuWidgetDMS->m_pctrlLSLineEdit->getValue();
 	dlg_lambdaend   = pSimuWidgetDMS->m_pctrlLELineEdit->getValue();
 	dlg_lambdadelta = pSimuWidgetDMS->m_pctrlLDLineEdit->getValue();
+    dlg_windspeed   = pSimuWidgetDMS->m_pctrlWindspeed->getValue();
+
 
     m_pDMSData->Clear();
 
@@ -5245,8 +5211,8 @@ void QDMS::OnStartRotorSimulation()
 
 
 
-    DData *data = new DData;
-    m_pDMSData->Compute(data,m_pBlade,lstart+i*ldelta, 0);
+	DData *data = new DData (m_pDMSData->getName());
+    m_pDMSData->Compute(data,m_pBlade,lstart+i*ldelta, inflowspeed);
 
     if (!data->m_bBackflow)
     {
@@ -5262,7 +5228,7 @@ void QDMS::OnStartRotorSimulation()
     }
 
 
-    UpdateWings();
+    UpdateBlades();
     SetCurveParams();
     FillComboBoxes();
 
@@ -5434,12 +5400,13 @@ void QDMS::OnStartCharacteristicSimulation()
 				pitch = pitchstart+pitchdelta*k;
 
 				if (pDData) delete pDData;
-				pDData = new DData;
+				pDData = new DData (m_pCDMSData->getName());
 
 
 				if (progress.wasCanceled())
 				{
 					m_pCDMSData->simulated = false;
+					m_pCDMSData->DeleteArrays();
 					UpdateCharacteristicsSimulation();
 					return;
 				}
@@ -5674,7 +5641,7 @@ void QDMS::OnStartTurbineSimulation()
 		
 		if (windspeed>=m_pTData->CutIn && windspeed<=m_pTData->CutOut)
 		{
-			data= new DData;
+			data= new DData (m_pTDMSData->getName());
 			m_pTDMSData->Compute(data,pWing,lambda,0,Toff,windspeed);
 			
 			if (!data->m_bBackflow)
@@ -5684,7 +5651,6 @@ void QDMS::OnStartTurbineSimulation()
 				m_pTDMSData->m_V.append(windspeed);
 				m_pTDMSData->m_DData.append(data);
 				
-				//double P = m_pTDMSData->rho/2*pow(windspeed,3)*m_pBlade->m_sweptArea*data->cp;
 				double P = data->power;
 				m_pTDMSData->m_P.append(P);
 				
@@ -5694,7 +5660,7 @@ void QDMS::OnStartTurbineSimulation()
 				double T = data->torque;
 				m_pTDMSData->m_T.append(T);
 				
-				double P_loss = (1-m_pTData->VariableLosses) * P - m_pTData->FixedLosses;
+				double P_loss = (1-m_pTData->VariableLosses) * P - m_pTData->m_fixedLosses;
 				if (P_loss > 0)
 				{
 					m_pTDMSData->m_P_loss.append(P_loss);
@@ -5719,23 +5685,6 @@ void QDMS::OnStartTurbineSimulation()
 				m_pTDMSData->m_one_over_Lambda.append(1/data->lambda_global);
 				m_pTDMSData->m_Kp.append(data->cp/pow(data->lambda_global,3));
 				m_pTDMSData->m_Weibull.append(0);
-				//m_pTDMSData->m_WeibullV3.append(0);
-				
-//				double bending = 0;
-//				for (int d=0;d<data->m_Reynolds.size();d++)
-//				{
-//					data->m_Reynolds[d] = pow((pow(windspeed*(1-data->m_a_axial.at(d)),2)+pow(windspeed*data->m_lambda_local.at(d)*(1+data->m_a_tangential.at(d)),2)),0.5)*data->m_c_local[d]/dlg_visc*m_pTDMSData->rho;
-//					data->m_DeltaReynolds[d] = data->m_DeltaReynolds[d]-data->m_Reynolds[d];
-//					data->m_Roughness[d] = 1000*100*dlg_visc/m_pTDMSData->rho/pow((pow(windspeed*(1-data->m_a_axial.at(d)),2)+pow(windspeed*data->m_lambda_local.at(d)*(1+data->m_a_tangential.at(d)),2)),0.5);
-//					data->m_Windspeed[d] = pow((pow(windspeed*(1-data->m_a_axial.at(d)),2)+pow(windspeed*data->m_lambda_local.at(d)*(1+data->m_a_tangential.at(d)),2)),0.5);
-//					data->m_p_normal[d] = pow(data->m_Windspeed[d],2)*m_pTDMSData->rho*0.5*data->m_c_local[d]*data->m_Cn[d];
-//					data->m_p_tangential[d] = pow(data->m_Windspeed[d],2)*m_pTDMSData->rho*0.5*data->m_c_local[d]*data->m_Cm[d];
-//					bending = bending + data->m_p_normal.at(d)*data->deltas.at(d)*data->m_pos.at(d);
-//					data->m_Mach[d] = (data->m_Windspeed[d]/1235);
-//					data->m_circ[d] = (0.5*data->m_c_local.at(d)*data->m_CL.at(d)*data->m_Windspeed.at(d));
-//				}
-				
-//				m_pTDMSData->m_Bending.append(bending);
 				
 				data->m_Color = g_mainFrame->GetColor(16);
 				m_pTurbineDData = m_pTDMSData->m_DData[0];
@@ -5749,7 +5698,6 @@ void QDMS::OnStartTurbineSimulation()
 				CreatePowerCurves();
 		}
 	}
-	
 	UpdateTurbines();
 	SetCurveParams();
 	FillComboBoxes();
@@ -5760,14 +5708,11 @@ void QDMS::OnDeleteRotorSim()
 {
     if(m_pDMSData)
     {
-		for (int i=0;i<g_dmsdataStore.size();i++)
-        {
                g_dmsdataStore.remove(m_pDMSData);
                m_pDMSData = NULL;
                m_pDData = NULL;
-               UpdateWings();
-        }
-
+               UpdateBlades();
+               CheckButtons();
     }
 
 }
@@ -5779,7 +5724,7 @@ void QDMS::OnDeleteCharSim()
 	{		
                g_cdmsdataStore.remove(m_pCDMSData);
 			   m_pCDMSData	 = NULL;
-			   UpdateWings();
+			   UpdateBlades();
 			   CheckButtons();
 	}
 
@@ -5790,8 +5735,8 @@ void QDMS::OnDeleteTurbineSim()
 {
     if(m_pTDMSData)
     {
-
                g_tdmsdataStore.remove(m_pTDMSData);
+               m_pTurbineDData = NULL;
                m_pTDMSData = NULL;
                m_pDData = NULL;
                UpdateTurbines();
@@ -5929,13 +5874,13 @@ void QDMS::OnCenterScene()
 	
 	if (m_pctrlShowTurbine->isChecked())
 	{
-		m_pGLWidget->setSceneRadius(1.1*float(max(m_pBlade->m_MaxRadius,m_pBlade->m_TPos[m_pBlade->m_NPanel])));
+        m_pGLWidget->setSceneRadius(1.4*float(max(m_pBlade->m_MaxRadius,m_pBlade->m_TPos[m_pBlade->m_NPanel])));
 		m_pGLWidget->setSceneCenter(qglviewer::Vec(0,m_pBlade->m_TPos[m_pBlade->m_NPanel]/2,0));
 	}
 	else
 	{
-		m_pGLWidget->setSceneRadius(float(m_pBlade->getRotorRadius()/2.0*1.1));
-		m_pGLWidget->setSceneCenter(qglviewer::Vec(m_pBlade->m_MaxRadius,m_pBlade->m_TPos[m_pBlade->m_NPanel]/2,0));
+        m_pGLWidget->setSceneRadius(float(m_pBlade->getRotorRadius()/2.0*1.4));
+        m_pGLWidget->setSceneCenter(qglviewer::Vec(m_pBlade->m_MaxRadius/2,m_pBlade->m_TPos[m_pBlade->m_NPanel]/2,0));
 	}
 	m_pGLWidget->showEntireScene();
 	m_pGLWidget->updateGL();
@@ -5946,30 +5891,74 @@ void QDMS::ReadSectionData(int sel)
         if(sel>=m_pWingModel->rowCount()) return;
         double d;
 
+        //    for (int i=0; i< m_pWingModel->rowCount();  i++) {
+
+        //        if (i==0) qDebug() << "length" << m_pBlade->m_TPos[i] << "angle" << "0";
+        //        else{
+        //            double angle = atan((m_pBlade->m_TOffsetX[i]-m_pBlade->m_TOffsetX[i-1])/(m_pBlade->m_TPos[i]-m_pBlade->m_TPos[i-1])) /PI *180.0;
+        //            double length = (m_pBlade->m_TPos[i]-m_pBlade->m_TPos[i-1]) / cos (angle/180.0*PI);
+        //            qDebug() << "length" << length << "angle" << angle;
+        //        }
+
+        //    }
+
         bool bOK;
         QString strong;
         QStandardItem *pItem;
 
-        pItem = m_pWingModel->item(sel,0);
-
-        strong =pItem->text();
-        strong.replace(" ","");
-        d =strong.toDouble(&bOK);
-        if(bOK) m_pBlade->m_TPos[sel] =d / g_mainFrame->m_mtoUnit;
-
-        //if (sel==0||sel==m_pBlade->m_NPanel) m_pctrlHeight->SetValue(m_pBlade->m_TPos[m_pBlade->m_NPanel]-d);
+        if (m_bisHeight){
+            pItem = m_pWingModel->item(sel,0);
+            strong =pItem->text();
+            strong.replace(" ","");
+            d =strong.toDouble(&bOK);
+            if(bOK) m_pBlade->m_TPos[sel] =d / g_mainFrame->m_mtoUnit;
+        }
+        else{
+            pItem = m_pWingModel->item(sel,0);
+            strong =pItem->text();
+            strong.replace(" ","");
+            d =strong.toDouble(&bOK);
+            if (sel == 0){
+                if(bOK) m_pBlade->m_TPos[sel] = d / g_mainFrame->m_mtoUnit;
+            }
+            else{
+                pItem = m_pWingModel->item(sel,2);
+                strong =pItem->text();
+                strong.replace(" ","");
+                double angle =strong.toDouble(&bOK);
+                if(bOK) m_pBlade->m_TPos[sel] = (d*cos(angle/180.0*PI) / g_mainFrame->m_mtoUnit + m_pBlade->m_TPos[sel-1]);
+            }
+        }
 
         pItem = m_pWingModel->item(sel,1);
         strong =pItem->text();
         strong.replace(" ","");
         d =strong.toDouble(&bOK);
-        if(bOK) m_pBlade->m_TChord[sel] =d / g_mainFrame->m_mtoUnit;
+        if(bOK) m_pBlade->m_TChord[sel] = d / g_mainFrame->m_mtoUnit;
 
-        pItem = m_pWingModel->item(sel,2);
-        strong =pItem->text();
-        strong.replace(" ","");
-        d =strong.toDouble(&bOK);
-        if(bOK) m_pBlade->m_TOffset[sel] =d / g_mainFrame->m_mtoUnit;
+        if (m_bisHeight){
+            pItem = m_pWingModel->item(sel,2);
+            strong =pItem->text();
+            strong.replace(" ","");
+            d =strong.toDouble(&bOK);
+            if(bOK) m_pBlade->m_TOffsetX[sel] =d / g_mainFrame->m_mtoUnit;
+            if (sel == 0) hubEdit->setValue(m_pBlade->m_TOffsetX[sel] * g_mainFrame->m_mtoUnit);
+        }
+        else{
+            pItem = m_pWingModel->item(sel,2);
+            strong =pItem->text();
+            strong.replace(" ","");
+            d =strong.toDouble(&bOK);
+            if (sel == 0){
+            if(bOK) m_pBlade->m_TOffsetX[sel] = hubEdit->getValue() / g_mainFrame->m_mtoUnit;
+            }
+            else{
+                pItem = m_pWingModel->item(sel,0);
+                strong =pItem->text();
+                strong.replace(" ","");
+                if(bOK) m_pBlade->m_TOffsetX[sel] = tan(d * PI / 180) * (m_pBlade->m_TPos[sel]-m_pBlade->m_TPos[sel-1]) + m_pBlade->m_TOffsetX[sel-1];
+            }
+        }
 
         pItem = m_pWingModel->item(sel,3);
         strong =pItem->text();
@@ -5985,33 +5974,69 @@ void QDMS::ReadSectionData(int sel)
 
         pItem = m_pWingModel->item(sel,5);
         strong =pItem->text();
-        m_pBlade->m_Airfoils[sel] = strong;
-
-        QModelIndex ind;
-        ind = m_pWingModel->index(sel, 6, QModelIndex());
+        strong.replace(" ","");
+        d =strong.toDouble(&bOK);
+        if(bOK) m_pBlade->m_TFoilPAxisX[sel] =d;
 
         pItem = m_pWingModel->item(sel,6);
         strong =pItem->text();
+        m_pBlade->m_Airfoils[sel] = strong;
+
+        QModelIndex ind;
+        ind = m_pWingModel->index(sel, 7, QModelIndex());
+
+        pItem = m_pWingModel->item(sel,7);
+        strong =pItem->text();
+
         if (Get360Polar(m_pBlade->m_Airfoils[sel],strong))
         {
             if (Get360Polar(m_pBlade->m_Airfoils[sel],strong)->m_airfoil->getName() == m_pBlade->m_Airfoils[sel])
-			{
-                m_pBlade->m_Polar.replace(sel,strong);
-			}
-			else
             {
-                QModelIndex ind;
-                ind = m_pWingModel->index(sel, 6, QModelIndex());
-                m_pWingModel->setData(ind,"");
-                m_pBlade->m_Polar.replace(sel,"");
+                m_pBlade->m_Polar.replace(sel,strong);
+            }
+            else
+            {
+                m_pWingModel->setData(ind,"-----");
+                m_pBlade->m_Polar.replace(sel,"-----");
+                m_pBlade->m_Range.replace(sel,"-----");
+
+                for(int i=0; i< g_360PolarStore.size(); i++)
+                {
+                        if (g_360PolarStore.at(i)->m_airfoil->getName() == m_pBlade->m_Airfoils[sel]){
+                            m_pBlade->m_Polar.replace(sel, g_360PolarStore.at(i)->getName());
+                            break;
+                        }
+                }
+
+                for (int k=0;k<m_pBlade->m_PolarAssociatedFoils.size();k++){
+                    if (m_pBlade->m_PolarAssociatedFoils.at(k) == m_pBlade->m_Airfoils.at(sel)) m_pBlade->m_Range.replace(sel,m_pBlade->m_MinMaxReynolds.at(k));
+                }
+
+                if (m_pBlade->m_bisSinglePolar) m_pWingModel->setData(ind, m_pBlade->m_Polar.at(sel));
+                else m_pWingModel->setData(ind, m_pBlade->m_Range.at(sel));
             }
         }
         else
         {
-            QModelIndex ind;
-            ind = m_pWingModel->index(sel, 6, QModelIndex());
-            m_pWingModel->setData(ind,"");
-            m_pBlade->m_Polar.replace(sel,"");
+            m_pWingModel->setData(ind,"-----");
+            m_pBlade->m_Polar.replace(sel,"-----");
+            m_pBlade->m_Range.replace(sel,"-----");
+
+            for(int i=0; i< g_360PolarStore.size(); i++)
+            {
+                    if (g_360PolarStore.at(i)->m_airfoil->getName() == m_pBlade->m_Airfoils[sel]){
+                        m_pBlade->m_Polar.replace(sel, g_360PolarStore.at(i)->getName());
+                        break;
+                    }
+            }
+
+            for (int k=0;k<m_pBlade->m_PolarAssociatedFoils.size();k++){
+                if (m_pBlade->m_PolarAssociatedFoils.at(k) == m_pBlade->m_Airfoils.at(sel)) m_pBlade->m_Range.replace(sel,m_pBlade->m_MinMaxReynolds.at(k));
+            }
+
+            if (m_pBlade->m_bisSinglePolar) m_pWingModel->setData(ind, m_pBlade->m_Polar.at(sel));
+            else m_pWingModel->setData(ind, m_pBlade->m_Range.at(sel));
+
         }
 
         m_pBlade->m_blades = m_pctrlBlades->value();
@@ -6035,6 +6060,7 @@ void QDMS::SaveSettings(QSettings *pSettings)
             pSettings->setValue("AspectRatio", dlg_aspectratio);
             pSettings->setValue("Variable", dlg_variable);
 
+            pSettings->setValue("tsrwindspeed", dlg_windspeed);
             pSettings->setValue("lambdastart", dlg_lambdastart);
             pSettings->setValue("lambdaend", dlg_lambdaend);
             pSettings->setValue("lambdadelta", dlg_lambdadelta);
@@ -6112,10 +6138,10 @@ void QDMS::ScaleChord(double NewChord)
 
 void QDMS::SetOffset(double NewChord)
 {
-        double ratio = NewChord/m_pBlade->m_TOffset[m_iSection];
+        double ratio = NewChord/m_pBlade->m_TOffsetX[m_iSection];
         for (int i=0; i<=m_pBlade->m_NPanel; i++)
         {
-                m_pBlade->m_TOffset[i]    *= ratio;
+                m_pBlade->m_TOffsetX[i]    *= ratio;
         }
         m_pBlade->ComputeGeometry();
 }
@@ -6151,15 +6177,6 @@ void QDMS::SetRotorGraphTitles(Graph* pGraph)
                     case 2:
                             pGraph->SetXTitle(tr("Cp2"));
                             break;
-//                    case 3:
-//                            pGraph->SetXTitle(tr("Ct"));
-//                            break;
-//                    case 4:
-//                            pGraph->SetXTitle(tr("Ct1"));
-//                            break;
-//                    case 5:
-//                            pGraph->SetXTitle(tr("Ct2"));
-//                            break;
 					case 3:
                             pGraph->SetXTitle(tr("Cm"));
                             break;
@@ -6177,6 +6194,21 @@ void QDMS::SetRotorGraphTitles(Graph* pGraph)
                             break;
 					case 8:
                             pGraph->SetXTitle(tr("1/TSR"));
+                            break;
+                    case 9:
+                            pGraph->SetXTitle(tr("Power"));
+                            break;
+                    case 10:
+                            pGraph->SetXTitle(tr("Thrust"));
+                            break;
+                    case 11:
+                            pGraph->SetXTitle(tr("Torque"));
+                            break;
+                    case 12:
+                            pGraph->SetXTitle(tr("Rotational Speed"));
+                            break;
+                    case 13:
+                            pGraph->SetXTitle(tr("Windspeed"));
                             break;
                     default:
                             pGraph->SetXTitle(tr("TSR"));
@@ -6277,48 +6309,45 @@ void QDMS::SetRotorGraphTitles(Graph* pGraph)
                             pGraph->SetXTitle(tr("Re"));
                             break;
                     case 6:
-                            pGraph->SetXTitle(tr("F"));
+                            pGraph->SetXTitle(tr("Delta Re"));
                             break;
                     case 7:
-                            pGraph->SetXTitle(tr("alpha"));
+                            pGraph->SetXTitle(tr("F"));
                             break;
                     case 8:
-                            pGraph->SetXTitle(tr("Cl"));
+                            pGraph->SetXTitle(tr("alpha"));
                             break;
                     case 9:
-                            pGraph->SetXTitle(tr("Cd"));
+                            pGraph->SetXTitle(tr("Cl"));
                             break;
                     case 10:
-                            pGraph->SetXTitle(tr("Cl/Cd"));
+                            pGraph->SetXTitle(tr("Cd"));
                             break;
                     case 11:
-                            pGraph->SetXTitle(tr("Cn"));
+                            pGraph->SetXTitle(tr("Cl/Cd"));
                             break;
                     case 12:
+                            pGraph->SetXTitle(tr("Cn"));
+                            break;
+                    case 13:
                             pGraph->SetXTitle(tr("Ct"));
                             break;
-//                    case 13:
-//                            pGraph->SetXTitle(tr("CF_n"));
-//                            break;
-					case 13:
+                    case 14:
 							pGraph->SetXTitle(tr("CF_t_bla"));
                             break;
-					case 14:
+                    case 15:
 							pGraph->SetXTitle(tr("CF_x_bla"));
                             break;
-					case 15:
+                    case 16:
 							pGraph->SetXTitle(tr("CF_y_bla"));
                             break;
-//                    case 17:
-//                            pGraph->SetXTitle(tr("CF_nTot"));
-//                            break;
-					case 16:
+                    case 17:
 							pGraph->SetXTitle(tr("CF_t_rot"));
                             break;
-					case 17:
+                    case 18:
 							pGraph->SetXTitle(tr("CF_x_rot"));
                             break;
-					case 18:
+                    case 19:
 							pGraph->SetXTitle(tr("CF_y_rot"));
                             break;
                     default:
@@ -6341,15 +6370,6 @@ void QDMS::SetRotorGraphTitles(Graph* pGraph)
                     case 2:
                             pGraph->SetYTitle(tr("Cp2"));
                             break;
-//                    case 3:
-//                            pGraph->SetYTitle(tr("Ct"));
-//                            break;
-//                    case 4:
-//                            pGraph->SetYTitle(tr("Ct1"));
-//                            break;
-//                    case 5:
-//                            pGraph->SetYTitle(tr("Ct2"));
-//                            break;
 					case 3:
                             pGraph->SetYTitle(tr("Cm"));
                             break;
@@ -6367,6 +6387,21 @@ void QDMS::SetRotorGraphTitles(Graph* pGraph)
                             break;
 					case 8:
                             pGraph->SetYTitle(tr("1/TSR"));
+                            break;
+                    case 9:
+                            pGraph->SetYTitle(tr("Power"));
+                            break;
+                    case 10:
+                            pGraph->SetYTitle(tr("Thrust"));
+                            break;
+                    case 11:
+                            pGraph->SetYTitle(tr("Torque"));
+                            break;
+                    case 12:
+                            pGraph->SetYTitle(tr("Rotational Speed"));
+                            break;
+                    case 13:
+                            pGraph->SetYTitle(tr("Windspeed"));
                             break;
                     default:
                             pGraph->SetYTitle(tr("TSR"));
@@ -6467,51 +6502,47 @@ void QDMS::SetRotorGraphTitles(Graph* pGraph)
                             pGraph->SetYTitle(tr("Re"));
                             break;
                     case 6:
-                            pGraph->SetYTitle(tr("F"));
+                            pGraph->SetYTitle(tr("Delta Re"));
                             break;
                     case 7:
-                            pGraph->SetYTitle(tr("alpha"));
+                            pGraph->SetYTitle(tr("F"));
                             break;
                     case 8:
-                            pGraph->SetYTitle(tr("Cl"));
+                            pGraph->SetYTitle(tr("alpha"));
                             break;
                     case 9:
-                            pGraph->SetYTitle(tr("Cd"));
+                            pGraph->SetYTitle(tr("Cl"));
                             break;
                     case 10:
-                            pGraph->SetYTitle(tr("Cl/Cd"));
+                            pGraph->SetYTitle(tr("Cd"));
                             break;
                     case 11:
-                            pGraph->SetYTitle(tr("Cn"));
+                            pGraph->SetYTitle(tr("Cl/Cd"));
                             break;
                     case 12:
+                            pGraph->SetYTitle(tr("Cn"));
+                            break;
+                    case 13:
                             pGraph->SetYTitle(tr("Ct"));
                             break;
-//                    case 13:
-//                            pGraph->SetYTitle(tr("F_n"));
-//                            break;
-					case 13:
+                    case 14:
 							pGraph->SetYTitle(tr("CF_t_bla"));
                             break;
-					case 14:
+                    case 15:
 							pGraph->SetYTitle(tr("CF_x_bla"));
                             break;
-					case 15:
+                    case 16:
 							pGraph->SetYTitle(tr("CF_y_bla"));
                             break;
-//                    case 17:
-//                            pGraph->SetYTitle(tr("F_nTot"));
-//                            break;
-					case 16:
+                    case 17:
 							pGraph->SetYTitle(tr("CF_t_rot"));
                             break;
-					case 17:
+                    case 18:
 							pGraph->SetYTitle(tr("CF_x_rot"));
                             break;
-					case 18:
+                    case 19:
 							pGraph->SetYTitle(tr("CF_y_rot"));
                             break;
-
                     default:
                             pGraph->SetYTitle(tr("theta"));
                             break;
@@ -7106,18 +7137,6 @@ void QDMS::SetPowerGraphTitles(Graph* pGraph)
 void QDMS::SetupLayout()
 {
 
-//    QSizePolicy szPolicyExpanding;
-//    szPolicyExpanding.setHorizontalPolicy(QSizePolicy::Expanding);
-//    szPolicyExpanding.setVerticalPolicy(QSizePolicy::Expanding);
-
-//    QSizePolicy szPolicyMinimum;
-//    szPolicyMinimum.setHorizontalPolicy(QSizePolicy::Minimum);
-//    szPolicyMinimum.setVerticalPolicy(QSizePolicy::Minimum);
-
-//    QSizePolicy szPolicyMaximum;
-//    szPolicyMaximum.setHorizontalPolicy(QSizePolicy::Maximum);
-//    szPolicyMaximum.setVerticalPolicy(QSizePolicy::Maximum);
-
     //--------------------Wing Table Layout--------------//
 
     QVBoxLayout *BottomLayout = new QVBoxLayout;
@@ -7126,21 +7145,27 @@ void QDMS::SetupLayout()
     m_pctrlWingNameLabel = new QLabel;
     m_pctrlBladesAndHeightLabel = new QLabel;
     m_pctrlBladeTableView = new QTableView;
+    m_pctrlSingleMultiLabel = new QLabel;
+
 
     m_pctrlBladeTableView->setSelectionMode(QAbstractItemView::NoSelection);
 	m_pctrlBladeTableView->setEditTriggers(QAbstractItemView::NoEditTriggers);
-	m_pctrlBladeTableView->setFixedHeight(550);
-	m_pctrlBladeTableView->setMinimumWidth(450);
-	m_pctrlBladeTableView->setFixedWidth(450);
+//	m_pctrlBladeTableView->setFixedHeight(550);
+//    m_pctrlBladeTableView->setFixedWidth(505);
 
     m_pctrlEditWing = new QPushButton(tr("Edit"));
     m_pctrlNewWing = new QPushButton(tr("New"));
     m_pctrlDeleteWing = new QPushButton(tr("Delete"));
 
+    QHBoxLayout *MultiNameLayout = new QHBoxLayout;
+    MultiNameLayout->addWidget(m_pctrlWingNameLabel);
+    MultiNameLayout->addWidget(m_pctrlSingleMultiLabel);
 
-    BottomLayout->addWidget(m_pctrlWingNameLabel);
+
+    BottomLayout->addLayout(MultiNameLayout);
     BottomLayout->addWidget(m_pctrlBladesAndHeightLabel);
     BottomLayout->addWidget(m_pctrlBladeTableView);
+
 
     EditNewLayout->addWidget(m_pctrlNewWing);
     EditNewLayout->addWidget(m_pctrlEditWing);
@@ -7173,23 +7198,52 @@ void QDMS::SetupLayout()
     NameLayout->addWidget(m_pctrlWingName);
     NameLayout->addWidget(m_pctrlSectionColor);
 
+    m_SingleMultiGroup = new QButtonGroup(NameLayout);
+    QRadioButton *radioButton = new QRadioButton ("Single Polar");
+    NameLayout->addWidget(radioButton);
+    m_SingleMultiGroup->addButton(radioButton,0);
+    radioButton = new QRadioButton ("Multi Polar");
+    NameLayout->addWidget(radioButton);
+    m_SingleMultiGroup->addButton(radioButton,1);
+
     QHBoxLayout *ParamLayout = new QHBoxLayout;
     m_pctrlBlades = new QSpinBox;
     m_pctrlBladesLabel = new QLabel("Number of Blades");
-    m_pctrlHubRadius = new NumberEdit;
-	m_pctrlHubRadiusLabel = new QLabel(tr("Radial Offset"));
-    m_pctrlHubRadiusUnitLabel = new QLabel;
     m_pctrlSolidityLabel = new QLabel;
-
-    m_pctrlBlades->setMinimum(1);
+    m_pctrlInvertBox = new QCheckBox(tr("Invert Airfoils"));
 
     ParamLayout->addWidget(m_pctrlBladesLabel);
     ParamLayout->addWidget(m_pctrlBlades);
-    ParamLayout->addWidget(m_pctrlHubRadiusLabel);
-    ParamLayout->addWidget(m_pctrlHubRadius);
-    ParamLayout->addWidget(m_pctrlHubRadiusUnitLabel);
+
+    QLabel *lab = new QLabel(tr("Show as:"));
+    ParamLayout->addWidget(lab);
+
+    m_heightLengthGroup = new QButtonGroup;
+
+    radioButton = new QRadioButton (tr("Height/Radius"));
+    ParamLayout->addWidget(radioButton);
+    m_heightLengthGroup->addButton(radioButton, 0);
+
+    radioButton = new QRadioButton (tr("Length/Angle"));
+    ParamLayout->addWidget(radioButton);
+    m_heightLengthGroup->addButton(radioButton, 1);
+
+    m_heightLengthGroup->button(0)->setChecked(true);
+
+    lab = new QLabel(tr("R Hub:"));
+    ParamLayout->addWidget(lab);
+
+    hubEdit = new NumberEdit;
+    hubEdit->setMinimum(0);
+    hubEdit->setAutomaticPrecision(3);
+    hubEdit->setValue(0);
+
+    ParamLayout->addWidget(hubEdit);
+
+    ParamLayout->addWidget(m_pctrlInvertBox);
 
 
+    m_pctrlBlades->setMinimum(1);
 
 
     m_pctrlBladeTable = new QTableView(this);
@@ -7201,7 +7255,6 @@ void QDMS::SetupLayout()
                                                                               QAbstractItemView::DoubleClicked |
                                                                               QAbstractItemView::SelectedClicked |
                                                                               QAbstractItemView::EditKeyPressed);
-
 
     m_pctrlSave           = new QPushButton(tr("Save"));
     m_pctrlOptimize       = new QPushButton(tr("Optimize"));
@@ -7230,20 +7283,49 @@ void QDMS::SetupLayout()
     EditLayout->addWidget(OptBox);
     EditLayout->addLayout(BackSave);
 
-
     //---------------------3D View Layout ---------------------------//
 
     QGridLayout *ThreeDView = new QGridLayout;
 
-    m_pctrlPerspective = new QCheckBox(tr("Perspective View"));
-    m_pctrlShowTurbine = new QCheckBox(tr("Show Rotor"));
-    m_pctrlSurfaces = new QCheckBox(tr("Surfaces"));
-    m_pctrlOutline = new QCheckBox(tr("Foil Out"));
-    m_pctrlOutlineEdge = new QCheckBox(tr("TE/LE Out"));
-    m_pctrlAirfoils = new QCheckBox(tr("Fill Foils"));
-    m_pctrlAxes = new QCheckBox(tr("Coordinates"));
-    m_pctrlPositions = new QCheckBox(tr("Foil Positions"));
-    m_pctrlFoilNames = new QCheckBox(tr("Foil Names"));
+//    int checkButtonWidth = 75;
+
+    m_pctrlPerspective = new QPushButton(tr("Perspective"));
+    m_pctrlPerspective->setCheckable(true);
+//    m_pctrlPerspective->setFixedWidth(checkButtonWidth);
+    m_pctrlPerspective->setFlat(true);
+    m_pctrlShowTurbine = new QPushButton(tr("Show Rotor"));
+    m_pctrlShowTurbine->setCheckable(true);
+//    m_pctrlShowTurbine->setFixedWidth(checkButtonWidth);
+    m_pctrlShowTurbine->setFlat(true);
+    m_pctrlSurfaces = new QPushButton(tr("Surfaces"));
+    m_pctrlSurfaces->setCheckable(true);
+//    m_pctrlSurfaces->setFixedWidth(checkButtonWidth);
+    m_pctrlSurfaces->setFlat(true);
+    m_pctrlOutline = new QPushButton(tr("Foil Out"));
+    m_pctrlOutline->setCheckable(true);
+//    m_pctrlOutline->setFixedWidth(checkButtonWidth);
+    m_pctrlOutline->setFlat(true);
+    m_pctrlOutlineEdge = new QPushButton(tr("TE/LE Out"));
+    m_pctrlOutlineEdge->setCheckable(true);
+//    m_pctrlOutlineEdge->setFixedWidth(checkButtonWidth);
+    m_pctrlOutlineEdge->setFlat(true);
+    m_pctrlAirfoils = new QPushButton(tr("Fill Foils"));
+    m_pctrlAirfoils->setCheckable(true);
+//    m_pctrlAirfoils->setFixedWidth(checkButtonWidth);
+    m_pctrlAirfoils->setFlat(true);
+    m_pctrlAxes = new QPushButton(tr("Coordinates"));
+    m_pctrlAxes->setCheckable(true);
+//    m_pctrlAxes->setFixedWidth(checkButtonWidth);
+    m_pctrlAxes->setFlat(true);
+    m_pctrlPositions = new QPushButton(tr("Foil Positions"));
+    m_pctrlPositions->setCheckable(true);
+//    m_pctrlPositions->setFixedWidth(checkButtonWidth);
+    m_pctrlPositions->setFlat(true);
+    m_pctrlFoilNames = new QPushButton(tr("Foil Names"));
+    m_pctrlFoilNames->setCheckable(true);
+//    m_pctrlFoilNames->setFixedWidth(checkButtonWidth);
+    m_pctrlFoilNames->setFlat(true);
+
     m_pctrlLightDlg = new QPushButton(tr("GL settings"));
     m_pctrlResetView = new QPushButton(tr("Fit to Screen"));
 
@@ -7589,10 +7671,10 @@ void QDMS::SetupLayout()
             EditWidget = new QWidget;
             EditWidget->setLayout(EditLayout);
             PowerEditWidget = new QWidget;
-			PowerEditWidget->setMaximumWidth(300);
+//			PowerEditWidget->setMaximumWidth(300);
             PowerEditWidget->setLayout(PowerEditLayout);
             PowerWidget = new QWidget;
-			PowerWidget->setMaximumWidth(300);
+//			PowerWidget->setMaximumWidth(300);
             PowerWidget->setLayout(PowerLayout);
             //AdvancedEditWidget = new QWidget;
             //AdvancedEditWidget->setLayout(AdvancedEditLayout);
@@ -7620,7 +7702,11 @@ void QDMS::SetupLayout()
 
 //            setLayout(mainLayout);
 
+            mainWidget->setMinimumWidth(100);
+
+
 }
+
 
 
 void QDMS::SetCurveParams()
@@ -7759,92 +7845,86 @@ void QDMS::OnShowCurve()
 }
 
 
-void QDMS::UpdateBladeData()
+void QDMS::UpdateBladeData() {
+	// fills combobox with blade associated to XDMS's current blade
 
-{
-		// fills combobox with blade associated to XDMS's current blade
+	int i/*, size*/, pos;
+	QString strong;
 
-		int i/*, size*/, pos;
-		QString strong;
+	m_DMSToolBar->m_tsrComboBox->clear();
+	m_DMSToolBar->m_heightComboBox->clear();
+	bool exists=false;
 
-		m_DMSToolBar->m_tsrComboBox->clear();
-		m_DMSToolBar->m_heightComboBox->clear();
-		bool exists=false;
+	if(!m_pDMSData || !m_pDMSData->m_DData.size()) {
+		m_DMSToolBar->m_tsrComboBox->setEnabled(false);
+		selected_lambda = -1;
+
+		m_DMSToolBar->m_heightComboBox->setEnabled(false);
+	}
 
 
-		if(!m_pDMSData || !m_pDMSData->m_DData.size())
+	//count the number of simulations associated to the current blade
+	//		size = 0;
+	if (m_pDMSData)
+	{
+		for (i=0; i<m_pDMSData->m_DData.size(); i++)
 		{
-			m_DMSToolBar->m_tsrComboBox->setEnabled(false);
-			selected_lambda = -1;
-
-			m_DMSToolBar->m_heightComboBox->setEnabled(false);
+			m_DMSToolBar->m_tsrComboBox->addItem(m_pDMSData->m_DData.at(i)->lambdaglobal);
+			exists=true;
 		}
 
-
-		//count the number of simulations associated to the current blade
-//		size = 0;
-		if (m_pDMSData)
+		// if any
+		if (exists)
 		{
-			for (i=0; i<m_pDMSData->m_DData.size(); i++)
+			m_DMSToolBar->m_tsrComboBox->setEnabled(true);
+			m_DMSToolBar->m_heightComboBox->setEnabled(true);
+
+			for (i=0; i<m_pDMSData->m_DData.at(0)->m_zeta.size(); i++)
 			{
-				m_DMSToolBar->m_tsrComboBox->addItem(m_pDMSData->m_DData.at(i)->lambdaglobal);
-				exists=true;
+				m_DMSToolBar->m_heightComboBox->addItem(strong.number((m_pDMSData->m_DData.at(0)->m_zeta.at(i)+1)/2,
+																	  'f',3));
 			}
+			m_DMSToolBar->m_heightComboBox->setCurrentIndex(selected_height);
 
-			// if any
-			if (exists)
+			if(m_pDData)
 			{
-				m_DMSToolBar->m_tsrComboBox->setEnabled(true);
-				m_DMSToolBar->m_heightComboBox->setEnabled(true);
-
-				for (i=0; i<m_pDMSData->m_DData.at(0)->m_zeta.size(); i++)
+				pos = m_DMSToolBar->m_tsrComboBox->findText(m_pDData->lambdaglobal);
+				if(pos>=0)
 				{
-					m_DMSToolBar->m_heightComboBox->addItem(strong.number((m_pDMSData->m_DData.at(0)->m_zeta.at(i)+1)/2,'f',3));
+					m_DMSToolBar->m_tsrComboBox->setCurrentIndex(pos);
+					strong = m_DMSToolBar->m_tsrComboBox->itemText(pos);
+					m_pDData = GetBladeData(strong);
+					selected_lambda = pos;
 				}
-				m_DMSToolBar->m_heightComboBox->setCurrentIndex(selected_height);
-
-					if(m_pDData)
-					{
-						pos = m_DMSToolBar->m_tsrComboBox->findText(m_pDData->lambdaglobal);
-							if(pos>=0)
-							{
-								m_DMSToolBar->m_tsrComboBox->setCurrentIndex(pos);
-								strong = m_DMSToolBar->m_tsrComboBox->itemText(pos);
-								m_pDData = GetBladeData(strong);
-								selected_lambda = pos;
-							}
-							else
-							{
-								m_DMSToolBar->m_tsrComboBox->setCurrentIndex(0);
-								strong = m_DMSToolBar->m_tsrComboBox->itemText(0);
-								m_pDData = GetBladeData(strong);
-								selected_lambda = -1;
-							}
-					}
-					else
-					{
-						m_DMSToolBar->m_tsrComboBox->setCurrentIndex(0);
-						strong = m_DMSToolBar->m_tsrComboBox->itemText(0);
-						m_pDData = GetBladeData(strong);
-						selected_lambda = -1;
-					}
-
+				else
+				{
+					m_DMSToolBar->m_tsrComboBox->setCurrentIndex(0);
+					strong = m_DMSToolBar->m_tsrComboBox->itemText(0);
+					m_pDData = GetBladeData(strong);
+					selected_lambda = -1;
+				}
 			}
-
-			// otherwise disable control
-			if (!exists)
+			else
 			{
-				m_DMSToolBar->m_tsrComboBox->setEnabled(false);
-				m_DMSToolBar->m_heightComboBox->setEnabled(false);
-				m_pDData = NULL;
+				m_DMSToolBar->m_tsrComboBox->setCurrentIndex(0);
+				strong = m_DMSToolBar->m_tsrComboBox->itemText(0);
+				m_pDData = GetBladeData(strong);
 				selected_lambda = -1;
 			}
 
 		}
 
-		CreateRotorCurves();
+		// otherwise disable control
+		if (!exists) {
+			m_DMSToolBar->m_tsrComboBox->setEnabled(false);
+			m_DMSToolBar->m_heightComboBox->setEnabled(false);
+			m_pDData = NULL;
+			selected_lambda = -1;
+		}
 
+	}
 
+	CreateRotorCurves();
 }
 
 
@@ -7973,10 +8053,7 @@ void QDMS::UpdateCharacteristicsMatrix()
 }
 
 
-void QDMS::UpdateRotorSimulation()
-
-{
-       
+void QDMS::UpdateRotorSimulation() {
 	if (m_DMSToolBar->m_dmsdataComboBox->count())
 	{
 		if (m_pDMSData)
@@ -8003,14 +8080,13 @@ void QDMS::UpdateRotorSimulation()
 		m_pDMSData = NULL;
 	}
 
-        selected_height = 0;
-        UpdateBladeData();
+	selected_height = 0;
+	UpdateBladeData();
 
-        InitBladeSimulationParams(m_pDMSData);
+	InitBladeSimulationParams(m_pDMSData);
 
-        if (m_pDMSData) SetCurveParams();
-        else FillComboBoxes(false);
-
+	if (m_pDMSData) SetCurveParams();
+	else FillComboBoxes(false);
 }
 
 
@@ -8158,7 +8234,6 @@ void QDMS::UpdateUnits()
 	pSimuWidgetDMS->speed3->setText(str);
 
 	GetLengthUnit(str, g_mainFrame->m_LengthUnit);
-	m_pctrlHubRadiusUnitLabel->setText(str);
 
     InitTurbineData(m_pTData);
 	if (m_pTDMSData) OnSetWeibull();
@@ -8166,41 +8241,18 @@ void QDMS::UpdateUnits()
 }
 
 
-void QDMS::UpdateWings()
+void QDMS::UpdateBlades()
 {
 
-	if (m_DMSToolBar->m_rotorComboBox->count())
-	{
-        if (m_pBlade)
-		{
-            int pos = m_DMSToolBar->m_rotorComboBox->findText(m_pBlade->getName());
-			if(pos>=0)
-			{
-				m_DMSToolBar->m_rotorComboBox->setCurrentIndex(pos);
-			}
-			else
-			{
-				m_DMSToolBar->m_rotorComboBox->setCurrentIndex(0);
-                m_pBlade =  m_DMSToolBar->m_rotorComboBox->currentObject();
-			}
-		}
-		else
-		{
-			m_DMSToolBar->m_rotorComboBox->setCurrentIndex(0);
-            m_pBlade =  m_DMSToolBar->m_rotorComboBox->currentObject();
-		}
-	}
-	else
-	{
-        m_pBlade = NULL;
-	}
+   m_pBlade = m_DMSToolBar->m_rotorComboBox->currentObject();
 
    if (g_mainFrame->m_iView==BEMSIMVIEW)
 	   UpdateRotorSimulation();
    else if (g_mainFrame->m_iView==CHARSIMVIEW)
 	   UpdateCharacteristicsSimulation();
 
-   InitWingTable();
+   InitBladeTable();
+   OnLengthHeightChanged();
 }
 
 TData * QDMS::GetTurbine(QString m_TurbineName)
@@ -8251,10 +8303,7 @@ void QDMS::UpdateTurbines()
 	else
 		CreatePowerCurves();
 
-
 	UpdateTurbineSimulation();
-
-
 }
 
 void QDMS::onModuleChanged() {
@@ -8270,5 +8319,41 @@ void QDMS::onModuleChanged() {
 		g_mainFrame->OnTurbineViewAct2->setChecked(false);
 		g_mainFrame->OnBladeViewAct2->setChecked(false);
 		g_mainFrame->OnCharacteristicViewAct2->setChecked(false);
+		
+		glPopAttrib();  // restores the saved GL settings		
 	}
 }
+
+void QDMS::drawGL() {
+	if (!m_pBlade) {  // NM TODO this should not be possible! Assumption needs validation.
+		return;
+	}
+	
+	GLWidget *glWidget = g_mainFrame->getGlWidget();
+
+	GLDraw3D();
+    GLRenderView();
+	
+	if (m_pctrlAxes->isChecked()) {
+		m_pBlade->drawCoordinateAxes();
+	}
+
+	if (m_pctrlFoilNames->isChecked()) {
+		glWidget->setOverpaintFont(QFont(g_mainFrame->m_TextFont.family(), 10));
+		for (int i = 0; i <= m_pBlade->m_NPanel; ++i) {
+			glWidget->overpaintText(m_pBlade->m_PlanformSpan/10 + m_pBlade->m_TOffsetX[i], m_pBlade->m_TPos[i], 0.0,
+									m_pBlade->m_Airfoils[i]);
+		}
+	}
+	
+	if (m_pctrlPositions->isChecked()) {
+		glWidget->setOverpaintFont(QFont(g_mainFrame->m_TextFont.family(), 10));
+        for (int i = 0; i <= m_pBlade->m_NPanel; ++i) {
+			glWidget->overpaintText(-m_pBlade->m_PlanformSpan/10 + m_pBlade->m_TOffsetX[i], m_pBlade->m_TPos[i], 0.0,
+									QString("%1 m").arg(m_pBlade->m_TPos[i], 7, 'f', 3, ' '));
+        }
+    }
+}
+
+
+QDMS *g_qdms;

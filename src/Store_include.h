@@ -1,7 +1,6 @@
 #ifndef STORE_INCLUDE_H
 #define STORE_INCLUDE_H
 
-template <class T> class Store;
 class WindField;
 class BladeStructure;
 class FASTSimulation;
@@ -19,8 +18,12 @@ class CDMSData;
 class OpPoint;
 class BladeStructureLoading;
 class QLLTSimulation;
+class QLLTCutPlane;
 class NoiseSimulation;
+class Strut;
 
+
+template <class T> class Store;
 typedef Store<WindField> WindFieldStore;
 typedef Store<CBlade> RotorStore;
 typedef Store<CBlade> VerticalRotorStore;
@@ -40,8 +43,9 @@ typedef Store<OpPoint> OpPointStore;
 typedef Store<BladeStructureLoading> BladeStructureLoadingStore;
 typedef Store<QLLTSimulation> QLLTHAWTSimulationStore;
 typedef Store<QLLTSimulation> QLLTVAWTSimulationStore;
+typedef Store<QLLTCutPlane> QLLTCutPlaneStore;
 typedef Store<NoiseSimulation> NoiseSimulationStore;
-
+typedef Store<Strut> StrutStore;
 
 
 #endif // STORE_INCLUDE_H

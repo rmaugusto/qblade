@@ -1,4 +1,5 @@
 #include "VortexNode.h"
+#include "VortexLine.h"
 
 VortexNode::VortexNode(){
     x=0.0;
@@ -7,18 +8,18 @@ VortexNode::VortexNode(){
 
     fromTimestep = -1;
     fromStation = -1;
+    fromBlade = -1;
     wasConvected = false;
-    V_induced.Set(0,0,0);
     attachedLines.clear();
 }
 
 VortexNode::VortexNode(double const &xi, double const &yi, double const &zi)
-    : CVector (xi, yi, zi) {
+    :CVector (xi, yi, zi) {
 
     fromTimestep = -1;
     fromStation = -1;
+    fromBlade = -1;
     wasConvected = false;
-    V_induced.Set(0,0,0);
     attachedLines.clear();
 }
 

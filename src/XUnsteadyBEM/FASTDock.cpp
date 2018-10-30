@@ -5,6 +5,7 @@
 #include <QDir>
 #include <QMessageBox>
 #include <QDebug>
+#include <QLayout>
 
 #include "FASTSimulationCreatorDialog.h"
 #include "FASTSimulationProgressDialog.h"
@@ -22,7 +23,6 @@
 FASTDock::FASTDock(const QString &title, QMainWindow *parent, Qt::WindowFlags flags, FASTModule *module)
 	: ScrolledDock (title, parent, flags)
 {
-
     setFeatures(QDockWidget::NoDockWidgetFeatures | QDockWidget::DockWidgetFloatable | QDockWidget::DockWidgetMovable);
     setAllowedAreas(Qt::LeftDockWidgetArea);
 
@@ -173,50 +173,28 @@ FASTDock::FASTDock(const QString &title, QMainWindow *parent, Qt::WindowFlags fl
 	addScrolledDock (Qt::LeftDockWidgetArea, parent);
 }
 
-void FASTDock::initView() {
-	
-}
-
 void FASTDock::onShowCheckBoxCanged () {
 	m_shownFASTSimulation->setShownInGraph(m_showCheckBox->isChecked());
-	m_module->reportGraphChange();
+	m_module->reloadAllGraphCurves();
 }
 
 void FASTDock::onShowPointsCheckBoxCanged () {
 	m_shownFASTSimulation->setDrawPoints(m_showPointsCheckBox->isChecked());
-	m_module->reportGraphChange();
+	m_module->update();
 }
 
 void FASTDock::onShowCurveCheckBoxCanged () {
 	m_shownFASTSimulation->setDrawCurve(m_showCurveCheckBox->isChecked());
-	m_module->reportGraphChange();
+	m_module->update();
 }
 
 void FASTDock::onStartSimulationButtonClicked() {
 	FASTSimulationProgressDialog *progressDialog = NULL;
 	try {
-		QDir defaultPath (QString(QDir::currentPath() + QDir::separator() + "FAST_simulation"));
-		QDir savePath (defaultPath);  // NM TODO make a custom savePath choosable by user
-		if (savePath.exists()) {
-			QMessageBox::StandardButton response = QMessageBox::Cancel;
-			if (savePath != defaultPath) {
-				// NM not yet active. 
-//				response = QMessageBox::question (this, tr("Question"),
-//										QString (tr("<p>A folder with this name does already exist:</p>") +
-//													"<p align='center'>" + savePath + "</p>" +
-//												 tr("<p>Do you want to delete the old folder and create a new one? "
-//													"Simulation results stored in a QBlade project will NOT be affected by this.")),
-//												  QMessageBox::Yes|QMessageBox::Cancel);
-			}
-			if (response == QMessageBox::Yes || savePath == defaultPath) {
-				if (!removeDir(savePath.absolutePath())){
-					throw QString(tr("Could not completely remove existing directory: ") + savePath.absolutePath());
-				}
-			} else {
-				throw tr("Canceled due to user decision.");
-			}
+		QDir savePath (QString(QDir::currentPath() + QDir::separator() + "FAST_simulation"));
+		if (!savePath.removeRecursively()) {
+			throw QString(tr("Could not completely remove existing directory: ") + savePath.absolutePath());
 		}
-		
 		if (!savePath.mkpath(savePath.absolutePath())) {
 			throw QString(tr("Could not make directory: ") + savePath.absolutePath());
 		}
@@ -349,13 +327,13 @@ void FASTDock::adjustShowCheckBox() {
 }
 
 void FASTDock::onLineButtonClicked() {
-	LinePickerDlg linePicker;
-	linePicker.InitDialog(m_simulationLineButton->GetStyle(), m_simulationLineButton->GetWidth(), m_simulationLineButton->GetColor());
-	if(linePicker.exec() == QDialog::Accepted) 	{
-		m_simulationLineButton->SetStyle(linePicker.GetStyle());
-		m_simulationLineButton->SetWidth(linePicker.GetWidth());
-		m_simulationLineButton->SetColor(linePicker.GetColor());
-		
-		m_shownFASTSimulation->setPen(m_simulationLineButton->getPen());
-	}
+    LinePickerDlg linePicker;
+    linePicker.InitDialog(m_simulationLineButton->GetStyle(), m_simulationLineButton->GetWidth(), m_simulationLineButton->GetColor());
+    if(linePicker.exec() == QDialog::Accepted) 	{
+        m_simulationLineButton->SetStyle(linePicker.GetStyle());
+        m_simulationLineButton->SetWidth(linePicker.GetWidth());
+        m_simulationLineButton->SetColor(linePicker.GetColor());
+
+        m_shownFASTSimulation->setPen(m_simulationLineButton->getPen());
+    }
 }

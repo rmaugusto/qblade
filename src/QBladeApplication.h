@@ -24,25 +24,21 @@
 #define QBLADEAPPLICATION_H
 
 #include <QApplication>
-#include "MainFrame.h"
-#include "XGlobals.h"
+
 
 class QBladeApplication : public QApplication
 {
-    Q_OBJECT
-    private:
-        //MainFrame *mainFrame;
-    protected:
-        bool event(QEvent *);
-    public:
-        QBladeApplication(int&, char**);
-		/////////////// new code NM ///////////////
-		/* without this, the MainFrame would be never destructed! That causes an error when the programm is
-		   terminating if a QPainter drawed something on an QGLWidget.
-		   A wonder that this did not cause any errors before! */
-        ~QBladeApplication () { delete g_mainFrame; }
-		/////////////// new code NM ///////////////
-    //    void setQFLR5MainWindow(MainFrame *);
+	Q_OBJECT
+	
+public:
+	QBladeApplication(int&, char**);
+	~QBladeApplication ();
+	
+	void setApplicationStyle (QString style);
+	QString getApplicationStyle ();
+	
+private:
+	QString m_styleName;  // name of the Style used for this application
 };
 
 #endif // QBLADEAPPLICATION_H

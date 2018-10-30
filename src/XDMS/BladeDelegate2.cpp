@@ -25,17 +25,18 @@
 #include "../XBEM/BEM.h"
 #include "BladeDelegate2.h"
 #include "../Store.h"
+#include "../src/XDMS/DMS.h"
+#include "../src/XBEM/Blade.h"
 
 
-BladeDelegate2::BladeDelegate2(QObject *parent)
- : QItemDelegate(parent)
-{
-        m_pWingDlg = parent;
+BladeDelegate2::BladeDelegate2 (CBlade *blade, void *pDMS, QObject *parent) : QItemDelegate(parent){
+    m_pBlade = blade;
+    m_pDMS = pDMS;
 }
 
 QWidget *BladeDelegate2::createEditor(QWidget *parent, const QStyleOptionViewItem &/*option*/,const QModelIndex & index ) const
 {
-        if(index.column()!=5 && index.column()!=6)
+        if(index.column()!=6 && index.column()!=7)
         {
                 NumberEdit *editor = new NumberEdit();
 				editor->setParent(parent);
@@ -43,35 +44,37 @@ QWidget *BladeDelegate2::createEditor(QWidget *parent, const QStyleOptionViewIte
 
                 editor->setAutomaticPrecision(m_Precision[index.column()]);
 
+//                if(index.column()==0 && index.row()==0) editor->setEnabled(false);
+
                 return editor;
         }
-        else
+        else if (!(index.column()==7 && !m_pBlade->m_bisSinglePolar))
         {
                 QString strong, strong2;
                 QModelIndex ind;
                 QComboBox *editor = new QComboBox(parent);
                 //fill comboboxes here
-                if(index.column()==5)
+                if(index.column()==6)
                 {
-						for(int i=0; i< g_foilStore.size(); i++)
+                        for(int i=0; i< g_foilStore.size(); i++)
                         {
-								CFoil *pFoil = g_foilStore.at(i);
+                                CFoil *pFoil = g_foilStore.at(i);
                                 pFoil->GetFoilName(strong);
                                 editor->addItem(strong);
                         }
                 }
-                if(index.column()==6)
+                if(index.column()==7)
                 {
                     editor->clear();
-						for(int i=0; i< g_360PolarStore.size(); i++)
+                        for(int i=0; i< g_360PolarStore.size(); i++)
                         {
-								C360Polar *pPolar = g_360PolarStore.at(i);
+                                C360Polar *pPolar = g_360PolarStore.at(i);
                                 QStandardItemModel *model = (QStandardItemModel*) itemmodel;
 
                                 ind = model->index(index.row(),(index.column() -1),QModelIndex());
 
                                 strong = pPolar->m_airfoil->getName();
-								strong2 = pPolar->getName();
+                                strong2 = pPolar->getName();
 
 
                                 if (model->data(ind,Qt::DisplayRole) == strong)
@@ -82,6 +85,14 @@ QWidget *BladeDelegate2::createEditor(QWidget *parent, const QStyleOptionViewIte
                 }
                 return editor;
         }
+        else{
+                QDMS *pDMS = (QDMS *) m_pDMS;
+                QPushButton *editor = new QPushButton(tr("-----"), parent);
+                editor->setFlat(true);
+                editor->setStyleSheet("QPushButton { text-align: left; }");
+                connect (editor,SIGNAL(pressed()), pDMS, SLOT(OnPolarDialog()));
+                return editor;
+        }
         return NULL;
 }
 
@@ -89,13 +100,13 @@ QWidget *BladeDelegate2::createEditor(QWidget *parent, const QStyleOptionViewIte
 
 void BladeDelegate2::setEditorData(QWidget *editor, const QModelIndex &index) const
 {
-        if(index.column()!=5 && index.column()!=6)
+        if(index.column()!=6 && index.column()!=7)
         {
                 double value = index.model()->data(index, Qt::EditRole).toDouble();
                 NumberEdit *floatEdit = static_cast<NumberEdit*>(editor);
                 floatEdit->setValue(value);
         }
-        else
+        else if (index.column()==6 || (index.column() == 7 && m_pBlade->m_bisSinglePolar))
         {
                 QString strong = index.model()->data(index, Qt::EditRole).toString();
                 QComboBox *pCbBox = static_cast<QComboBox*>(editor);
@@ -103,23 +114,34 @@ void BladeDelegate2::setEditorData(QWidget *editor, const QModelIndex &index) co
                 if (pos>=0) pCbBox->setCurrentIndex(pos);
                 else        pCbBox->setCurrentIndex(0);
         }
+        else if (index.column()==7 && !m_pBlade->m_bisSinglePolar){
+                QString strong = index.model()->data(index, Qt::EditRole).toString();
+                QPushButton *pButton =  static_cast<QPushButton*>(editor);
+                pButton->setText(strong);
+        }
 }
 
 void BladeDelegate2::setModelData(QWidget *editor, QAbstractItemModel *model, const QModelIndex &index) const
 {
-        if(index.column()!=5 && index.column()!=6)
+        if(index.column()!=6 && index.column()!=7)
         {
                 NumberEdit *floatEdit = static_cast<NumberEdit*>(editor);
                 double value = floatEdit->getValue(true);
                 model->setData(index, value, Qt::EditRole);
 
         }
-        else
+        else if (index.column()==6 || (index.column() == 7 && m_pBlade->m_bisSinglePolar))
         {
                 QString strong;
                 QComboBox *pCbBox = static_cast<QComboBox*>(editor);
                 int sel = pCbBox->currentIndex();
                 if (sel >=0) strong = pCbBox->itemText(sel);
+                model->setData(index, strong, Qt::EditRole);
+        }
+        else if (index.column()==7 && !m_pBlade->m_bisSinglePolar){
+                QString strong;
+                QPushButton *pButton = static_cast<QPushButton*>(editor);
+                strong = pButton->text();
                 model->setData(index, strong, Qt::EditRole);
         }
 }
@@ -128,7 +150,7 @@ void BladeDelegate2::paint(QPainter *painter, const QStyleOptionViewItem &option
 {
         QString strong;
         QStyleOptionViewItem myOption = option;
-        if(index.column()!=5 && index.column()!=6)
+        if(index.column()!=6 && index.column()!=7)
         {
                 myOption.displayAlignment = Qt::AlignRight | Qt::AlignVCenter;
                 strong = QString("%1").arg(index.model()->data(index, Qt::DisplayRole).toDouble(),0,'f', m_Precision[index.column()]);

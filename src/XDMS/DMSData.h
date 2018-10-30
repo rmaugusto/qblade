@@ -25,28 +25,36 @@
 #include <QList>
 #include <QString>
 #include <QColor>
-#include "DData.h"
 
-class DMSData : public StorableObject
+#include "../StorableObject.h"
+#include "../Graph/ShowAsGraphInterface.h"
+#include "../ParameterObject.h"
+class DData;
+template <class ParameterGroup> class ParameterViewer;
+
+
+class DMSData : public StorableObject, public ShowAsGraphInterface, public ParameterObject<Parameter::DMSData>
 {
-
-    friend class QDMS;
-    friend class MainFrame;
-    friend class TDMSData;
-
 public:
+	//enum SimulationType {};  // NM fill this later, when more Modules are reimplemented
 
-	virtual void Compute(DData *pDData, CBlade *pWing, double lambda, double pitch);
+    virtual void Compute(DData *pDData, CBlade *pWing, double lambda, double inflowspeed);
     virtual void Clear();
-    virtual void Serialize(QDataStream &ar, bool bIsStoring, int ArchiveFormat);
 	virtual void serialize ();  // override from StorableObject
 	void restorePointers();  // override from StorableObject
+	virtual NewCurve* newCurve (QString xAxis, QString yAxis, NewGraph::GraphType graphType);  // returns NULL if var n.a.
+	static QStringList getAvailableVariables (NewGraph::GraphType graphType);
+	virtual QString getObjectName () { return m_objectName; }
+	bool hasResults() { return !m_Cp.isEmpty(); }  // return true, if simulation was finished
+	void startSimulation ();
 
 	static DMSData* newBySerialize ();
 	DMSData();
+	DMSData(ParameterViewer<Parameter::DMSData> *viewer);
 	virtual ~DMSData();
+	static QStringList prepareMissingObjectMessage();
 
-private:
+//private:
     QString m_WingName;
     QString m_DMSName;
 
@@ -62,6 +70,12 @@ private:
     QList <double> m_one_over_Lambda;
     QList <DData *> m_DData;
     QList <double> m_Kp;
+
+    QList <double> m_P;                     //power
+    QList <double> m_T;                     //torque
+    QList <double> m_Thrust;                //thrust
+    QList <double> m_V;                     //wind speed
+    QList <double> m_Omega;                 //rotational speed
 
     bool m_bShowPoints;
     bool m_bIsVisible;
@@ -83,6 +97,14 @@ private:
     bool m_bTipLoss;
     bool m_bVariable;
     bool m_bAspectRatio;
+	
+	double m_windspeed;
+	double m_tipSpeedFrom, m_tipSpeedTo, m_tipSpeedDelta;
+	double m_windspeedFrom, m_windspeedTo, m_windspeedDelta;  // NM only used for TDMSData
+
+private:
+	virtual QPen doGetPen (int curveIndex, int highlightedIndex, bool forTheDot);
+	QVariant accessParameter(Parameter::DMSData::Key key, QVariant value = QVariant());
 };
 
 

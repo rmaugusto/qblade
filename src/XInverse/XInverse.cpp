@@ -25,6 +25,8 @@
 #include <QMessageBox>
 #include <QStatusBar>
 #include <QToolButton>
+#include <QKeyEvent>
+#include <QMouseEvent>
 
 #include "../TwoDWidget.h"
 #include "XInverse.h" 
@@ -34,11 +36,7 @@
 #include "../Globals.h"
 #include "../MainFrame.h"
 #include "../Objects/Foil.h"
-#include "../XGlobals.h"
 #include "../Store.h"
-
-
-extern CFoil* g_pCurFoil;
 
 
 QXInverse::QXInverse(QWidget *parent)

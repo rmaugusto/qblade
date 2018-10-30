@@ -21,11 +21,10 @@
 
 #include "DisplaySettingsDlg.h"
 #include "../MainFrame.h"
-#include "../Miarex/Miarex.h"
 #include "../XDirect/XDirect.h"
 #include "../XInverse/XInverse.h"
 #include "../Graph/GraphDlg.h"
-#include <QApplication>
+#include "../QBladeApplication.h"
 #include <QGroupBox>
 #include <QColorDialog>
 #include <QFontDialog>
@@ -65,19 +64,7 @@ void DisplaySettingsDlg::SetupLayout()
 	QVBoxLayout *MainLayout = new QVBoxLayout;
 
 	m_pctrlStyles = new QComboBox;
-
-	QRegExp regExp("Q(.*)Style");
-	QString defaultStyle = QApplication::style()->metaObject()->className();
-	if (defaultStyle == QLatin1String("QMacStyle"))
-		defaultStyle = QLatin1String("Macintosh (Aqua)");
-	else if (defaultStyle == QLatin1String("OxygenStyle"))
-		defaultStyle = QLatin1String("Oxygen");
-	else if (regExp.exactMatch(defaultStyle))
-		defaultStyle = regExp.cap(1);
-
 	m_pctrlStyles->addItems(QStyleFactory::keys());
-	m_pctrlStyles->setCurrentIndex(m_pctrlStyles->findText(defaultStyle));
-
 
 	m_pctrlGraphSettings  = new QPushButton(tr("All Graph Settings"));
 	m_pctrlGraphSettings->setMinimumWidth(120);
@@ -145,7 +132,8 @@ void DisplaySettingsDlg::InitDialog()
 	m_pctrlBackColor->SetColor(m_BackgroundColor);
 	QString FontName = m_TextFont.family() + QString(" %1").arg(m_TextFont.pointSize());
 	m_pctrlTextFont->setText(FontName);
-	m_pctrlStyles->setCurrentIndex(m_pctrlStyles->findText(m_StyleName));
+	m_pctrlStyles->setCurrentIndex(m_pctrlStyles->findText(dynamic_cast<QBladeApplication*>(qApp)->getApplicationStyle(),
+														   Qt::MatchFixedString));
 	m_pctrlReverseZoom->setChecked(m_bReverseZoom);
 	m_pctrlAlphaChannel->setChecked(m_bAlphaChannel);
 	QPalette palette = m_pctrlTextClr->palette();
@@ -160,13 +148,8 @@ void DisplaySettingsDlg::InitDialog()
 	}
 }
 
-
-void DisplaySettingsDlg::OnStyleChanged(const QString &StyleName)
-{
-	qApp->setStyle(StyleName);
-//	QMessageBox::information(window(), tr("Warning"), "The new style will take effect at the next session");
-
-	m_StyleName = StyleName;
+void DisplaySettingsDlg::OnStyleChanged(const QString &StyleName) {
+	dynamic_cast<QBladeApplication*>(qApp)->setApplicationStyle(StyleName);
 }
 
 
@@ -193,7 +176,6 @@ void DisplaySettingsDlg::reject()
 {
 	MainFrame *pMainFrame = (MainFrame*)m_pMainFrame;
 	QXDirect *pXDirect   = (QXDirect*)pMainFrame->m_pXDirect;
-	QMiarex *pMiarex     = (QMiarex*)pMainFrame->m_pMiarex;
 	QXInverse *pXInverse = (QXInverse*)pMainFrame->m_pXInverse;
 
 	pXDirect->m_pCpGraph->CopySettings(&m_MemGraph);
@@ -204,13 +186,6 @@ void DisplaySettingsDlg::reject()
 	pXDirect->m_pCzGraph->CopySettings(&m_MemGraph);
 	pXDirect->m_pTrGraph->CopySettings(&m_MemGraph);
 	pXDirect->m_pUserGraph->CopySettings(&m_MemGraph);
-
-	for(int ig=0; ig<4; ig++)
-	{
-		pMiarex->m_WingGraph[ig].CopySettings(&m_MemGraph);
-		pMiarex->m_TimeGraph[ig].CopySettings(&m_MemGraph);
-		pMiarex->m_WPlrGraph[ig].CopySettings(&m_MemGraph);
-	}
 
 	pXInverse->m_QGraph.CopySettings(&m_MemGraph);
 	pXInverse->m_QGraph.SetInverted(true);
@@ -224,8 +199,10 @@ void DisplaySettingsDlg::reject()
         pBEM->m_PowerGraph1.CopySettings(&m_MemGraph);
         pBEM->m_PowerGraph2.CopySettings(&m_MemGraph);
         pBEM->m_PowerGraph3.CopySettings(&m_MemGraph);
-        pBEM->m_360CDGraph.CopySettings(&m_MemGraph);
-        pBEM->m_360CLGraph.CopySettings(&m_MemGraph);
+        pBEM->m_360Graph2.CopySettings(&m_MemGraph);
+        pBEM->m_360Graph1.CopySettings(&m_MemGraph);
+        pBEM->m_360Graph3.CopySettings(&m_MemGraph);
+        pBEM->m_360Graph4.CopySettings(&m_MemGraph);
         pBEM->m_CharGraph1.CopySettings(&m_MemGraph);
         pBEM->m_CharGraph2.CopySettings(&m_MemGraph);
         pBEM->m_CharGraph3.CopySettings(&m_MemGraph);
@@ -256,7 +233,6 @@ void DisplaySettingsDlg::OnGraphSettings()
 	if(!m_pRefGraph) return;
 	MainFrame *pMainFrame = (MainFrame*)m_pMainFrame;
 	QXDirect *pXDirect   = (QXDirect*)pMainFrame->m_pXDirect;
-	QMiarex *pMiarex     = (QMiarex*)pMainFrame->m_pMiarex;
 	QXInverse *pXInverse = (QXInverse*)pMainFrame->m_pXInverse;
 
 	GraphDlg dlg;
@@ -268,20 +244,20 @@ void DisplaySettingsDlg::OnGraphSettings()
 	dlg.m_GraphArray[4] = pXDirect->m_pTrGraph;
 	dlg.m_GraphArray[5] = pXDirect->m_pUserGraph;
 
-	dlg.m_GraphArray[6] = pMiarex->m_WingGraph;
-	dlg.m_GraphArray[7] = pMiarex->m_WingGraph+1;
-	dlg.m_GraphArray[8] = pMiarex->m_WingGraph+2;
-	dlg.m_GraphArray[9] = pMiarex->m_WingGraph+3;
-	dlg.m_GraphArray[10] = pMiarex->m_WPlrGraph;
-	dlg.m_GraphArray[11] = pMiarex->m_WPlrGraph+1;
-	dlg.m_GraphArray[12] = pMiarex->m_WPlrGraph+2;
-	dlg.m_GraphArray[13] = pMiarex->m_WPlrGraph+3;
-	dlg.m_GraphArray[14] = pMiarex->m_TimeGraph;
-	dlg.m_GraphArray[15] = pMiarex->m_TimeGraph+1;
-	dlg.m_GraphArray[16] = pMiarex->m_TimeGraph+2;
-	dlg.m_GraphArray[17] = pMiarex->m_TimeGraph+3;
-	dlg.m_GraphArray[18] = &pMiarex->m_LongRLGraph;
-	dlg.m_GraphArray[19] = &pMiarex->m_LatRLGraph;
+	dlg.m_GraphArray[6] = NULL;  // NM these are the former Miarex Graphs
+	dlg.m_GraphArray[7] = NULL;
+	dlg.m_GraphArray[8] = NULL;
+	dlg.m_GraphArray[9] = NULL;
+	dlg.m_GraphArray[10] = NULL;
+	dlg.m_GraphArray[11] = NULL;
+	dlg.m_GraphArray[12] = NULL;
+	dlg.m_GraphArray[13] = NULL;
+	dlg.m_GraphArray[14] = NULL;
+	dlg.m_GraphArray[15] = NULL;
+	dlg.m_GraphArray[16] = NULL;
+	dlg.m_GraphArray[17] = NULL;
+	dlg.m_GraphArray[18] = NULL;
+	dlg.m_GraphArray[19] = NULL;
 	dlg.m_GraphArray[20] = &pXInverse->m_QGraph;
 	//////////////new code DM/////////////////////
 	QBEM *pBEM = (QBEM *)pMainFrame->m_pBEM;
@@ -293,8 +269,8 @@ void DisplaySettingsDlg::OnGraphSettings()
 	dlg.m_GraphArray[24] = &pBEM->m_PowerGraph1;
 	dlg.m_GraphArray[25] = &pBEM->m_PowerGraph2;
 	dlg.m_GraphArray[26] = &pBEM->m_PowerGraph3;
-	dlg.m_GraphArray[27] = &pBEM->m_360CLGraph;
-	dlg.m_GraphArray[28] = &pBEM->m_360CDGraph;
+	dlg.m_GraphArray[27] = &pBEM->m_360Graph1;
+	dlg.m_GraphArray[28] = &pBEM->m_360Graph2;
 	dlg.m_GraphArray[29] = &pBEM->m_CharGraph1;
 	dlg.m_GraphArray[30] = &pBEM->m_CharGraph2;
 	dlg.m_GraphArray[31] = &pBEM->m_CharGraph3;
@@ -309,8 +285,10 @@ void DisplaySettingsDlg::OnGraphSettings()
 	dlg.m_GraphArray[40] = &pDMS->m_CharGraph2;
 	dlg.m_GraphArray[41] = &pDMS->m_CharGraph3;
 	dlg.m_GraphArray[42] = &pDMS->m_CharGraph4;
+    dlg.m_GraphArray[43] = &pBEM->m_360Graph3;
+    dlg.m_GraphArray[44] = &pBEM->m_360Graph4;
 
-    dlg.m_NGraph = 44;
+    dlg.m_NGraph = 45;
 	/////////////end new code DM/////////////
 
 

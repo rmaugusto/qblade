@@ -32,14 +32,6 @@ class DMSSimDock : public ScrolledDock
 
 public:
 	DMSSimDock(const QString &title, QMainWindow *parent, Qt::WindowFlags flags);
-
-	void initView ();
-
-private:
-
-public slots:
-
-
 };
 
 

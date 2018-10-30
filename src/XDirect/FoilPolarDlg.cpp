@@ -26,8 +26,6 @@
 #include "../Globals.h"
 #include "../MainFrame.h"
 
-extern CFoil *g_pCurFoil;
-
 void *FoilPolarDlg::s_pXDirect;
 void *FoilPolarDlg::s_pMainFrame;
 

@@ -7,7 +7,6 @@
 #include "../MainFrame.h"
 #include "WindFieldModule.h"
 #include "WindField.h"
-extern MainFrame *g_mainFrame;
 
 
 WindFieldMenu::WindFieldMenu(QMainWindow *parent, WindFieldModule *module)
@@ -24,6 +23,9 @@ WindFieldMenu::WindFieldMenu(QMainWindow *parent, WindFieldModule *module)
 	m_writeWindfieldTxtFileAction = new QAction(tr("Export current Windfield as Text File"), this);
 	connect(m_writeWindfieldTxtFileAction, SIGNAL(triggered()), this, SLOT(onWriteWindfieldTxtFile()));
 	addAction(m_writeWindfieldTxtFileAction);
+    m_importWindfieldBinaryFileAction = new QAction(tr("Import Binary Wind Field File"), this);
+    connect(m_importWindfieldBinaryFileAction, SIGNAL(triggered()), this, SLOT(onImportWindfieldBinaryFile()));
+    addAction(m_importWindfieldBinaryFileAction);
 }
 
 void WindFieldMenu::onAboutToShow() {
@@ -49,6 +51,10 @@ void WindFieldMenu::onWriteWindfieldBinaryFile() {
 		m_module->getShownWindField()->exportToBinary(fileStream);
 	}
 	windfieldFile.close();
+}
+
+void WindFieldMenu::onImportWindfieldBinaryFile() {
+    m_module->OnImportBinaryWindField();
 }
 
 void WindFieldMenu::onWriteWindfieldTxtFile() {

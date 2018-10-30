@@ -16,22 +16,23 @@ public:
 	
 	void addPoint (const double xValue, const double yValue);
 	template <class T>
-	void setAllPoints (T *xValues, T *yValues, int dimension);
+	void setAllPoints (const T *xValues, const T *yValues, const int dimension);
 
 	ShowAsGraphInterface* getAssociatedObject () { return m_associatedObject; }
 	QVector<QPointF> getAllPoints () { return m_points; }
 	int getNumberOfPoints () { return m_points.size(); }
-	float getLowX () { return m_lowX; }
-	float getHighX () { return m_highX; }
-	float getLowY () { return m_lowY; }
-	float getHighY () { return m_highY; }
+	double getLowX (bool greaterZero = false) { return (greaterZero ? m_lowXGreaterZero : m_lowX); }
+	double getHighX () { return m_highX; }
+	double getLowY (bool greaterZero = false) { return (greaterZero ? m_lowYGreaterZero : m_lowY); }
+	double getHighY () { return m_highY; }
 	
 private:
 	void removeAllPoints ();
 	
 	ShowAsGraphInterface *m_associatedObject;
 	QVector<QPointF> m_points;
-	float m_lowX, m_highX, m_lowY, m_highY;  // the extreme values of the curve
+	double m_lowX, m_highX, m_lowY, m_highY;  // the extreme values of the curve
+	double m_lowXGreaterZero, m_lowYGreaterZero;  // the lowest value that is greater zero
 };
 
 #endif // NEWCURVE_H

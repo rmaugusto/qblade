@@ -19,8 +19,6 @@
 
 *****************************************************************************/
 
-
-
 #ifndef CFOIL_H
 #define CFOIL_H
 
@@ -40,6 +38,7 @@ public:
 	CFoil(QString name = "< no name >");
 	
 	void serialize();  // override from StorableObject
+	static QStringList prepareMissingObjectMessage();	
 	
 	void GetFoilName(QString &FoilName);
 	int IsPoint(CVector const &Real);
@@ -71,7 +70,6 @@ public:
 	bool SetCamber(double f, double u);
 
 	void CopyFoil(CFoil *pSrcFoil);
-	void Serialize(QDataStream &ar, bool bIsStoring, int ProjectFormat=5);
 	void SetFlap();
 	void SetTEFlap();
 	void SetLEFlap();
@@ -132,5 +130,7 @@ public:
     bool m_bisCircular;
     ///end new code DM///
 };
+
+extern CFoil *g_pCurFoil;
 
 #endif

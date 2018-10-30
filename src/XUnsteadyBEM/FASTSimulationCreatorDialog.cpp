@@ -2,7 +2,6 @@
 
 #include <QGridLayout>
 #include <QLabel>
-#include "../XGlobals.h"
 #include <QButtonGroup>
 #include <QTabWidget>
 #include <QVBoxLayout>
@@ -16,6 +15,8 @@
 #include "../QFem/BladeStructure.h"
 #include <QDebug>
 #include <QMessageBox>
+#include <QFileDialog>
+#include "../XBEM/360Polar.h"
 
 
 FASTSimulationCreatorDialog::FASTSimulationCreatorDialog(FASTSimulation *presetSimulation, FASTModule *module) {
@@ -65,6 +66,11 @@ FASTSimulationCreatorDialog::FASTSimulationCreatorDialog(FASTSimulation *presetS
                         connect(m_rotorComboBox, SIGNAL(valueChanged(int)), this, SLOT(onWindFieldOrRotorChanged()));
                         connect(m_rotorComboBox, SIGNAL(valueChanged(int)), this, SLOT(onRotorChanged()));
                         grid->addWidget(m_rotorComboBox, gridRowCount++, 1);
+                        label = new QLabel (tr("Hub Height [m]: "));
+                        grid->addWidget(label, gridRowCount, 0);
+                        m_hubHeightEdit = new NumberEdit ();
+                        m_hubHeightEdit->setToolTip(tr("Rotor hub height [m]"));
+                        grid->addWidget(m_hubHeightEdit, gridRowCount++, 1);
                         label = new QLabel (tr("Number of Blades: "));
                         grid->addWidget (label, gridRowCount, 0);
                         QHBoxLayout *miniHBox = new QHBoxLayout ();
@@ -78,12 +84,6 @@ FASTSimulationCreatorDialog::FASTSimulationCreatorDialog(FASTSimulation *presetS
                             radioButton = new QRadioButton ("3");
                             m_twoOrThreeBladesGroup->addButton(radioButton, 1);
                             miniHBox->addWidget(radioButton);
-						label = new QLabel (tr("Windfield: "));
-						grid->addWidget(label, gridRowCount, 0);
-						m_windFieldComboBox = new WindFieldComboBox (&g_windFieldStore, false);
-						m_windFieldComboBox->setSizeAdjustPolicy(QComboBox::AdjustToContents);
-						connect(m_windFieldComboBox, SIGNAL(valueChanged(int)), this, SLOT(onWindFieldOrRotorChanged()));
-						grid->addWidget(m_windFieldComboBox, gridRowCount++, 1);
 						label = new QLabel (tr("Total run time [s]: "));
 						grid->addWidget(label, gridRowCount, 0);
 						m_totalRunTimeEdit = new NumberEdit ();
@@ -119,7 +119,46 @@ FASTSimulationCreatorDialog::FASTSimulationCreatorDialog(FASTSimulation *presetS
 						grid->addWidget(label, gridRowCount, 0);
 						m_kinViscEdit = new NumberEdit (NumberEdit::Scientific);
 						grid->addWidget(m_kinViscEdit, gridRowCount++, 1);
-					vBox->addStretch();
+
+
+                        groupBox = new QGroupBox ("Windfield");
+                        vBox->addWidget(groupBox);
+                            grid = new QGridLayout ();
+                            groupBox->setLayout(grid);
+                                gridRowCount = 0;
+
+
+                                label = new QLabel (tr("Windfield Source: "));
+                                grid->addWidget (label, gridRowCount, 0);
+                                miniHBox = new QHBoxLayout ();
+                                grid->addLayout(miniHBox, gridRowCount++, 1);
+                                    miniHBox->addStretch();
+                                    m_windfieldLocationGroup = new QButtonGroup(miniHBox);
+                                    radioButton = new QRadioButton ("QBlade Database");
+                                    m_windfieldLocationGroup->addButton(radioButton, 0);
+                                    connect(radioButton, SIGNAL(toggled(bool)), this, SLOT(onWindfieldLocationChanged()));
+                                    miniHBox->addWidget(radioButton);
+                                    radioButton = new QRadioButton ("From File");
+                                    m_windfieldLocationGroup->addButton(radioButton, 1);
+                                    miniHBox->addWidget(radioButton);
+
+                    label = new QLabel (tr("From Database: "));
+                    grid->addWidget(label, gridRowCount, 0);
+                    m_windFieldComboBox = new WindFieldComboBox (&g_windFieldStore, false);
+                    m_windFieldComboBox->setSizeAdjustPolicy(QComboBox::AdjustToContents);
+                    connect(m_windFieldComboBox, SIGNAL(valueChanged(int)), this, SLOT(onWindFieldOrRotorChanged()));
+                    grid->addWidget(m_windFieldComboBox, gridRowCount++, 1);
+
+
+                    label = new QLabel (tr("From File: "));
+                    grid->addWidget(label, gridRowCount, 0);
+                    m_openWindfieldButton = new QPushButton("");
+                    connect(m_openWindfieldButton, SIGNAL(pressed()), this, SLOT(onOpenWindfieldFile()));
+                    grid->addWidget(m_openWindfieldButton, gridRowCount++, 1);
+                    vBox->addStretch();
+
+
+
 						
 			vBox = new QVBoxLayout;
 			hBox->addLayout(vBox);
@@ -306,7 +345,21 @@ void FASTSimulationCreatorDialog::initView() {
 		m_bladeStructureComboBox->setCurrentObject(m_editedFASTSimulation->getUsedBladeStructure());
 		m_flapDof1CheckBox->setChecked(m_editedFASTSimulation->getUseFlapDof1());
 		m_flapDof2CheckBox->setChecked(m_editedFASTSimulation->getUseFlapDof2());
-		m_edgeDofCheckBox->setChecked(m_editedFASTSimulation->getUseEdgeDof());
+        m_edgeDofCheckBox->setChecked(m_editedFASTSimulation->getUseEdgeDof());
+        if (m_editedFASTSimulation->getHubHeight() == 0) m_hubHeightEdit->setValue(m_windFieldComboBox->currentObject()->getHubheight());
+        else m_hubHeightEdit->setValue(m_editedFASTSimulation->getHubHeight());
+
+
+        m_windfieldLocationGroup->button((m_editedFASTSimulation->getIsWindFromQBlade() ? 0 : 1))->setChecked(true);
+        m_openWindfieldButton->setText(m_editedFASTSimulation->getWindFieldPath());
+        if (m_windfieldLocationGroup->button(0)->isChecked()){
+            m_openWindfieldButton->setText("Open File");
+            m_WindfieldPathString = "";
+        }
+        else{
+            m_openWindfieldButton->setText(m_editedFASTSimulation->getWindFieldPath());
+            m_WindfieldPathString = m_editedFASTSimulation->getWindFieldPath();
+            }
 		
 		createSectionTable(1);
 		QVector<int> strainGages = m_editedFASTSimulation->getStrainGages();
@@ -337,12 +390,16 @@ void FASTSimulationCreatorDialog::initView() {
 		}	
 
 	} else {  // set default parameters
+        m_hubHeightEdit->setValue(m_windFieldComboBox->currentObject()->getHubheight());
+        m_WindfieldPathString = "";
+        m_windfieldLocationGroup->button(0)->setChecked(true);
+        m_openWindfieldButton->setText("Open File");
         m_nameEdit->setText("FAST Simulation");
 		m_twoOrThreeBladesGroup->button(1)->setChecked(true);
         m_totalRunTimeEdit->setValue(10);
 		m_timeStepEdit->setValue(0.001);
         m_aeroTimeStepEdit->setValue(0.001);
-		m_rotorSpeedEdit->setValue(50);
+        m_rotorSpeedEdit->setValue(12);
 		m_gravityEdit->setValue(9.81);
 		m_kinViscEdit->setValue(1.4661e-5);
 		m_airDensEdit->setValue(1.225);
@@ -359,17 +416,45 @@ void FASTSimulationCreatorDialog::initView() {
 
 void FASTSimulationCreatorDialog::onWindFieldOrRotorChanged() {
 	WindField *windField = m_windFieldComboBox->currentObject();
+    CBlade *blade = m_rotorComboBox->currentObject();
+
 	if (windField) {  // can be NULL during the call from initView()
 		CBlade *rotor = m_rotorComboBox->currentObject();
-		if (rotor && windField->getRotorRadius() < rotor->getRotorRadius()) {
-			m_errorLabel->setText(tr("<font color='red'>Windfield to small for Rotor!</font>"));
-		} else {
+        if (rotor && windField->getRotorRadius() < rotor->getRotorRadius() && !m_windfieldLocationGroup->button(1)->isChecked()) {
+            m_errorLabel->setText(tr("<font color='red'>Windfield too small for Rotor!</font>"));
+        }
+        else {
 			m_errorLabel->setText("");
 		}
-        if (rotor){
-            m_totalRunTimeEdit->setMaximum(windField->getSimulationTime()-2*rotor->getRotorRadius()/windField->getMeanWindSpeedAtHub());
-        }
+
 	}
+    m_hubHeightEdit->setMinimum(blade->getRotorRadius()*1.1);
+}
+
+void FASTSimulationCreatorDialog::onWindfieldLocationChanged() {
+    if (m_windfieldLocationGroup->button(0)->isChecked()){
+        m_windFieldComboBox->setEnabled(true);
+        m_openWindfieldButton->setEnabled(false);
+    }
+    else{
+        m_windFieldComboBox->setEnabled(false);
+        m_openWindfieldButton->setEnabled(true);
+    }
+}
+
+void FASTSimulationCreatorDialog::onOpenWindfieldFile(){
+    m_WindfieldPathString = QFileDialog::getOpenFileName(g_mainFrame, tr("Open Windfield"),
+                                            g_mainFrame->m_LastDirName,
+                                            tr("Windfield File File (*.wnd *.bts)"));
+
+    if(!m_WindfieldPathString.length()) return;
+
+    m_openWindfieldButton->setText(m_WindfieldPathString);
+
+    int pos;
+    pos = m_WindfieldPathString.lastIndexOf("/");
+    if(pos>0) g_mainFrame->m_LastDirName = m_WindfieldPathString.left(pos);
+
 }
 
 void FASTSimulationCreatorDialog::onRotorChanged() {
@@ -406,11 +491,14 @@ void FASTSimulationCreatorDialog::onCreateButtonClicked() {
 	if (m_bladeStructureComboBox->currentIndex() == -1) {
 		errorMessage.append((tr("\n - No Structur Model selected")));
 	}
+    if (m_WindfieldPathString == "" && m_windfieldLocationGroup->button(1)->isChecked()){
+        errorMessage.append((tr("\n - No Windfield File selected")));
+    }
 	if (errorMessage != "") {
-		QMessageBox::critical(this, tr("Create Simulation"), QString(tr("The following error(s) occured:\n")
-																			+ errorMessage), QMessageBox::Ok);
+		QMessageBox::critical(this, tr("Create Simulation"), QString(tr("The following error(s) occured:\n")																+ errorMessage), QMessageBox::Ok);
 		return;
 	}
+
 
 	/* prepare some parameters */
 	QVector<int> strainGages, bladeOutput;
@@ -466,8 +554,10 @@ void FASTSimulationCreatorDialog::onCreateButtonClicked() {
 							    &rotorParameters,
 							    &bladeOutput,
                                 &bladeParameters,
-                                m_aeroTimeStepEdit->getValue()
-								);
+                                m_aeroTimeStepEdit->getValue(),
+                                m_WindfieldPathString,
+                                m_windfieldLocationGroup->button(0)->isChecked(),
+                                m_hubHeightEdit->getValue());
 	if (g_FASTSimulationStore.add(simulation)) {
 		m_module->setShownFASTSimulation(simulation);
 		accept();  // leave dialog only if adding was successful
@@ -493,7 +583,7 @@ void FASTSimulationCreatorDialog::createSectionTable(int newTabIndex) {
 				label = new QLabel("<center>AeroDyn<br>Output<br>(any)</center>");
 				grid->addWidget(label, 0, 1, 1, 1);
 				QPushButton *button = new QPushButton (tr("set all"));
-				button->setFixedWidth(48);
+//				button->setFixedWidth(48);
 				button->setCheckable(true);
 				connect(button, SIGNAL(toggled(bool)), this, SLOT(onSetAllClicked(bool)));
 				grid->addWidget(button, 1, 1, 1, 1, Qt::AlignCenter);

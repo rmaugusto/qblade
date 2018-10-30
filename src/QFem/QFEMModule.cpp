@@ -1,12 +1,34 @@
+/****************************************************************************
+
+    QFEMModule Class
+        Copyright (C) 2014 David Marten david.marten@tu-berlin.de
+
+    This program is free software; you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation; either version 2 of the License, or
+    (at your option) any later version.
+
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with this program; if not, write to the Free Software
+    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+
+*****************************************************************************/
+
+#include <QDebug>
+#include <QStandardItemModel>
+#include <QGroupBox>
 #include "QFEMModule.h"
-
 #include <QColorDialog>
-
 #include <QMenuBar>
-#include "../XGlobals.h"
 #include "QFEMToolBar.h"
 #include "QFEMMenu.h"
 #include "QFEMDock.h"
+#include <QTableView>
 #include "structelem.h"
 #include "Clipper/clipper.hpp"
 #include "../StoreAssociatedComboBox.h"
@@ -16,6 +38,10 @@
 #include "QFEMTwoDContextMenu.h"
 #include "BladeStructureLoading.h"
 #include "../GlobalFunctions.h"
+#include "../TwoDWidget.h"
+#include "../Misc/NumberEdit.h"
+#include "../Store.h"
+#include "../TwoDGraphMenu.h"
 
 extern bool ObjectIsEdited;
 
@@ -37,7 +63,6 @@ int vertexIndex = 0;
 void CALLBACK tessBeginCB(GLenum which)
 {
     glBegin(which);
-
     // DEBUG //
     ss << "glBegin";
 }
@@ -109,20 +134,12 @@ void CALLBACK tessCombineCB(const GLdouble newVertex[3], const GLdouble *neighbo
 }
 
 QFEMModule::QFEMModule(QMainWindow *mainWindow, QToolBar *toolbar) {
-//    m_graph[0] = new NewGraph ("FemGraphOne", NewGraph::QFEMSimulation, this);
-//    m_graph[1] = new NewGraph ("FemGraphTwo", NewGraph::QFEMSimulation, this);
-//    m_graph[2] = new NewGraph ("FemGraphThree", NewGraph::QFEMSimulation, this);
-//    m_graph[3] = new NewGraph ("FemGraphFour", NewGraph::QFEMSimulation, this);
-	
-	m_positions = false;
-    m_airfoils = false;
     m_axes = false;
-    m_perspective = false;
 	m_needToRerender = true;
 	m_globalModuleIndentifier = QFEMMODULE;
     m_newSectionHighlight = true;
-    modeType = 0;
-    modeNumber = 0;
+    m_modeType = 0;
+    m_modeNumber = 0;
     QFEMCompleted = false;
 
 	m_bResetglGeom = true;
@@ -130,17 +147,18 @@ QFEMModule::QFEMModule(QMainWindow *mainWindow, QToolBar *toolbar) {
     m_deformed_rotor = NULL;
     m_rotor = NULL;
 	m_bStructEdited = false;
-    m_DockWidth = 570;
 
-    registrateAtToolbar(tr("QFEM - Structural Blade Design and Analysis"), tr("Define the Blade Internal Blade Structure and Perform a Modal Analysis"), ":/images/fem.png", toolbar);
+    registrateAtToolbar(tr("QFEM - Structural Blade Design and Analysis"),
+						tr("Define the Blade Internal Blade Structure and Perform a Modal Analysis"),
+						":/images/fem.png", toolbar);
     g_mainFrame->BEMViewMenu->addAction(m_activationAction);
     m_QFEMToolBar = new QFEMToolBar(mainWindow, this);
     m_QFEMDock = new QFEMDock (tr("QFEM"), mainWindow, 0, this);
 
-    numrender = 0;
-
     m_twoDContextMenu = new QFEMTwoDContextMenu (g_mainFrame, this);
     setContextMenu(m_twoDContextMenu);
+	
+	connect(&g_bladeStructureStore, SIGNAL(objectListChanged(bool)), this, SLOT(reloadFemGraphs()));
 }
 
 QFEMModule::~QFEMModule() {
@@ -149,15 +167,29 @@ QFEMModule::~QFEMModule() {
 		delete m_graph[1];
 		delete m_graph[2];
 		delete m_graph[3];
+		
+		QSettings settings(QSettings::NativeFormat, QSettings::UserScope,"QBLADE");
+		settings.setValue(QString("modules/QFEMModule/graphArrangement"), getGraphArrangement());	
 	}
 }
 
-QStringList QFEMModule::getAvailableGraphVariables() {
+QList<NewCurve *> QFEMModule::prepareCurves(QString xAxis, QString yAxis, NewGraph::GraphType graphType,
+											NewGraph::GraphType /*graphTypeMulti*/) {
+	QList<NewCurve*> curves;
+	g_bladeStructureStore.addAllCurves(&curves, xAxis, yAxis, graphType);
+	return curves;
+}
+
+QStringList QFEMModule::getAvailableGraphVariables(bool /*xAxis*/) {
     if (m_structure) {
 		return m_structure->getAvailableVariables(m_graph[m_currentGraphIndex]->getGraphType());
     } else {
         return QStringList();
-    }
+	}
+}
+
+QPair<ShowAsGraphInterface *, int> QFEMModule::getHighlightDot(NewGraph::GraphType) {
+	return QPair<ShowAsGraphInterface *, int> (NULL, -1);  // TODO
 }
 
 CBlade* QFEMModule::GetCurrentBlade()
@@ -171,8 +203,7 @@ BladeStructure* QFEMModule::GetCurrentStructure()
 }
 
 
-void QFEMModule::OnGLView()
-{
+void QFEMModule::OnGLView() {
     if (m_QFEMDock->m_tabwidget->currentIndex()==0) g_mainFrame->m_iView = QFEMSTRUCTVIEW;
     if (m_QFEMDock->m_tabwidget->currentIndex()==1) g_mainFrame->m_iView = QFEMLOADINGVIEW;
     GLView = true;
@@ -186,18 +217,14 @@ void QFEMModule::OnGLView()
     setGLView();
     if (!m_QFEMToolBar->HideWidgetsAct->isChecked() && g_mainFrame->m_iApp == QFEMMODULE){
         m_QFEMDock->show();
-        m_QFEMDock->setMinimumWidth(m_DockWidth);
-        m_QFEMDock->setMaximumWidth(m_DockWidth);
     }
     UpdateGeomRerenderGL();
-
 }
 
-void QFEMModule::OnTwoDView()
-{
-    g_mainFrame->m_iView = QFEMGRAPHVIEW;
+void QFEMModule::OnTwoDView() {
     GLView = false;
     TwoDView = true;
+    g_mainFrame->m_iView = QFEMTWODVIEW;
     m_QFEMToolBar->GLView->setChecked(GLView);
     m_QFEMToolBar->TwoDView->setChecked(TwoDView);
     m_QFEMDock->viewWidget->hide();
@@ -205,29 +232,123 @@ void QFEMModule::OnTwoDView()
     setTwoDView();
     if (!m_QFEMToolBar->HideWidgetsAct->isChecked() && g_mainFrame->m_iApp == QFEMMODULE){
         m_QFEMDock->show();
-        m_QFEMDock->setMinimumWidth(m_DockWidth);
-        m_QFEMDock->setMaximumWidth(m_DockWidth);
     }
 //    m_QFEMDock->hide();
 }
 
 
-void QFEMModule::onRedraw () {
+void QFEMModule::drawGL () {
+	if (m_axes && getBlade())
+		getBlade()->drawCoordinateAxes();
+	
 	render();
+}
+
+void QFEMModule::overpaint(QPainter &painter) {
+
+    if (m_QFEMDock->m_LoadingShown && m_QFEMDock->m_Loading && m_structure && !ObjectIsEdited) {
+		/* find the extreme values on this blade */
+		double maxmax = 0;
+		double minmin = std::numeric_limits<double>::max();
+		BladeStructureLoading *loading = m_QFEMToolBar->m_BladeStructureLoadingComboBox->currentObject();
+		if (loading) {
+			for (int i = 0; i <= m_rotor->m_NSurfaces; ++i) {
+				for (int j = 0; j < m_structure->m_numFoilPoints-2; ++j) {
+					if (loading->VMStresses.at(i).at(j) > maxmax)
+						maxmax = loading->VMStresses.at(i).at(j);
+					if (loading->VMStresses.at(i).at(j)<minmin)
+						minmin = loading->VMStresses.at(i).at(j);
+				}
+			}
+        }
+
+		const int barWidth = 25;
+		const int barHeight = 100;
+		const int marginLeft = 15;
+		const int marginTop = 55;
+		
+		QLinearGradient gradient (QPointF(0, marginTop), QPointF(0, marginTop+barHeight));
+		for (int i = 0; i < 30; ++i) {
+			QColor color;
+			color.setHsv(225.0/29*i, 255, 255);
+			gradient.setColorAt(1.0/29*i, color);
+		}
+		
+		painter.setPen(QPen(QBrush("black"), 1));
+		painter.setBrush(gradient);
+		painter.drawRect(marginLeft, marginTop, barWidth, barHeight);
+		painter.setFont(QFont(g_mainFrame->m_TextFont.family(), 12));
+		painter.drawText(marginLeft+barWidth+5, marginTop+6,
+						 QString("%1 MPa").arg(maxmax/1000000, 0, 'f', 2));
+		painter.drawText(marginLeft+barWidth+5, marginTop+barHeight+6,
+						 QString("%1 MPa").arg(minmin/1000000, 0, 'f', 2));
+		
+    }
+
+    if (m_structure && !ObjectIsEdited){
+        /* find some parameters that are to be drawn */
+        QString modeTypeName;
+        double frequency = 0;
+        if (m_modeType == 0 && m_structure->FlapwiseFrequencies.size()) {
+            frequency = m_structure->FlapwiseFrequencies.at(m_modeNumber);
+            modeTypeName = "Flapwise";
+        } else if (m_modeType == 1 && m_structure->EdgewiseFrequencies.size()) {
+            frequency = m_structure->EdgewiseFrequencies.at(m_modeNumber);
+            modeTypeName = "Edgewise";
+        } else if (m_modeType == 2 && m_structure->TorsionalFrequencies.size()) {
+            frequency = m_structure->TorsionalFrequencies.at(m_modeNumber);
+            modeTypeName = "Torsional";
+        } else if (m_modeType == 3 && m_structure->RadialFrequencies.size()) {
+            frequency = m_structure->RadialFrequencies.at(m_modeNumber);
+            modeTypeName = "Radial";
+        } else if (m_modeType == 4 && m_structure->UnsortedFrequencies.size()) {
+            frequency = m_structure->UnsortedFrequencies.at(m_modeNumber);
+            modeTypeName = "Unsorted";
+        }
+
+        const double width = m_glWidget->width();
+        const double height = m_glWidget->height();
+        if (width > 300) {
+            painter.setFont(QFont(g_mainFrame->m_TextFont.family(), 10));
+            if (m_structure->QFEMCompleted && m_QFEMDock->m_tabwidget->currentIndex() == 0) {
+                painter.drawText(10, height-40, modeTypeName + QString(" Mode ") + QString("%1").number(m_modeNumber+1) +
+                                 QString(" Eigenfrequency: ") + QString("%1").number(frequency)+QString(" Hz"));
+                painter.drawText(width-220, height-40, QString("Blade Mass: ") + QString("%1").number(m_structure->blademass) +
+                                 QString(" kg"));
+                painter.setFont(QFont(g_mainFrame->m_TextFont.family(), 15));
+                painter.drawText(10, 25, m_rotor->getName()+QString(": ")+m_structure->getName());
+            } else if (m_QFEMDock->m_Loading) {
+                if (m_QFEMDock->m_Loading->simulationFinished){
+                painter.setFont(QFont(g_mainFrame->m_TextFont.family(), 10));
+                painter.drawText(10, height-40, QString("X Axis Tip Defl.: ") +
+                                 QString("%1").number(m_QFEMDock->m_Loading->nodeTranslations.at(
+                                                          m_structure->m_numElems-1).at(0)) + QString(" [m] "));
+                painter.drawText(width-220, height-40, QString("Z Axis Tip Defl.: ") +
+                                 QString("%1").number(m_QFEMDock->m_Loading->nodeTranslations.at(
+                                                          m_structure->m_numElems-1).at(1))+QString(" [m] "));
+                painter.setFont(QFont(g_mainFrame->m_TextFont.family(), 15));
+                painter.drawText(10, 25, m_QFEMDock->m_Loading->getName());
+                }
+            }
+        }
+    }
 }
 
 void QFEMModule::initView() {
     if (m_firstView) {
 		m_firstView = false;
 		
-		m_graph[0] = new NewGraph ("FemGraphOne", NewGraph::QFEMSimulation, this);
-	    m_graph[1] = new NewGraph ("FemGraphTwo", NewGraph::QFEMSimulation, this);
-	    m_graph[2] = new NewGraph ("FemGraphThree", NewGraph::QFEMSimulation, this);
-	    m_graph[3] = new NewGraph ("FemGraphFour", NewGraph::QFEMSimulation, this);
+		m_graph[0] = new NewGraph ("FemGraphOne", this, {NewGraph::QFEMSimulation, "", "", false, false});
+	    m_graph[1] = new NewGraph ("FemGraphTwo", this, {NewGraph::QFEMSimulation, "", "", false, false});
+	    m_graph[2] = new NewGraph ("FemGraphThree", this, {NewGraph::QFEMSimulation, "", "", false, false});
+	    m_graph[3] = new NewGraph ("FemGraphFour", this, {NewGraph::QFEMSimulation, "", "", false, false});
 		
         OnCenterScene();
-        m_QFEMDock->initView();
         OnGLView();
+		
+		QSettings settings(QSettings::NativeFormat, QSettings::UserScope,"QBLADE");
+		setGraphArrangement(static_cast<TwoDWidgetInterface::GraphArrangement>
+							(settings.value("modules/QFEMModule/graphArrangement", TwoDWidgetInterface::Quad).toInt()));
     }
     m_QFEMDock->InitStructureTable();
 }
@@ -256,25 +377,15 @@ void QFEMModule::configureGL() {
 }
 
 void QFEMModule::showAll() {
-	for (int i = 0; i < g_bladeStructureStore.size(); ++i) {
-		g_bladeStructureStore.at(i)->setShownInGraph(true);
-	}		
+	g_bladeStructureStore.showAllCurves(true);
     m_QFEMDock->m_showCheckBox->setChecked(m_structure->isShownInGraph());
-
-	reportGraphChange();
+	reloadAllGraphCurves();
 }
 
 void QFEMModule::hideAll() {
-	for (int i = 0; i < g_bladeStructureStore.size(); ++i) {
-		g_bladeStructureStore.at(i)->setShownInGraph(false);
-    }
+	g_bladeStructureStore.showAllCurves(false, m_structure);
     m_QFEMDock->m_showCheckBox->setChecked(m_structure->isShownInGraph());
-
-	reportGraphChange();
-}
-
-void QFEMModule::setContextMenuGraphType(NewGraph::GraphType /*graphType*/) {
-	// to be done if needed...
+	reloadAllGraphCurves();
 }
 
 void QFEMModule::onActivationActionTriggered() {
@@ -300,7 +411,12 @@ void QFEMModule::onModuleChanged()
 }
 
 void QFEMModule::addMainMenuEntries() {
-    g_mainFrame->menuBar()->addMenu(g_mainFrame->BEMViewMenu);
+	g_mainFrame->menuBar()->addMenu(g_mainFrame->BEMViewMenu);
+	g_mainFrame->menuBar()->addMenu(m_graphMenu);
+}
+
+QStringList QFEMModule::prepareMissingObjectMessage() {
+	return BladeStructure::prepareMissingObjectMessage();
 }
 
 void QFEMModule::OnSelChangeRotor()
@@ -313,137 +429,10 @@ void QFEMModule::OnSelChangeRotor()
         OnCenterScene();
 }
 
-void QFEMModule::drawFrequency() {
-    glPushAttrib (GL_ALL_ATTRIB_BITS);  // save the openGL state
-    glMatrixMode(GL_PROJECTION);
-    glPushMatrix();
-    glLoadIdentity();
-    glMatrixMode(GL_MODELVIEW);
-    glPushMatrix();
-    glLoadIdentity();
-
-    glDisable(GL_LIGHT0);
-    glDisable(GL_LIGHTING);
-    glDisable(GL_DEPTH_TEST);
-
-    glEnable(GL_POLYGON_OFFSET_FILL);  // polygons get a reduced Z-value. Now the grid is drawn onto the WindField surface
-    glPolygonOffset(1.0, 0);
-    glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
-
-    const double width = m_glWidget->width();
-    const double height = m_glWidget->height();
-
-    QString strong;
-
-    double frequency=0;
-    if (modeType == 0 && m_structure->FlapwiseFrequencies.size())
-    {
-        frequency = m_structure->FlapwiseFrequencies.at(modeNumber);
-        strong = "Flapwise";
-    }
-    else if (modeType == 1 && m_structure->EdgewiseFrequencies.size())
-    {
-        frequency = m_structure->EdgewiseFrequencies.at(modeNumber);
-        strong = "Edgewise";
-    }
-    else if (modeType == 2 && m_structure->TorsionalFrequencies.size())
-    {
-        frequency = m_structure->TorsionalFrequencies.at(modeNumber);
-        strong = "Torsional";
-    }
-    else if (modeType == 3 && m_structure->RadialFrequencies.size())
-    {
-        frequency = m_structure->RadialFrequencies.at(modeNumber);
-        strong = "Radial";
-    }
-    else if (modeType == 4 && m_structure->UnsortedFrequencies.size())
-    {
-        frequency = m_structure->UnsortedFrequencies.at(modeNumber);
-        strong = "Unsorted";
-    }
-    glColor3d(0.0,0.0,0.0);
-
-    if (m_glWidget->rect().width()>300){
-
-        QFont font1("Arial", 15);
-
-
-//    const int why = 0.015*m_glWidget->rect().width();
-
-    m_glWidget->renderText(50.0/width-1,80.0/height-1, 0,
-                           strong+QString(" Mode ")+QString("%1").number(modeNumber+1)+QString(" Eigenfrequency: ")+QString("%1").number(frequency)+QString(" Hz"),  // index shift
-                           font1);
-
-    m_glWidget->renderText(0.5,80.0/height-1, 0,
-                           QString("Blade Mass: ")+QString("%1").number(m_structure->blademass)+QString(" kg"),  // index shift
-                           font1);
-
-    m_glWidget->renderText(50.0/width-1,1 - 80.0/height,0,
-                           m_rotor->getName()+QString(": ")+m_structure->getName(),  // index shift
-                           font1);
-    }
-
-    glMatrixMode(GL_MODELVIEW);  // restore state
-    glPopMatrix();
-    glMatrixMode(GL_PROJECTION);
-    glPopMatrix();
-    glPopAttrib ();
+void QFEMModule::CleanUp(){
+    if (m_deformed_rotor) delete m_deformed_rotor;
+    m_deformed_rotor = NULL;
 }
-
-void QFEMModule::drawLoadingName(){
-    glPushAttrib (GL_ALL_ATTRIB_BITS);  // save the openGL state
-    glMatrixMode(GL_PROJECTION);
-    glPushMatrix();
-    glLoadIdentity();
-    glMatrixMode(GL_MODELVIEW);
-    glPushMatrix();
-    glLoadIdentity();
-
-    glDisable(GL_LIGHT0);
-    glDisable(GL_LIGHTING);
-    glDisable(GL_DEPTH_TEST);
-
-    glEnable(GL_POLYGON_OFFSET_FILL);  // polygons get a reduced Z-value. Now the grid is drawn onto the WindField surface
-    glPolygonOffset(1.0, 0);
-    glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
-
-    const double width = m_glWidget->width();
-    const double height = m_glWidget->height();
-
-
-    glColor3d(0.0,0.0,0.0);
-
-    if (m_glWidget->rect().width()>300){
-
-
-    QFont font1("Arial", 15);
-    QFont font2("Arial", int(0.02*m_glWidget->rect().width()));
-
-    if (m_QFEMDock->m_Loading && m_QFEMDock->m_Loading->simulationFinished){
-    m_glWidget->renderText(50.0/width-1,80.0/height-1, 0,
-                           QString("X Axis Tip Defl.")+QString("%1").number(m_QFEMDock->m_Loading->nodeTranslations.at(m_structure->m_numElems-1).at(0))+QString(" [m] "),  // index shift
-                           font1);
-
-
-    m_glWidget->renderText(0.4,80.0/height-1, 0,
-                           QString("Z Axis Tip Defl. ")+QString("%1").number(m_QFEMDock->m_Loading->nodeTranslations.at(m_structure->m_numElems-1).at(1))+QString(" [m] "),  // index shift
-                           font1);
-
-
-    m_glWidget->renderText(50.0/width-1,1 - 80.0/height,0,
-                           m_QFEMDock->m_Loading->getName(),  // index shift
-                           font1);
-
-        }
-    }
-    glMatrixMode(GL_MODELVIEW);  // restore state
-    glPopMatrix();
-    glMatrixMode(GL_PROJECTION);
-    glPopMatrix();
-    glPopAttrib ();
-
-}
-
 
 void QFEMModule::OnSelChangeBladeStructure()
 {
@@ -461,18 +450,6 @@ void QFEMModule::OnSelChangeBladeStructure()
 
         m_QFEMDock->CheckButtons();
 }
-
-void QFEMModule::reloadAllGraphCurves() {
-	if (m_firstView == false) {
-		m_graph[0]->reloadCurves();
-		m_graph[1]->reloadCurves();
-		m_graph[2]->reloadCurves();
-		m_graph[3]->reloadCurves();
-	}
-}
-
-
-
 
 void QFEMModule::OnSelChangeLoading()
 {
@@ -574,32 +551,7 @@ void QFEMModule::OnStructTypeChanged()
 {
 	m_structure->StructType = m_QFEMDock->m_pctrlStructureCombobox->currentIndex();
 
-	if (m_structure->StructType == 0)
-	{
-    m_QFEMDock->m_pctrlStructureTable->setColumnWidth(0,117);
-    m_QFEMDock->m_pctrlStructureTable->setColumnWidth(1,117);
-	m_QFEMDock->m_pctrlStructureTable->setColumnWidth(2,100);
-	m_QFEMDock->m_pctrlStructureTable->setColumnWidth(3,100);
-    m_QFEMDock->m_pctrlAlignSparMaxThickness->setEnabled(true);
-
-	}
-	if (m_structure->StructType == 1)
-	{
-    m_QFEMDock->m_pctrlStructureTable->setColumnWidth(0,117);
-	m_QFEMDock->m_pctrlStructureTable->setColumnWidth(1,0);
-	m_QFEMDock->m_pctrlStructureTable->setColumnWidth(2,0);
-	m_QFEMDock->m_pctrlStructureTable->setColumnWidth(3,0);
-    m_QFEMDock->m_pctrlAlignSparMaxThickness->setEnabled(false);
-
-	}
-	if (m_structure->StructType == 2)
-	{
-	m_QFEMDock->m_pctrlStructureTable->setColumnWidth(0,0);
-	m_QFEMDock->m_pctrlStructureTable->setColumnWidth(1,0);
-	m_QFEMDock->m_pctrlStructureTable->setColumnWidth(2,0);
-	m_QFEMDock->m_pctrlStructureTable->setColumnWidth(3,0);
-    m_QFEMDock->m_pctrlAlignSparMaxThickness->setEnabled(false);
-	}
+    m_QFEMDock->OnResize();
 
     m_needToRerender = true;
     m_bResetglGeom = true;
@@ -776,8 +728,7 @@ void QFEMModule::ComputeGeometry()
 		m_needToRerender = true;
 		m_rotor->CreateSurfaces();
 		m_rotor->ComputeGeometry();
-		for (int i=0; i<m_rotor->m_NSurfaces; i++) m_rotor->m_Surface[i].SetSidePoints(NULL, 0.0, 0.0);
-		}
+        }
 }
 
 void QFEMModule::OnCenterScene()
@@ -799,35 +750,22 @@ void QFEMModule::OnCenterScene()
 	m_glWidget->updateGL();
 }
 
-void QFEMModule::render()
-{
-    if (GLscreenMessage(QFEMMODULE,g_mainFrame->m_iView,m_glWidget)) return;
-    if (TwoDView) return;
-
-    if (m_structure && m_structure->QFEMCompleted && m_QFEMDock->m_tabwidget->currentIndex() == 0) drawFrequency();
-    else drawLoadingName();
-
-
+void QFEMModule::render() {
+    if (TwoDView || m_structure == NULL || (g_mainFrame->m_iView == QFEMLOADINGVIEW && m_QFEMDock->m_Loading == NULL))
+		return;
     if (m_structure)
     {
         if (m_structure->QFEMCompleted && m_needToRerender)
         { 
-            qDebug() << "render" << numrender;
-            numrender++;
             GLCreateGeom(m_deformed_rotor);
         }
         else if (m_needToRerender)
         {
-            qDebug() << "render" << numrender;
-            numrender++;
             GLCreateGeom(m_rotor);
         }
     }
     else if (m_needToRerender)
     {
-        qDebug() << "render" << numrender;
-        numrender++;
-
         GLCreateGeom(m_rotor);
     }
 
@@ -861,98 +799,9 @@ void QFEMModule::render()
             }
         }
     }
-
 }
 
 void QFEMModule::GLRenderStressLegend(){
-    if (ObjectIsEdited) return;
-    CBlade *pWing = m_rotor;
-    double maxmax = 0;
-    double minmin = 10e20;
-    hsv hs;
-
-    if (m_QFEMToolBar->m_BladeStructureLoadingComboBox->currentObject()){
-
-    for (int i=0;i<=pWing->m_NSurfaces;i++)
-    {
-        for (int j=0;j<m_structure->m_numFoilPoints-2;j++)
-        {
-        if (m_QFEMToolBar->m_BladeStructureLoadingComboBox->currentObject()->VMStresses.at(i).at(j)>maxmax) maxmax = m_QFEMToolBar->m_BladeStructureLoadingComboBox->currentObject()->VMStresses.at(i).at(j);
-        if (m_QFEMToolBar->m_BladeStructureLoadingComboBox->currentObject()->VMStresses.at(i).at(j)<minmin) minmin = m_QFEMToolBar->m_BladeStructureLoadingComboBox->currentObject()->VMStresses.at(i).at(j);
-        }
-    }
-
-    }
-
-    glPushAttrib (GL_ALL_ATTRIB_BITS);  // save the openGL state
-    glMatrixMode(GL_PROJECTION);
-    glPushMatrix();
-    glLoadIdentity();
-    glMatrixMode(GL_MODELVIEW);
-    glPushMatrix();
-    glLoadIdentity();
-
-    glDisable(GL_LIGHT0);
-    glDisable(GL_LIGHTING);
-    glDisable(GL_DEPTH_TEST);
-
-    glEnable(GL_POLYGON_OFFSET_FILL);  // polygons get a reduced Z-value. Now the grid is drawn onto the WindField surface
-    glPolygonOffset(1.0, 0);
-
-    glEnable(GL_POLYGON_SMOOTH);
-    glEnable(GL_POINT_SMOOTH);
-    glEnable(GL_LINE_SMOOTH);
-    glEnable (GL_BLEND);
-    glBlendFunc (GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-
-    glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
-
-    double height = m_glWidget->height();
-    double width = m_glWidget->width();
-
-    int num = 30;
-    double w = 50;  //height and width of the legend
-    double h = 200;
-    double h_incr = h / num;
-
-    hs.s = 1.0;
-    hs.v = 1.0;
-    hs.h = 0;
-
-    for (int i = 1; i <= num;i++){
-    glBegin (GL_QUADS);  // the filling
-
-    glColor3f (hsv2rgb(hs).r, hsv2rgb(hs).g, hsv2rgb(hs).b);
-    glVertex2d((20.0)/width -1, 1- (140.0+h_incr*(i-1))/height);  // 20.0 is twice the distance to the edge
-    glVertex2d((20.0+w)/width -1, 1- (140.0+h_incr*(i-1))/height);
-
-    hs.h += 225/num;
-    glColor3f (hsv2rgb(hs).r, hsv2rgb(hs).g, hsv2rgb(hs).b);
-    glVertex2d((20.0+w)/width -1, 1- (140.0+h_incr*i)/height);
-    glVertex2d((20.0)/width -1, 1- (140.0+h_incr*i)/height);
-    glEnd ();
-    }
-
-    glBegin (GL_LINE_LOOP);  // the edges
-    glColor3d(0, 0, 0);
-    glVertex2d(20.0/width -1, 1- 140.0/height);
-    glVertex2d(70.0/width -1, 1- 140.0/height);
-    glVertex2d(70.0/width -1, 1- 340.0/height);
-    glVertex2d(20.0/width -1, 1- 340.0/height);
-    glEnd ();
-
-    m_glWidget->renderText(80.0/width -1, 1- 152.0/height, 0,
-               QString("%1 MPa").arg(maxmax/1000000, 0, 'f', 2),
-               QFont ("Arial", 12));
-    m_glWidget->renderText(80.0/width -1, 1- 352.0/height, 0,
-               QString("%1 MPa").arg(minmin/1000000, 0, 'f', 2),
-               QFont ("Arial", 12));
-
-    glMatrixMode(GL_MODELVIEW);  // restore state
-    glPopMatrix();
-    glMatrixMode(GL_PROJECTION);
-    glPopMatrix();
-    glPopAttrib ();
 }
 
 
@@ -965,7 +814,6 @@ void QFEMModule::GLCreateGeom(CBlade *pWing)
 	
 	if(!pWing) return;
 	pWing->CreateSurfaces();
-	for (int i=0; i<pWing->m_NSurfaces; i++) pWing->m_Surface[i].SetSidePoints(NULL, 0.0, 0.0);
 	
 	static int j, l, style;
 	static CVector Pt, PtNormal, A, B, C, D, N, BD, AC;
@@ -1005,9 +853,7 @@ void QFEMModule::GLCreateGeom(CBlade *pWing)
 					if (m_QFEMToolBar->m_BladeStructureLoadingComboBox->currentObject()->VMStresses.at(i).at(j)>maxmax) maxmax = m_QFEMToolBar->m_BladeStructureLoadingComboBox->currentObject()->VMStresses.at(i).at(j);
 					if (m_QFEMToolBar->m_BladeStructureLoadingComboBox->currentObject()->VMStresses.at(i).at(j)<minmin) minmin = m_QFEMToolBar->m_BladeStructureLoadingComboBox->currentObject()->VMStresses.at(i).at(j);
 				}
-			}
-			
-			
+			}			
 			
 			glLineWidth(1.0);
 			color = pWing->m_WingColor;
@@ -1045,7 +891,7 @@ void QFEMModule::GLCreateGeom(CBlade *pWing)
 						xy.RotateZ(CVector(0,0,0),-pWing->m_TTwist[j]);
 						
 						
-						glVertex3d(xy.x+pWing->m_TOffset[j], pWing->m_TPos[j], xy.y+pWing->m_TPAxisZ[j]);
+                        glVertex3d(xy.x+pWing->m_TOffsetX[j], pWing->m_TPos[j], xy.y+pWing->m_TOffsetZ[j]);
 						
 						hs.h = (1-m_QFEMToolBar->m_BladeStructureLoadingComboBox->currentObject()->VMStresses.at(j+1).at(l)/maxmax)*225;
 //						kkk = hs.h/360;
@@ -1058,7 +904,7 @@ void QFEMModule::GLCreateGeom(CBlade *pWing)
 						
 						xy.RotateZ(CVector(0,0,0),-pWing->m_TTwist[j+1]);
 						
-						glVertex3d(xy.x+pWing->m_TOffset[j+1], pWing->m_TPos[j+1], xy.y+pWing->m_TPAxisZ[j+1]);
+                        glVertex3d(xy.x+pWing->m_TOffsetX[j+1], pWing->m_TPos[j+1], xy.y+pWing->m_TOffsetZ[j+1]);
 					}
 					
 					hs.h = (1-m_QFEMToolBar->m_BladeStructureLoadingComboBox->currentObject()->VMStresses.at(j).at(0)/maxmax)*225;
@@ -1076,7 +922,7 @@ void QFEMModule::GLCreateGeom(CBlade *pWing)
 					xy.RotateZ(CVector(0,0,0),-pWing->m_TTwist[j]);
 					
 					
-					glVertex3d(xy.x+pWing->m_TOffset[j], pWing->m_TPos[j], xy.y+pWing->m_TPAxisZ[j]);
+                    glVertex3d(xy.x+pWing->m_TOffsetX[j], pWing->m_TPos[j], xy.y+pWing->m_TOffsetZ[j]);
 					
 					hs.h = (1-m_QFEMToolBar->m_BladeStructureLoadingComboBox->currentObject()->VMStresses.at(j+1).at(0)/maxmax)*225;
 //					kkk = hs.h/360;
@@ -1089,7 +935,7 @@ void QFEMModule::GLCreateGeom(CBlade *pWing)
 					
 					xy.RotateZ(CVector(0,0,0),-pWing->m_TTwist[j+1]);
 					
-					glVertex3d(xy.x+pWing->m_TOffset[j+1], pWing->m_TPos[j+1], xy.y+pWing->m_TPAxisZ[j+1]);
+                    glVertex3d(xy.x+pWing->m_TOffsetX[j+1], pWing->m_TPos[j+1], xy.y+pWing->m_TOffsetZ[j+1]);
 				}
 				glEnd();
 			}
@@ -1447,60 +1293,62 @@ void QFEMModule::GLCreateGeom(CBlade *pWing)
 			glDisable (GL_LINE_STIPPLE);
 			glColor3d(1.0, 0.0, 0.0);
 			glLineWidth(3);
-			if(m_QFEMDock->m_iSection<pWing->m_NPanel)
-			{
-				j = m_QFEMDock->m_iSection;
-				glBegin(GL_LINE_STRIP);
-				{
-					for (l=0; l<pWing->m_Surface[j].m_NXPanels; l++)
-					{
-						pWing->m_Surface[j].GetPanel(0, l, TOPSURFACE);
-						glVertex3d(pWing->m_Surface[j].TA.x,
-								   pWing->m_Surface[j].TA.y,
-								   pWing->m_Surface[j].TA.z);
-					}
-					
-					glVertex3d(pWing->m_Surface[j].LA.x,
-							   pWing->m_Surface[j].LA.y,
-							   pWing->m_Surface[j].LA.z);
-					
-					for (l=pWing->m_Surface[j].m_NXPanels-1; l>=0; l--)
-					{
-						pWing->m_Surface[j].GetPanel(0, l, BOTSURFACE);
-						glVertex3d(pWing->m_Surface[j].TA.x,
-								   pWing->m_Surface[j].TA.y,
-								   pWing->m_Surface[j].TA.z);
-					}
-				}
-				glEnd();
-			}
-			else
-			{
-				j = m_QFEMDock->m_iSection-1;
-				glBegin(GL_LINE_STRIP);
-				{
-					for (l=0; l<pWing->m_Surface[j].m_NXPanels; l++)
-					{
-						pWing->m_Surface[j].GetPanel(pWing->m_Surface[j].m_NYPanels-1, l, TOPSURFACE);
-						glVertex3d(pWing->m_Surface[j].TB.x,
-								   pWing->m_Surface[j].TB.y,
-								   pWing->m_Surface[j].TB.z);
-					}
-					
-					glVertex3d(pWing->m_Surface[j].LB.x,
-							   pWing->m_Surface[j].LB.y,
-							   pWing->m_Surface[j].LB.z);
-					
-					for (l=pWing->m_Surface[j].m_NXPanels-1; l>=0; l--)
-					{
-						pWing->m_Surface[j].GetPanel(pWing->m_Surface[j].m_NYPanels-1, l, BOTSURFACE);
-						glVertex3d(pWing->m_Surface[j].TB.x,
-								   pWing->m_Surface[j].TB.y,
-								   pWing->m_Surface[j].TB.z);
-					}
-				}
-				glEnd();
-			}
+            if (m_QFEMDock->m_iSection>=0){
+                if(m_QFEMDock->m_iSection<pWing->m_NPanel)
+                {
+                    j = m_QFEMDock->m_iSection;
+                    glBegin(GL_LINE_STRIP);
+                    {
+                        for (l=0; l<pWing->m_Surface[j].m_NXPanels; l++)
+                        {
+                            pWing->m_Surface[j].GetPanel(0, l, TOPSURFACE);
+                            glVertex3d(pWing->m_Surface[j].TA.x,
+                                       pWing->m_Surface[j].TA.y,
+                                       pWing->m_Surface[j].TA.z);
+                        }
+
+                        glVertex3d(pWing->m_Surface[j].LA.x,
+                                   pWing->m_Surface[j].LA.y,
+                                   pWing->m_Surface[j].LA.z);
+
+                        for (l=pWing->m_Surface[j].m_NXPanels-1; l>=0; l--)
+                        {
+                            pWing->m_Surface[j].GetPanel(0, l, BOTSURFACE);
+                            glVertex3d(pWing->m_Surface[j].TA.x,
+                                       pWing->m_Surface[j].TA.y,
+                                       pWing->m_Surface[j].TA.z);
+                        }
+                    }
+                    glEnd();
+                }
+                else
+                {
+                    j = m_QFEMDock->m_iSection-1;
+                    glBegin(GL_LINE_STRIP);
+                    {
+                        for (l=0; l<pWing->m_Surface[j].m_NXPanels; l++)
+                        {
+                            pWing->m_Surface[j].GetPanel(pWing->m_Surface[j].m_NYPanels-1, l, TOPSURFACE);
+                            glVertex3d(pWing->m_Surface[j].TB.x,
+                                       pWing->m_Surface[j].TB.y,
+                                       pWing->m_Surface[j].TB.z);
+                        }
+
+                        glVertex3d(pWing->m_Surface[j].LB.x,
+                                   pWing->m_Surface[j].LB.y,
+                                   pWing->m_Surface[j].LB.z);
+
+                        for (l=pWing->m_Surface[j].m_NXPanels-1; l>=0; l--)
+                        {
+                            pWing->m_Surface[j].GetPanel(pWing->m_Surface[j].m_NYPanels-1, l, BOTSURFACE);
+                            glVertex3d(pWing->m_Surface[j].TB.x,
+                                       pWing->m_Surface[j].TB.y,
+                                       pWing->m_Surface[j].TB.z);
+                        }
+                    }
+                    glEnd();
+                }
+        }
 		}
 		glEndList();
 	}
@@ -1608,7 +1456,7 @@ void QFEMModule::GLCreateGeom(CBlade *pWing)
 							Point(1)=SparYCoords.at(i);
 							Rotated = Rotation*Point;
 							SparXCoords.at(i)=Rotated(0)+Position;//Centre about the chordwise position.
-							SparYCoords.at(i)=Rotated(1)-pWing->m_TFoilPAxisZ[k+1]*pWing->m_TChord[k+1]+pWing->m_TPAxisZ[k];
+                            SparYCoords.at(i)=Rotated(1)-pWing->m_TFoilPAxisZ[k+1]*pWing->m_TChord[k+1]+pWing->m_TOffsetZ[k];
 						}
 						//-------------------------------------------------------
 						//Load up the polygons with the coords
@@ -1824,7 +1672,7 @@ void QFEMModule::GLCreateGeom(CBlade *pWing)
 								Point(1)=SparYCoords.at(i);
 								Rotated = Rotation*Point;
 								SparXCoords.at(i)=Rotated(0)+Position;//Centre about the chordwise position.
-								SparYCoords.at(i)=Rotated(1)-pWing->m_TFoilPAxisZ[k]*pWing->m_TChord[k]+pWing->m_TPAxisZ[k];
+                                SparYCoords.at(i)=Rotated(1)-pWing->m_TFoilPAxisZ[k]*pWing->m_TChord[k]+pWing->m_TOffsetZ[k];
 								
 							}
 							//-------------------------------------------------------
@@ -2080,48 +1928,35 @@ void QFEMModule::OnAlignSparAtMaxThickness()
 }
 
 
-void QFEMModule::UpdateGeomRerenderGL()
-{
+void QFEMModule::UpdateGeomRerenderGL() {
     m_bResetglGeom = true;
     m_needToRerender = true;
     m_newSectionHighlight = true;
-
-    if (m_QFEMDock->m_pctrlPerspective->isChecked()) m_perspective = true;
-    else m_perspective = false;
-
-    if (m_QFEMDock->m_pctrlFoilNames->isChecked()) m_airfoils = true;
-    else m_airfoils = false;
-
-    if (m_QFEMDock->m_pctrlAxes->isChecked()) m_axes = true;
-    else m_axes = false;
-
-    if (m_QFEMDock->m_pctrlPositions->isChecked()) m_positions = true;
-    else m_positions = false;
-
-    reportGLChange();
-    m_glWidget->updateGL();
+    m_axes = m_QFEMDock->m_pctrlAxes->isChecked();
+	if (m_QFEMDock->m_pctrlPerspective->isChecked()) {
+		g_mainFrame->getGlWidget()->camera()->setType(qglviewer::Camera::PERSPECTIVE);
+	} else {
+		g_mainFrame->getGlWidget()->camera()->setType(qglviewer::Camera::ORTHOGRAPHIC);
+	}
+	
+	reportGLChange();
 }
 
-void QFEMModule::OnLightDlg()
-{
-
+void QFEMModule::OnLightDlg() {
     m_GLLightDlg.m_pGLWidget = m_glWidget;
-
     m_GLLightDlg.show();
-
     m_glWidget->GLSetupLight(m_GLLightDlg, 0,  1.0);
 
     reportGLChange();
 }
 
-CBlade* QFEMModule::GetBlade()
-{
+CBlade* QFEMModule::getBlade() {
     return m_rotor;
 }
 
 void QFEMModule::OnSelChangeModeType(int i)
 {    
-    modeType = i;
+    m_modeType = i;
     UpdateModeNumber();
 }
 
@@ -2130,7 +1965,7 @@ void QFEMModule::UpdateModeNumber()
     QString strong;
     m_QFEMDock->m_pctrlModeNumberSelecta->clear();
 
-    if (modeType == 0)
+    if (m_modeType == 0)
     {
         if (m_structure->FlapWiseNodeTranslations.size()>3)
         {
@@ -2145,7 +1980,7 @@ void QFEMModule::UpdateModeNumber()
         }
     }
 
-    else if (modeType == 1)
+    else if (m_modeType == 1)
     {
         if (m_structure->EdgeWiseNodeTranslations.size()>3)
         {
@@ -2160,7 +1995,7 @@ void QFEMModule::UpdateModeNumber()
         }
     }
 
-    else if (modeType == 2)
+    else if (m_modeType == 2)
     {
         if (m_structure->TorsionalTranslations.size()>3)
         {
@@ -2175,7 +2010,7 @@ void QFEMModule::UpdateModeNumber()
         }
     }
 
-    else if (modeType == 3)
+    else if (m_modeType == 3)
     {
         if (m_structure->RadialNodeTranslations.size()>3)
         {
@@ -2190,7 +2025,7 @@ void QFEMModule::UpdateModeNumber()
         }
     }
 
-    else if (modeType == 4)
+    else if (m_modeType == 4)
     {
         if (m_structure->UnsortedNodeTranslations.size()>3)
         {
@@ -2205,14 +2040,14 @@ void QFEMModule::UpdateModeNumber()
         }
     }
 
-    if (m_QFEMDock->m_pctrlModeNumberSelecta->count() > modeNumber)
+    if (m_QFEMDock->m_pctrlModeNumberSelecta->count() > m_modeNumber)
     {
-        m_QFEMDock->m_pctrlModeNumberSelecta->setCurrentIndex(modeNumber);
+        m_QFEMDock->m_pctrlModeNumberSelecta->setCurrentIndex(m_modeNumber);
     }
     else
     {
         m_QFEMDock->m_pctrlModeNumberSelecta->setCurrentIndex(0);
-        modeNumber = 0;
+        m_modeNumber = 0;
     }
 
 }
@@ -2221,13 +2056,14 @@ void QFEMModule::OnSelChangeModeNumber(int i)
 {
     if (i >= 0)
     {
-    modeNumber = i;
+    m_modeNumber = i;
     DeformBlade();
     }
 }
 
 void QFEMModule::DeformBlade()
 {
+    if (m_bStructEdited) return;
     double max, val;
     if (!m_rotor) return;
     if (!m_structure) return;
@@ -2240,95 +2076,95 @@ void QFEMModule::DeformBlade()
 
     if (!m_QFEMDock->m_LoadingShown)
     {
-    if (modeType == 0 && m_QFEMDock->m_pctrlModeNumberSelecta->count())
+    if (m_modeType == 0 && m_QFEMDock->m_pctrlModeNumberSelecta->count())
     {
         max = 0;
         for (int i = 0; i < m_structure->m_numElems; ++i)
         {
-            val = m_structure->FlapWiseNodeTranslations.at(modeNumber).at(i).at(1)/m_deformed_rotor->getRotorRadius();
+            val = m_structure->FlapWiseNodeTranslations.at(m_modeNumber).at(i).at(1)/m_deformed_rotor->getRotorRadius();
             if (fabs(val) >= max) max = val;
         }
 
         for (int i = 0; i < m_structure->m_numElems; ++i)
         {
-            m_deformed_rotor->m_TPos[i]     += rotorradialfrac/max*m_QFEMDock->m_modeSlider->value()/100*m_structure->FlapWiseNodeTranslations.at(modeNumber).at(i).at(2);
-            m_deformed_rotor->m_TTwist[i]     += rotorradialfrac/max*m_QFEMDock->m_modeSlider->value()/100*m_structure->FlapWiseNodeTranslations.at(modeNumber).at(i).at(3)/2/PI*360;
-            m_deformed_rotor->m_TOffset[i]    += rotorradialfrac/max*m_QFEMDock->m_modeSlider->value()/100*m_structure->FlapWiseNodeTranslations.at(modeNumber).at(i).at(0);
-            m_deformed_rotor->m_TPAxisZ[i]    += rotorradialfrac/max*m_QFEMDock->m_modeSlider->value()/100*m_structure->FlapWiseNodeTranslations.at(modeNumber).at(i).at(1);
+            m_deformed_rotor->m_TPos[i]     += rotorradialfrac/max*m_QFEMDock->m_modeSlider->value()/100*m_structure->FlapWiseNodeTranslations.at(m_modeNumber).at(i).at(2);
+            m_deformed_rotor->m_TTwist[i]     += rotorradialfrac/max*m_QFEMDock->m_modeSlider->value()/100*m_structure->FlapWiseNodeTranslations.at(m_modeNumber).at(i).at(3)/2/PI*360;
+            m_deformed_rotor->m_TOffsetX[i]    += rotorradialfrac/max*m_QFEMDock->m_modeSlider->value()/100*m_structure->FlapWiseNodeTranslations.at(m_modeNumber).at(i).at(0);
+            m_deformed_rotor->m_TOffsetZ[i]    += rotorradialfrac/max*m_QFEMDock->m_modeSlider->value()/100*m_structure->FlapWiseNodeTranslations.at(m_modeNumber).at(i).at(1);
         }
     }
-    if ( modeType == 1 && m_QFEMDock->m_pctrlModeNumberSelecta->count())
+    if ( m_modeType == 1 && m_QFEMDock->m_pctrlModeNumberSelecta->count())
     {
         max = 0;
         for (int i = 0; i < m_structure->m_numElems; ++i)
         {
-            val = m_structure->EdgeWiseNodeTranslations.at(modeNumber).at(i).at(0)/m_deformed_rotor->getRotorRadius();
+            val = m_structure->EdgeWiseNodeTranslations.at(m_modeNumber).at(i).at(0)/m_deformed_rotor->getRotorRadius();
             if (fabs(val) >= max) max = val;
         }
 
         for (int i = 0; i < m_structure->m_numElems; ++i)
         {
-            m_deformed_rotor->m_TPos[i]     += rotorradialfrac/max*m_QFEMDock->m_modeSlider->value()/100*m_structure->EdgeWiseNodeTranslations.at(modeNumber).at(i).at(2);
-            m_deformed_rotor->m_TTwist[i]     += rotorradialfrac/max*m_QFEMDock->m_modeSlider->value()/100*m_structure->EdgeWiseNodeTranslations.at(modeNumber).at(i).at(3)/2/PI*360;
-            m_deformed_rotor->m_TOffset[i]    += rotorradialfrac/max*m_QFEMDock->m_modeSlider->value()/100*m_structure->EdgeWiseNodeTranslations.at(modeNumber).at(i).at(0);
-            m_deformed_rotor->m_TPAxisZ[i]    += rotorradialfrac/max*m_QFEMDock->m_modeSlider->value()/100*m_structure->EdgeWiseNodeTranslations.at(modeNumber).at(i).at(1);
+            m_deformed_rotor->m_TPos[i]     += rotorradialfrac/max*m_QFEMDock->m_modeSlider->value()/100*m_structure->EdgeWiseNodeTranslations.at(m_modeNumber).at(i).at(2);
+            m_deformed_rotor->m_TTwist[i]     += rotorradialfrac/max*m_QFEMDock->m_modeSlider->value()/100*m_structure->EdgeWiseNodeTranslations.at(m_modeNumber).at(i).at(3)/2/PI*360;
+            m_deformed_rotor->m_TOffsetX[i]    += rotorradialfrac/max*m_QFEMDock->m_modeSlider->value()/100*m_structure->EdgeWiseNodeTranslations.at(m_modeNumber).at(i).at(0);
+            m_deformed_rotor->m_TOffsetZ[i]    += rotorradialfrac/max*m_QFEMDock->m_modeSlider->value()/100*m_structure->EdgeWiseNodeTranslations.at(m_modeNumber).at(i).at(1);
         }
     }
-    if ( modeType == 2 && m_QFEMDock->m_pctrlModeNumberSelecta->count())
+    if ( m_modeType == 2 && m_QFEMDock->m_pctrlModeNumberSelecta->count())
     {
         max = 0;
         for (int i = 0; i < m_structure->m_numElems; ++i)
         {
-            val = m_structure->TorsionalTranslations.at(modeNumber).at(i).at(3)/2/PI;
+            val = m_structure->TorsionalTranslations.at(m_modeNumber).at(i).at(3)/2/PI;
             if (fabs(val) >= max) max = val;
         }
 
         for (int i = 0; i < m_structure->m_numElems; ++i)
         {
-            m_deformed_rotor->m_TPos[i]     += 2*rotorradialfrac/max*m_QFEMDock->m_modeSlider->value()/100*m_structure->TorsionalTranslations.at(modeNumber).at(i).at(2);
-            m_deformed_rotor->m_TTwist[i]     += 2*rotorradialfrac/max*m_QFEMDock->m_modeSlider->value()/100*m_structure->TorsionalTranslations.at(modeNumber).at(i).at(3)/2/PI*360;
-            m_deformed_rotor->m_TOffset[i]    += 2*rotorradialfrac/max*m_QFEMDock->m_modeSlider->value()/100*m_structure->TorsionalTranslations.at(modeNumber).at(i).at(0);
-            m_deformed_rotor->m_TPAxisZ[i]    += 2*rotorradialfrac/max*m_QFEMDock->m_modeSlider->value()/100*m_structure->TorsionalTranslations.at(modeNumber).at(i).at(1);
+            m_deformed_rotor->m_TPos[i]     += 2*rotorradialfrac/max*m_QFEMDock->m_modeSlider->value()/100*m_structure->TorsionalTranslations.at(m_modeNumber).at(i).at(2);
+            m_deformed_rotor->m_TTwist[i]     += 2*rotorradialfrac/max*m_QFEMDock->m_modeSlider->value()/100*m_structure->TorsionalTranslations.at(m_modeNumber).at(i).at(3)/2/PI*360;
+            m_deformed_rotor->m_TOffsetX[i]    += 2*rotorradialfrac/max*m_QFEMDock->m_modeSlider->value()/100*m_structure->TorsionalTranslations.at(m_modeNumber).at(i).at(0);
+            m_deformed_rotor->m_TOffsetZ[i]    += 2*rotorradialfrac/max*m_QFEMDock->m_modeSlider->value()/100*m_structure->TorsionalTranslations.at(m_modeNumber).at(i).at(1);
         }
     }
-    if ( modeType == 3  && m_QFEMDock->m_pctrlModeNumberSelecta->count() )
+    if ( m_modeType == 3  && m_QFEMDock->m_pctrlModeNumberSelecta->count() )
     {
         max = 0;
         for (int i = 0; i < m_structure->m_numElems; ++i)
         {
-            val = m_structure->RadialNodeTranslations.at(modeNumber).at(i).at(2)/m_deformed_rotor->getRotorRadius();
+            val = m_structure->RadialNodeTranslations.at(m_modeNumber).at(i).at(2)/m_deformed_rotor->getRotorRadius();
             if (fabs(val) >= max) max = val;
         }
 
         for (int i = 0; i < m_structure->m_numElems; ++i)
         {
-            m_deformed_rotor->m_TPos[i]       += rotorradialfrac/max*m_QFEMDock->m_modeSlider->value()/100*m_structure->RadialNodeTranslations.at(modeNumber).at(i).at(2);
-            m_deformed_rotor->m_TTwist[i]     += rotorradialfrac/max*m_QFEMDock->m_modeSlider->value()/100*m_structure->RadialNodeTranslations.at(modeNumber).at(i).at(3)/2/PI*360;
-            m_deformed_rotor->m_TOffset[i]    += rotorradialfrac/max*m_QFEMDock->m_modeSlider->value()/100*m_structure->RadialNodeTranslations.at(modeNumber).at(i).at(0);
-            m_deformed_rotor->m_TPAxisZ[i]    += rotorradialfrac/max*m_QFEMDock->m_modeSlider->value()/100*m_structure->RadialNodeTranslations.at(modeNumber).at(i).at(1);
+            m_deformed_rotor->m_TPos[i]       += rotorradialfrac/max*m_QFEMDock->m_modeSlider->value()/100*m_structure->RadialNodeTranslations.at(m_modeNumber).at(i).at(2);
+            m_deformed_rotor->m_TTwist[i]     += rotorradialfrac/max*m_QFEMDock->m_modeSlider->value()/100*m_structure->RadialNodeTranslations.at(m_modeNumber).at(i).at(3)/2/PI*360;
+            m_deformed_rotor->m_TOffsetX[i]    += rotorradialfrac/max*m_QFEMDock->m_modeSlider->value()/100*m_structure->RadialNodeTranslations.at(m_modeNumber).at(i).at(0);
+            m_deformed_rotor->m_TOffsetZ[i]    += rotorradialfrac/max*m_QFEMDock->m_modeSlider->value()/100*m_structure->RadialNodeTranslations.at(m_modeNumber).at(i).at(1);
         }
     }
-    if ( modeType == 4 && m_QFEMDock->m_pctrlModeNumberSelecta->count() )
+    if ( m_modeType == 4 && m_QFEMDock->m_pctrlModeNumberSelecta->count() )
     {
         max = 0;
         for (int i = 0; i < m_structure->m_numElems; ++i)
         {
-            val = m_structure->UnsortedNodeTranslations.at(modeNumber).at(i).at(2)/m_deformed_rotor->getRotorRadius();
+            val = m_structure->UnsortedNodeTranslations.at(m_modeNumber).at(i).at(2)/m_deformed_rotor->getRotorRadius();
             if (fabs(val) >= max) max = val;
-            val = m_structure->UnsortedNodeTranslations.at(modeNumber).at(i).at(3)/2/PI;
+            val = m_structure->UnsortedNodeTranslations.at(m_modeNumber).at(i).at(3)/2/PI;
             if (fabs(val) >= max) max = val;
-            val = 0.5*m_structure->UnsortedNodeTranslations.at(modeNumber).at(i).at(0)/m_deformed_rotor->getRotorRadius();
+            val = 0.5*m_structure->UnsortedNodeTranslations.at(m_modeNumber).at(i).at(0)/m_deformed_rotor->getRotorRadius();
             if (fabs(val) >= max) max = val;
-            val = m_structure->UnsortedNodeTranslations.at(modeNumber).at(i).at(1)/m_deformed_rotor->getRotorRadius();
+            val = m_structure->UnsortedNodeTranslations.at(m_modeNumber).at(i).at(1)/m_deformed_rotor->getRotorRadius();
             if (fabs(val) >= max) max = val;
         }
 
         for (int i = 0; i < m_structure->m_numElems; ++i)
         {
-            m_deformed_rotor->m_TPos[i]     += rotorradialfrac/max*m_QFEMDock->m_modeSlider->value()/100*m_structure->UnsortedNodeTranslations.at(modeNumber).at(i).at(2);
-            m_deformed_rotor->m_TTwist[i]     += rotorradialfrac/max*m_QFEMDock->m_modeSlider->value()/100*m_structure->UnsortedNodeTranslations.at(modeNumber).at(i).at(3)/2/PI*360;
-            m_deformed_rotor->m_TOffset[i]    += rotorradialfrac/max*m_QFEMDock->m_modeSlider->value()/100*m_structure->UnsortedNodeTranslations.at(modeNumber).at(i).at(0);
-            m_deformed_rotor->m_TPAxisZ[i]    += rotorradialfrac/max*m_QFEMDock->m_modeSlider->value()/100*m_structure->UnsortedNodeTranslations.at(modeNumber).at(i).at(1);
+            m_deformed_rotor->m_TPos[i]     += rotorradialfrac/max*m_QFEMDock->m_modeSlider->value()/100*m_structure->UnsortedNodeTranslations.at(m_modeNumber).at(i).at(2);
+            m_deformed_rotor->m_TTwist[i]     += rotorradialfrac/max*m_QFEMDock->m_modeSlider->value()/100*m_structure->UnsortedNodeTranslations.at(m_modeNumber).at(i).at(3)/2/PI*360;
+            m_deformed_rotor->m_TOffsetX[i]    += rotorradialfrac/max*m_QFEMDock->m_modeSlider->value()/100*m_structure->UnsortedNodeTranslations.at(m_modeNumber).at(i).at(0);
+            m_deformed_rotor->m_TOffsetZ[i]    += rotorradialfrac/max*m_QFEMDock->m_modeSlider->value()/100*m_structure->UnsortedNodeTranslations.at(m_modeNumber).at(i).at(1);
         }
     }
     }
@@ -2338,25 +2174,19 @@ void QFEMModule::DeformBlade()
         {
             m_deformed_rotor->m_TPos[i]     += m_QFEMToolBar->m_BladeStructureLoadingComboBox->currentObject()->nodeTranslations.at(i).at(2);
             m_deformed_rotor->m_TTwist[i]     += m_QFEMToolBar->m_BladeStructureLoadingComboBox->currentObject()->nodeTranslations.at(i).at(3)/2/PI*360;
-            m_deformed_rotor->m_TOffset[i]    += m_QFEMToolBar->m_BladeStructureLoadingComboBox->currentObject()->nodeTranslations.at(i).at(0);
-            m_deformed_rotor->m_TPAxisZ[i]    += m_QFEMToolBar->m_BladeStructureLoadingComboBox->currentObject()->nodeTranslations.at(i).at(1);
+            m_deformed_rotor->m_TOffsetX[i]    += m_QFEMToolBar->m_BladeStructureLoadingComboBox->currentObject()->nodeTranslations.at(i).at(0);
+            m_deformed_rotor->m_TOffsetZ[i]    += m_QFEMToolBar->m_BladeStructureLoadingComboBox->currentObject()->nodeTranslations.at(i).at(1);
         }
     }
     QFEMCompleted = true;
     UpdateGeomRerenderGL();
 }
 
-void QFEMModule::OnHideWidgets()
-{
-    if (m_QFEMToolBar->HideWidgetsAct->isChecked())
-    {
+void QFEMModule::OnHideWidgets() {
+    if (m_QFEMToolBar->HideWidgetsAct->isChecked()) {
         m_QFEMDock->hide();
-    }
-    else
-    {
+    } else {
         m_QFEMDock->show();
-        m_QFEMDock->setMinimumWidth(m_DockWidth);
-        m_QFEMDock->setMaximumWidth(m_DockWidth);
     }
 }
 
@@ -2369,3 +2199,5 @@ void QFEMModule::SliderReleased() {
     m_QFEMDock->m_pctrlInternal->setChecked(m_internalChecked);
     UpdateGeomRerenderGL();
 }
+
+QFEMModule *g_QFEMModule;

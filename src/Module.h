@@ -23,15 +23,19 @@
 #define MODULE_H
 
 #include <QObject>
+#include "QDesktopWidget"
+#include "QApplication"
+
 class QAction;
 class QMainWindow;
 class QToolBar;
 class QPainter;
 
-#include "TwoDWidgetEventInterface.h"
+#include "TwoDWidgetInterface.h"
 class GLWidget;
 class TwoDWidget;
 class MainFrame;
+class TwoDGraphMenu;
 
 
 class ModuleBase : public QObject
@@ -41,7 +45,9 @@ class ModuleBase : public QObject
 public:
 	ModuleBase ();
 	virtual void addMainMenuEntries ();  // adds the module specific Menu entries. Override if needed.
-    void SetToolbarVisibility(bool visible);
+	virtual QStringList prepareMissingObjectMessage () = 0;  // returns the objects needed to use this module or nothing
+	void setToolbarVisibility (bool visible);
+    void setActionIcon(QString path);
 	
 protected:
 	QAction *m_activationAction;  // the Action that provides the toolbar button
@@ -53,9 +59,10 @@ protected:
 	// registrates an action at the given toolbar
 	void registrateAtToolbar (QString name, QString tooltip, QString imagePath, QToolBar *toolbar);
 
-	virtual void initView () = 0;  // fill the form with standart values etc.
+	virtual void initView () {}  // NM TODO remove function and move to onActivationActionTriggered
 		
 public slots:
+	// NM TODO more intuitive names like activateModule and deactivateModule; remove the signal slot mechanism of onModuleChanged as soon as all modules inherit Module
 	virtual void onActivationActionTriggered();  // reacts on the button click in toolbar
 	virtual void onModuleChanged ();  // will hide this module if no longer active
 };
@@ -65,8 +72,9 @@ public slots:
 class GLModule
 {	
 public:
-	void reportGLChange ();  // reports to this module the need for redrawing to the GLWidget
-	virtual void onRedraw () = 0;  // is called when GLWidget redraws its content
+	void reportGLChange ();  // reports to this module the need for redrawing the GLWidget
+	virtual void drawGL () = 0;  // is called when GLWidget redraws its content
+	virtual void overpaint (QPainter &/*painter*/) {}  // is called after drawGL to perform overpaint
 	
 protected:
 	GLModule ();
@@ -76,24 +84,22 @@ protected:
 	
 	GLWidget *m_glWidget;  // pointer to the GLWidget of QBlade
 
-	
 private:
     int m_cameraSaveIndex;  // index where the camera setting for this module is saved
-
 };
 
 
 
 class TwoDModule : public TwoDWidgetInterface
 {
-public:
-	void reportGraphChange ();  // reports to this module the need for redrawing
-	
 protected:
-	TwoDModule ();	
+	TwoDModule ();
+	virtual ~TwoDModule ();
 	
-	virtual void showModule();
+	virtual void showModule ();
 	virtual void hideModule ();
+	
+	TwoDGraphMenu *m_graphMenu;
 };
 
 
@@ -106,7 +112,7 @@ public:
 protected:
 	DualModule ();
 		
-	void showModule();
+	void showModule ();
     void hideModule ();
 };
 

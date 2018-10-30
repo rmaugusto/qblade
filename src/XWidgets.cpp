@@ -1,6 +1,5 @@
 #include "XWidgets.h"
 
-#include "XGlobals.h"
 #include "Store.h"
 #include "StorableObject_heirs.h"
 #include <QVBoxLayout>
@@ -115,7 +114,12 @@ template class RenameDialog<CDMSData>;
 template class RenameDialog<OpPoint>;
 template class RenameDialog<BladeStructureLoading>;
 template class RenameDialog<QLLTSimulation>;
+template class RenameDialog<QLLTCutPlane>;
 template class RenameDialog<NoiseSimulation>;
+template class RenameDialog<Strut>;
+
+
+
 
 
 

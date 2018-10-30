@@ -22,116 +22,68 @@
 
 #include "QBladeApplication.h"
 
-#include <QSettings>
-#include <QFileOpenEvent>
 #include <QSplashScreen>
-#include <QMessageBox>
-#include <QTranslator>
+#include <QSettings>
 
 #include "MainFrame.h"
+#include "Module.h"
+#include "XBEM/BEM.h"
+#include "XDMS/DMS.h"
 
 
-QBladeApplication::QBladeApplication(int &argc, char** argv) : QApplication(argc, argv)
-{
-	QPixmap pixmap;
-        pixmap.load(":/images/qblade600.png");
-	QSplashScreen splash(pixmap);
-	splash.setWindowFlags(Qt::SplashScreen);
-	splash.show();
-
-	QString StyleName;
-	QString LanguagePath ="";
-
-	QString str;
-	int a,b,c,d,k;
-	a=150;
-	b=50;
-	c=800;
-	d=700;
-
-
-#ifdef Q_WS_MAC
-    QSettings settings(QSettings::NativeFormat,QSettings::UserScope,"QBLADE");
-#else
-    QSettings settings(QSettings::IniFormat,QSettings::UserScope,"QBLADE");
-#endif
-
-	bool bMaximized = true;
-	bool bOK;
-	settings.beginGroup("MainFrame");
-	{
-		k = settings.value("FrameGeometryx").toInt(&bOK);
-		if(bOK) a = k;
-		k = settings.value("FrameGeometryy").toInt(&bOK);
-		if(bOK) b = k;
-		k = settings.value("SizeWidth").toInt(&bOK);
-		if(bOK) c = k;
-		k = settings.value("SizeHeight").toInt(&bOK);
-		if(bOK) d = k;
-
-		bMaximized = settings.value("SizeMaximized").toBool();
-
-		str = settings.value("LanguageFilePath").toString();
-		if(str.length()) LanguagePath = str;
-
-		str = settings.value("StyleName").toString();
-		if(str.length()) StyleName = str;
+QBladeApplication::QBladeApplication(int &argc, char** argv) : QApplication(argc, argv) {
+	QSplashScreen splashScreen (QPixmap(":/images/qblade600.png"), Qt::SplashScreen);
+	splashScreen.show();
+	
+	QSettings settings(QSettings::NativeFormat, QSettings::UserScope, "QBLADE");
+	setApplicationStyle(settings.value("StartUp/styleName", style()->objectName()).toString());
+    setApplicationName("QBlade");
+    setApplicationVersion("v0.95");
+    setOrganizationName("ISTA - TU Berlin");
+    setOrganizationDomain("http://fd.tu-berlin.de/");
+	
+	new MainFrame();
+	
+	if (settings.value("StartUp/windowState").toByteArray().isEmpty()) {
+		settings.setValue("StartUp/windowState", g_mainFrame->saveState());  // required to make DockWidgets resizable
 	}
-	settings.endGroup();
+	g_mainFrame->restoreState(settings.value("StartUp/windowState").toByteArray());
+	g_mainFrame->restoreGeometry(settings.value("StartUp/windowGeometry").toByteArray());
+	g_mainFrame->show();
 
-	QTranslator xflr5Translator;
-
-	if(LanguagePath.length())
-	{
-		if(xflr5Translator.load(LanguagePath)) installTranslator(&xflr5Translator);
+	if (argc == 2) {  // argv[0] -> programm path; argv[1] -> first parameter
+		g_mainFrame->loadQBladeProject(QString(argv[1]));
 	}
-
-	QPoint pt(a,b);
-	QSize sz(c,d);
-
-	if(StyleName.length())	qApp->setStyle(StyleName);
-
-	MainFrame *w = MainFrame::self();
-	MainFrame::self()->resize(sz);
-	MainFrame::self()->move(pt);
-	if(bMaximized)	MainFrame::self()->showMaximized();
-	else MainFrame::self()->show();
-
-#ifndef Q_WS_MAC
-	QString PathName, Extension;
-	PathName=argv[1];
-
-
-	Extension = PathName.right(4);
-	if(Extension.compare(".wpa",Qt::CaseInsensitive)==0 ||	Extension.compare(".plr",Qt::CaseInsensitive)==0)
-	{
-		int iApp = w->LoadQBladeProject(PathName);
-
-		if (iApp == MIAREX)             w->OnMiarex();
-		else if (iApp == XFOILANALYSIS) w->OnXDirect();
-	}
-#endif
-
-	splash.finish(MainFrame::self());
+	
+	splashScreen.finish(g_mainFrame);
 }
 
-
-bool QBladeApplication::event(QEvent *event)
-{
-	int iApp;
-	switch (event->type())
-	{
-		case QEvent::FileOpen:
-		{
-			iApp = MainFrame::self()->LoadQBladeProject(static_cast<QFileOpenEvent *>(event)->file());
-			if (iApp == MIAREX)             MainFrame::self()->OnMiarex();
-			else if (iApp == XFOILANALYSIS) MainFrame::self()->OnXDirect();
-
-			return true;
+QBladeApplication::~QBladeApplication() {
+	if (g_mainFrame->getCurrentModule() == NULL) {  // hide the current module to not make its docks appear on next start up
+		if (g_mainFrame->m_iApp == BEM) {
+			g_qbem->onModuleChanged();
+		} else if (g_mainFrame->m_iApp == DMS) {
+			g_qdms->onModuleChanged();
+		} else {
+			g_mainFrame->onModuleChanged();
 		}
-		default:
-			return QApplication::event(event);
+	} else {
+		g_mainFrame->getCurrentModule()->onModuleChanged();
 	}
+	
+	QSettings settings(QSettings::NativeFormat, QSettings::UserScope, "QBLADE");
+	settings.setValue("StartUp/windowGeometry", g_mainFrame->saveGeometry());
+	settings.setValue("StartUp/windowState", g_mainFrame->saveState());
+	settings.setValue("StartUp/styleName", m_styleName);
+	
+	delete g_mainFrame;
 }
 
+void QBladeApplication::setApplicationStyle (QString style) {
+	m_styleName = style;
+	setStyle(style);
+}
 
+QString QBladeApplication::getApplicationStyle() {
+	return m_styleName;
+}

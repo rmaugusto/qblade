@@ -29,37 +29,41 @@
 #include "DData.h"
 #include "../XBEM/TData.h"
 #include "DMSData.h"
+#include "../Graph/ShowAsGraphInterface.h"
 
 
-class TDMSData : public DMSData
+class TDMSData : public DMSData, public ParameterObject<Parameter::TDMSData>
 {
-    friend class QDMS;
-    friend class MainFrame;
-	
 public:
 	void Compute(DData *pDData, CBlade *pWing, double lambda, double pitch, double Toff, double windspeed);
     void Clear();
-	void Serialize(QDataStream &ar, bool bIsStoring, int ArchiveFormat);
-	void SerializeDummy(QDataStream &ar, bool bIsStoring, int ArchiveFormat);
+	
+	void startSimulation ();
+	NewCurve* newCurve (QString xAxis, QString yAxis, NewGraph::GraphType graphType);  // returns NULL if var n.a.
+	static QStringList getAvailableVariables (NewGraph::GraphType graphType, bool xAxis);
+	QString getObjectName () { return m_objectName; }
 
 	static TDMSData* newBySerialize ();
 	void serialize();  // override from DMSData
 	TDMSData();
+	TDMSData(ParameterViewer<Parameter::TDMSData> *viewer);
 	virtual ~TDMSData();
+	static QStringList prepareMissingObjectMessage();
+	void calculateWeibull ();
+	
+	static QList<double> kWeibull, aWeibull;
 
-private:
+//private:
     QString m_TurbineName;
     QString m_SimName;
 
-    QList <double> m_P;                     //power
     QList <double> m_P_loss;                //power with losses
-    QList <double> m_T;                     //torque
-    QList <double> m_Thrust;                //thrust
-    QList <double> m_V;                     //wind speed
-    QList <double> m_Omega;                 //rotational speed
 	QList <double> m_Weibull;               //weibullprobability
 	QList <double> m_aepk;					//annual energy production for k range // new variable JW
 	QList <double> m_aepA;					//annual energy production for A range // new variable JW
     QList <double> m_Cp_loss;               //power coefficient including losses
+	
+private:
+	QVariant accessParameter(Parameter::TDMSData::Key key, QVariant value = QVariant());	
 };
 #endif // TDMSDATA_H

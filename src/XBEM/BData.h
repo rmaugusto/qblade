@@ -1,7 +1,7 @@
 /****************************************************************************
 
     BData Class
-        Copyright (C) 2010 David Marten qblade@web.de
+        Copyright (C) 2010 David Marten david.marten@tu-berlin.de
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -42,7 +42,7 @@ public:
 	void serialize ();
 	static BData* newBySerialize();
 	void Init(CBlade *pWing, double lambda);
-    void OnBEM(double pitch);
+    void OnBEM(double pitch, CBlade *pBlade, double inflowspeed);
 	C360Polar* Get360Polar(QString m_FoilName, QString PolarName);
     QString GetWindspeed();
 
@@ -97,20 +97,12 @@ public:
     QList <double> m_Cn;            //normal coefficient
     QList <double> m_Ct;            //thrust coefficient
     QList <double> m_F;             //Tip Loss Coefficient
-    QList <double> m_between;       //the percentage of foils for foil interpolation
     QList <double> m_Reynolds;      //Reynolds Number
     QList <double> m_DeltaReynolds; //Delta between local Re and Re of Polar
-    QStringList m_polar;        //list of polar at sections
-    QStringList m_foil;         //list of foils at sections
-    QStringList m_polarTO;      //list of polars at next sections for interpolation
-    QStringList m_foilTO;       //list of foils at next sections for interpolation
     QList <double>  m_Roughness;    //the critical roughness for the blade surface
-    QList <double>  m_Windspeed;    //windspeed at station (turbine calc)
+    QList <double>  m_Windspeed;    //windspeed at section (turbine calc)
     QList <double>  m_Iterations;   //total number of iterations required to converge
     QList <double>  m_Mach;         //Mach Number
-
-	QVector <C360Polar *> m_PolarPointers;
-	QVector <C360Polar *> m_PolarPointersTO;
 
     QList <double> deltas;
     QList <double> dist;

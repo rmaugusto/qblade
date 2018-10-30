@@ -1,7 +1,7 @@
 /****************************************************************************
 
     BEMData Class
-        Copyright (C) 2010 David Marten qblade@web.de
+        Copyright (C) 2010 David Marten david.marten@tu-berlin.de
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -20,13 +20,13 @@
 *****************************************************************************/
 
 #include "BEMData.h"
-#include "../Objects/Wing.h"
 #include <QString>
 #include <QList>
 #include "../Globals.h"
 #include "../Store.h"
 #include "../Serializer.h"
 #include <QDebug>
+#include "../MainFrame.h"
 
 
 BEMData::BEMData()
@@ -77,11 +77,16 @@ void BEMData::Clear()
     m_Ct.clear();
     m_Kp.clear();
     m_Cm.clear();
+    m_Omega.clear();
+    m_V.clear();
+    m_P.clear();
+    m_Torque.clear();
+    m_S.clear();
+    m_Bending.clear();
 }
 
-void BEMData::Compute(BData *pBData, CBlade *pWing, double lambda, double pitch)
+void BEMData::Compute(BData *pBData, CBlade *pWing, double lambda, double windspeed)
 {
-
     pBData->elements = elements;
     pBData->epsilon = epsilon;
     pBData->iterations = iterations;
@@ -96,10 +101,9 @@ void BEMData::Compute(BData *pBData, CBlade *pWing, double lambda, double pitch)
     pBData->m_bNewTipLoss = m_bNewTipLoss;
     pBData->m_bCdReynolds = false;
 
-
     pBData->Init(pWing,lambda);
 
-    pBData->OnBEM(pitch);
+    pBData->OnBEM(0, pWing, windspeed);
 
     m_BData.append(pBData);
     m_Cp.append(pBData->cp);
@@ -108,126 +112,35 @@ void BEMData::Compute(BData *pBData, CBlade *pWing, double lambda, double pitch)
     m_one_over_Lambda.append(1/pBData->lambda_global);
     m_Ct.append(pBData->ct);
     m_Kp.append(pBData->cp / pBData->lambda_global / pBData->lambda_global / pBData->lambda_global);
+
+    double rot = lambda*windspeed*60/2/PI/pWing->m_TPos[pWing->m_NPanel];
+    m_Omega.append(rot);
+    m_V.append(windspeed);
+    m_P.append(PI/2*pow(pWing->m_TPos[pWing->m_NPanel],2)*rho*pow(windspeed,3)*pBData->cp);
+    m_Torque.append(PI/2*pow(pWing->m_TPos[pWing->m_NPanel],2)*rho*pow(windspeed,3)*pBData->cp/(rot/60*2*PI));
+    m_S.append(pow(pWing->m_TPos[pWing->m_NPanel],2)*PI*rho/2*pow(windspeed,2)*pBData->ct);
+    double bending = 0;
+    for (int d=0;d<pBData->m_Reynolds.size();d++)
+    {
+        bending = bending + pBData->m_p_normal.at(d)*pBData->deltas.at(d)*pBData->m_pos.at(d);
+    }
+    m_Bending.append(bending);
 }
 
-void BEMData::Serialize(QDataStream &ar, bool bIsStoring, int ArchiveFormat)
-{
-    int i,n,j;
-    float f;
-
-    if (bIsStoring)
-    {
-        n= (int) m_Cp.size();
-
-        if (m_bIsVisible)  ar<<1; else ar<<0;
-        if (m_bShowPoints) ar<<1; else ar<<0;
-        ar << (int) m_Style;
-        ar << (int) m_Width;
-        ar << (float) elements;
-        ar << (float) rho;
-        ar << (float) epsilon;
-        ar << (float) iterations;
-        ar << (float) relax;
-        ar << (float) visc;
-
-        if (m_bTipLoss) ar << 1; else ar<<0;
-        if (m_bRootLoss) ar << 1; else ar<<0;
-        if (m_b3DCorrection) ar << 1; else ar<<0;
-        if (m_bInterpolation) ar << 1; else ar<<0;
-        if (m_bNewTipLoss) ar << 1; else ar<<0;
-        if (m_bNewRootLoss) ar << 1; else ar<<0;
-        if (m_bCdReynolds) ar << 1; else ar<<0;
-
-        WriteCOLORREF(ar,m_Color);
-        WriteCString(ar, m_WingName);
-        WriteCString(ar, m_BEMName);
-		ar << (int) n;
-        for (i=0;i<n;i++)
-        {
-            ar << (float) m_Cp[i] << (float) m_Ct [i] << (float) m_Lambda[i] << (float) m_one_over_Lambda[i] << (float) m_Kp[i] << (float) m_Cm[i];
-        }
-        for (i=0;i<n;i++)
-        {
-            m_BData.at(i)->Serialize(ar,bIsStoring);
-        }
-
-    }
-    else
-    {
-
-        ar >> f;
-        if (f) m_bIsVisible = true; else m_bIsVisible = false;
-        ar >> f;
-        if (f) m_bShowPoints = true; else m_bShowPoints = false;
-        ar >> j;
-        m_Style = j;
-        ar >> j;
-        m_Width = j;
-        ar >> f;
-        elements = f;
-        ar >> f;
-        rho = f;
-        ar >> f;
-        epsilon = f;
-        ar >> f;
-        iterations = f;
-        ar >> f;
-        relax = f;
-        ar >> f;
-        visc = f;
-        ar >> f;
-        if (f) m_bTipLoss = true; else m_bTipLoss = false;
-        ar >> f;
-        if (f) m_bRootLoss = true; else m_bRootLoss = false;
-        ar >> f;
-        if (f) m_b3DCorrection = true; else m_b3DCorrection = false;
-        ar >> f;
-        if (f) m_bInterpolation = true; else m_bInterpolation = false;
-        ar >> f;
-        if (f) m_bNewTipLoss = true; else m_bNewTipLoss = false;
-        ar >> f;
-        if (f) m_bNewRootLoss = true; else m_bNewRootLoss = false;
-        if (ArchiveFormat >= 100021)
-        {
-            ar >> f;
-            if (f) m_bCdReynolds = true; else m_bCdReynolds = false;
-        }
-        ReadCOLORREF(ar,m_Color);
-        ReadCString(ar,m_WingName);
-//		setParentName(m_WingName);  // NM REPLACE
-		setSingleParent(g_rotorStore.getObjectByNameOnly(m_WingName));  // NM only needed for backwards compatibility
-        ReadCString(ar,m_BEMName);
-		setName(m_BEMName);
-
-        ar >> n;
-
-        for (i=0;i<n;i++)
-        {
-            ar >> f;
-            m_Cp.append(f);
-            ar >> f;
-            m_Ct.append(f);
-            ar >> f;
-            m_Lambda.append(f);
-            ar >> f;
-            m_one_over_Lambda.append(f);
-            ar >> f;
-            m_Kp.append(f);
-            if (ArchiveFormat >= 100017)
-            {
-                ar >> f;
-                m_Cm.append(f);
-            }
-            else m_Cm.append(0);
-        }
-
-        for (i=0;i<n;i++)
-        {
-            BData *pBData = new BData;
-            pBData->Serialize(ar,bIsStoring);
-            m_BData.append(pBData);
-        }
-
+QStringList BEMData::prepareMissingObjectMessage() {
+	if (g_bemdataStore.isEmpty()) {
+		QStringList message = CBlade::prepareMissingObjectMessage(false);
+		if (message.isEmpty()) {
+			if (g_mainFrame->m_iApp == BEM && g_mainFrame->m_iView == BEMSIMVIEW) {
+				message = QStringList(">>> Click 'Define Simulation' to create a new BEM Simulation");
+			} else {
+				message = QStringList(">>> unknown hint");
+			}
+		}
+		message.prepend("- No BEM Simulation in Database");
+		return message;
+	} else {
+		return QStringList();
 	}
 }
 
@@ -249,6 +162,26 @@ void BEMData::serialize() {
 	g_serializer.readOrWriteDoubleList1D (&m_Lambda);
 	g_serializer.readOrWriteDoubleList1D (&m_one_over_Lambda);
 	g_serializer.readOrWriteDoubleList1D (&m_Kp);
+
+    if (g_serializer.getArchiveFormat() >= 100027){
+    g_serializer.readOrWriteDoubleList1D (&m_P);
+    g_serializer.readOrWriteDoubleList1D (&m_S);
+    g_serializer.readOrWriteDoubleList1D (&m_V);
+    g_serializer.readOrWriteDoubleList1D (&m_Omega);
+    g_serializer.readOrWriteDoubleList1D (&m_Bending);
+    g_serializer.readOrWriteDoubleList1D (&m_Torque);
+    }
+    else if (g_serializer.isReadMode() && g_serializer.getArchiveFormat() < 100027){
+      for (int i=0;i<m_Cp.size();i++){
+          m_P.append(0);
+          m_S.append(0);
+          m_V.append(0);
+          m_Omega.append(0);
+          m_Bending.append(0);
+          m_Torque.append(0);
+      }
+    }
+
 	
 	// serialize the BData array m_BData
 	if (g_serializer.isReadMode()) {
@@ -285,16 +218,5 @@ void BEMData::serialize() {
 }
 
 void BEMData::restorePointers() {
-	StorableObject::restorePointers();
-	
-	BData *bData;
-	for (int i = 0; i < m_BData.size(); ++i) {
-		bData = m_BData[i];
-		for (int j = 0; j < bData->m_PolarPointers.size(); ++j) {
-			g_serializer.restorePointer (reinterpret_cast<StorableObject**> (&bData->m_PolarPointers[j]));	
-		}
-		for (int j = 0; j < bData->m_PolarPointersTO.size(); ++j) {
-			g_serializer.restorePointer (reinterpret_cast<StorableObject**> (&bData->m_PolarPointersTO[j]));	
-		}
-	}
+    StorableObject::restorePointers();
 }

@@ -22,7 +22,6 @@ public:
 private:
 	WindFieldModule *m_module;
 	WindField *m_shownWindField;  // the currently shown WindField
-	QAction *m_windfieldBox, *m_timestepBox;
 	
 	WindFieldComboBox *m_windFieldComboBox;
 	NumberEdit *m_timestepEdit;

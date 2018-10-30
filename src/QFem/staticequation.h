@@ -6,6 +6,7 @@
 #ifndef EIGEN_DISABLE_UNALIGNED_ARRAY_ASSERT
 #define EIGEN_DISABLE_UNALIGNED_ARRAY_ASSERT
 #endif
+
 #include <Eigen/Dense>
 #include "taperedelem.h"
 #include "node.h"

@@ -32,14 +32,6 @@ class BEMSimDock : public ScrolledDock
 
 public:
 	BEMSimDock(const QString &title, QMainWindow *parent, Qt::WindowFlags flags);
-
-	void initView ();
-
-private:
-
-public slots:
-
-
 };
 
 

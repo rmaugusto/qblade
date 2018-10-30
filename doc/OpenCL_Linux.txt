@@ -1,0 +1,8 @@
+2015/10/08
+How to make OpenCL work under Linux?
+The default driver "nouveau" does not support OpenCL. Therefore the proprietary NVIDIA driver ist required. Installation guide is
+available at https://wiki.debian.org/NvidiaGraphicsDrivers. In case of an Optimus system, where the discrete GPU is turned off by
+default, the nvidia driver must be chosen over the nouveau driver in /etc/bumblebee/bumblebee.conf. Additionally the nvidia ICD
+must be installed. It is available in the repository.
+To use OpenCL, the discrete GPU must be turned on by bumblebee. The easiest way to do so, is to run any program with optirun, e.g.
+"optirun gedit".

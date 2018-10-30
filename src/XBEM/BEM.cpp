@@ -1,7 +1,7 @@
 /****************************************************************************
 
     BEM Class
-        Copyright (C) 2010 David Marten qblade@web.de
+        Copyright (C) 2010 David Marten david.marten@tu-berlin.de
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -24,9 +24,7 @@
 #include <QWidget>
 #include "../GLWidget.h"
 #include "../MainFrame.h"
-#include "../Miarex/ArcBall.h"
 #include "../Globals.h"
-#include "../Misc/RenameDlg.h"
 #include "../Misc/NumberEdit.h"
 #include "../XDirect/XDirect.h"
 #include "BData.h"
@@ -50,13 +48,13 @@
 #include "../Design/AFoil.h"
 #include "AboutBEM.h"
 #include "CircularFoilDlg.h"
-#include "../XGlobals.h"
 #include "../StoreAssociatedComboBox.h"
 #include <QProgressDialog>
 #include "../ScrolledDock.h"
 #include "../XDMS/DMS.h"
 #include "360Polar.h"
 #include "../GlobalFunctions.h"
+#include "PolarSelectionDialog.h"
 
 
 #define SIDEPOINTS 51
@@ -64,7 +62,6 @@
 
 using namespace std;
 
-extern CFoil *g_pCurFoil;
 extern bool ObjectIsEdited;
 
 
@@ -80,39 +77,60 @@ QBEM::QBEM(QWidget *parent)
 		g_qbem = this;
 	}
 	/////////// end new NM ///////////////	
-
-    m_VersionName="QBlade v0.8";
-
     m_CurveStyle = 0;
     m_CurveWidth = 1;
     m_CurveColor = QColor(0,0,0);
     selected_windspeed = -1;
     selected_lambda = 0;
+    m_widthfrac = 6;
 
-    m_360CLGraph.SetXMajGrid(true, QColor(200,200,200),2,1);
-    m_360CLGraph.SetYMajGrid(true, QColor(200,200,200),2,1);
-    m_360CLGraph.SetXMin(-0.0);
-    m_360CLGraph.SetXMax( 0.1);
-    m_360CLGraph.SetYMin(-0.01);
-    m_360CLGraph.SetYMax( 0.01);
-    m_360CLGraph.SetType(0);
-    m_360CLGraph.SetMargin(50);
-    m_360CLGraph.SetXVariable(0);
-    m_360CLGraph.SetYVariable(1);
-    m_360CLGraph.SetGraphName(tr("360 CL Graph"));
+    m_360Graph1.SetXMajGrid(true, QColor(200,200,200),2,1);
+    m_360Graph1.SetYMajGrid(true, QColor(200,200,200),2,1);
+    m_360Graph1.SetXMin(-0.0);
+    m_360Graph1.SetXMax( 0.1);
+    m_360Graph1.SetYMin(-0.01);
+    m_360Graph1.SetYMax( 0.01);
+    m_360Graph1.SetType(0);
+    m_360Graph1.SetMargin(50);
+    m_360Graph1.SetXVariable(0);
+    m_360Graph1.SetYVariable(1);
+    m_360Graph1.SetGraphName(tr("360 Graph 1"));
 
-    m_360CDGraph.SetXMajGrid(true, QColor(200,200,200),2,1);
-    m_360CDGraph.SetYMajGrid(true, QColor(200,200,200),2,1);
-    m_360CDGraph.SetXMin(-0.0);
-    m_360CDGraph.SetXMax( 0.1);
-    m_360CDGraph.SetYMin(-0.01);
-    m_360CDGraph.SetYMax( 0.01);
-    m_360CDGraph.SetType(0);
-    m_360CDGraph.SetMargin(50);
-    m_360CDGraph.SetXVariable(0);
-    m_360CDGraph.SetYVariable(2);
-    m_360CDGraph.SetGraphName(tr("360 CD Graph"));
+    m_360Graph2.SetXMajGrid(true, QColor(200,200,200),2,1);
+    m_360Graph2.SetYMajGrid(true, QColor(200,200,200),2,1);
+    m_360Graph2.SetXMin(-0.0);
+    m_360Graph2.SetXMax( 0.1);
+    m_360Graph2.SetYMin(-0.01);
+    m_360Graph2.SetYMax( 0.01);
+    m_360Graph2.SetType(0);
+    m_360Graph2.SetMargin(50);
+    m_360Graph2.SetXVariable(0);
+    m_360Graph2.SetYVariable(2);
+    m_360Graph2.SetGraphName(tr("360 Graph 2"));
 
+    m_360Graph3.SetXMajGrid(true, QColor(200,200,200),2,1);
+    m_360Graph3.SetYMajGrid(true, QColor(200,200,200),2,1);
+    m_360Graph3.SetXMin(-0.0);
+    m_360Graph3.SetXMax( 0.1);
+    m_360Graph3.SetYMin(-0.01);
+    m_360Graph3.SetYMax( 0.01);
+    m_360Graph3.SetType(0);
+    m_360Graph3.SetMargin(50);
+    m_360Graph3.SetXVariable(0);
+    m_360Graph3.SetYVariable(2);
+    m_360Graph3.SetGraphName(tr("360 Graph 3"));
+
+    m_360Graph4.SetXMajGrid(true, QColor(200,200,200),2,1);
+    m_360Graph4.SetYMajGrid(true, QColor(200,200,200),2,1);
+    m_360Graph4.SetXMin(-0.0);
+    m_360Graph4.SetXMax( 0.1);
+    m_360Graph4.SetYMin(-0.01);
+    m_360Graph4.SetYMax( 0.01);
+    m_360Graph4.SetType(0);
+    m_360Graph4.SetMargin(50);
+    m_360Graph4.SetXVariable(0);
+    m_360Graph4.SetYVariable(2);
+    m_360Graph4.SetGraphName(tr("360 Graph 4"));
 
 
     m_RotorGraph1.SetXMajGrid(true, QColor(200,200,200),2,1);
@@ -277,8 +295,10 @@ QBEM::QBEM(QWidget *parent)
     SetRotorGraphTitles(&m_RotorGraph1);
     SetRotorGraphTitles(&m_RotorGraph2);
     SetRotorGraphTitles(&m_RotorGraph3);
-    SetPolarGraphTitles(&m_360CLGraph);
-    SetPolarGraphTitles(&m_360CDGraph);
+    SetPolarGraphTitles(&m_360Graph1);
+    SetPolarGraphTitles(&m_360Graph2);
+    SetPolarGraphTitles(&m_360Graph3);
+    SetPolarGraphTitles(&m_360Graph4);
     SetCharGraphTitles(&m_CharGraph1);
     SetCharGraphTitles(&m_CharGraph2);
     SetCharGraphTitles(&m_CharGraph3);
@@ -298,10 +318,10 @@ QBEM::QBEM(QWidget *parent)
     dlg_lambda = 7;
 
     dlg_relax = 0.35;
-    dlg_rho = 1.2041;
+    dlg_rho = 1.225;
     dlg_epsilon = 0.001;
-    dlg_iterations = 1000;
-    dlg_elements = 50;
+    dlg_iterations = 100;
+    dlg_elements = 40;
     dlg_tiploss = false;
     dlg_rootloss = false;
     dlg_3dcorrection = false;
@@ -312,6 +332,8 @@ QBEM::QBEM(QWidget *parent)
     dlg_lambdastart     = 1;
     dlg_lambdaend       = 10;
     dlg_lambdadelta     = 0.5;
+    dlg_windspeed       = 7;
+
 
     dlg_windstart       = 1;
     dlg_windend         = 20;
@@ -336,14 +358,14 @@ QBEM::QBEM(QWidget *parent)
 
 
 
-    dlg_visc = 0.0000178;
+    dlg_visc = 1.6468e-5;
 
-    pitch_old = 0;
+    m_PitchOld = 0;
     pitch_new = 0;
 
 
     m_CD90 = 1.8;
-    m_AR=11;//JW variable
+    m_AR=1.8;//JW variable
 
 
 	m_bAbsoluteBlade = false;
@@ -354,20 +376,17 @@ QBEM::QBEM(QWidget *parent)
     m_pCurPolar = NULL;
     m_pCurGraph = NULL;
     m_pWingModel = NULL;
+    m_pBladeDelegate = NULL;
     m_pCur360Polar = NULL;
     m_pBladeAxisModel = NULL;
 	m_pBladeData = NULL;
-	// new code JW /////
 	m_pTurbineBData = NULL;
 	m_pBData = NULL;
 	m_pBEMData = NULL;
 	m_pTBEMData = NULL;
 	m_pCBEMData = NULL;
-	// end new code JW /////
-
 
     m_bShowOpPoint              = true;
-    m_bChanged                  = false;
     m_bRightSide                = false;
     m_bResetglGeom              = true;
     m_bShowLight                = false;
@@ -379,6 +398,7 @@ QBEM::QBEM(QWidget *parent)
     m_bResetglSectionHighlight  = true;
     m_b360PolarChanged          = true;
     m_bNew360Polar              = false;
+    m_bDecompose                = false;
     m_bXPressed                 = false;
     m_bYPressed                 = false;
     m_WingEdited                = false;
@@ -390,7 +410,7 @@ QBEM::QBEM(QWidget *parent)
     m_bHideWidgets              = false;
     m_bSingleGraphs             = false;
     m_bAdvancedEdit             = false;
-    m_bStallModel               = false;// JW variable
+    m_bStallModel               = false;
 
 
     m_GLScale       = 1.0;
@@ -400,7 +420,7 @@ QBEM::QBEM(QWidget *parent)
     m_OutlineStyle  = 0;
     m_OutlineColor  = QColor(0,0,0);
 
-	g_mainFrame->setIView(POLARVIEW,BEM);// new JW //m_iView = POLARVIEW;
+	g_mainFrame->setIView(POLARVIEW,BEM);
 
 
     m_rCltRect.setWidth(0);
@@ -421,17 +441,27 @@ QBEM::QBEM(QWidget *parent)
     /////////////// new NM ///////////////
     // connect signals
     connect (g_mainFrame, SIGNAL(moduleChanged()), this, SLOT(onModuleChanged()));
-	//g_mainFrame->ExportCurrentTurbineAct->setEnabled(false);// new code NM -> should always be disabled
 	/////////// end new NM ///////////////
 
 	m_A.clear();
 	m_k.clear();
 }
 
-void QBEM::AboutTheBEM()
-{
-        AboutBEM dlg(this);
-        dlg.exec();
+QStringList QBEM::prepareMissingObjectMessage() {
+	switch (g_mainFrame->m_iView) {
+	case BLADEVIEW:
+		return CBlade::prepareMissingObjectMessage(false);
+	case POLARVIEW:
+		return C360Polar::prepareMissingObjectMessage();
+	case BEMSIMVIEW:
+		return BEMData::prepareMissingObjectMessage();
+	case TURBINEVIEW:
+		return TBEMData::prepareMissingObjectMessage();
+	case CHARSIMVIEW:
+		return CBEMData::prepareMissingObjectMessage();
+	default:
+		return QStringList("unknown view");
+	}
 }
 
 double QBEM::CD90(CFoil *pFoil, double alpha)
@@ -456,7 +486,9 @@ void QBEM::CheckButtons()
     m_pctrlBladeCoordinates2->setChecked(!m_bAbsoluteBlade);
     m_pctrlBladeCoordinates2->setVisible(m_pBlade);
 
-
+    m_BEMToolBar->m_polarComboBox->setEnabled(!m_bNew360Polar && !m_bDecompose && m_BEMToolBar->m_polarComboBox->count());
+    m_BEMToolBar->m_polar360ComboBox->setEnabled(!m_bNew360Polar && !m_bDecompose && m_BEMToolBar->m_polar360ComboBox->count());
+    m_BEMToolBar->m_foilComboBox->setEnabled(!m_bNew360Polar && !m_bDecompose && m_BEMToolBar->m_foilComboBox->count());
 
 
     UpdateUnits();
@@ -480,6 +512,8 @@ void QBEM::CheckButtons()
     g_mainFrame->ExportCurrentRotorAct->setVisible(true);
     g_mainFrame->ExportBladeTableAct->setVisible(true);
     g_mainFrame->OnImportBladeGeometry->setVisible(true);
+    g_mainFrame->ExportCurrentRotorAeroDynAct->setVisible(true);
+
 
     ///
 
@@ -489,6 +523,8 @@ void QBEM::CheckButtons()
 
     pSimuWidget->m_pctrlDefineTurbineSim->setEnabled(m_pTData);
 	pSimuWidget->m_pctrlStartTurbineSim->setEnabled(m_pTBEMData);
+    pSimuWidget->m_pctrlDeleteTBEM->setEnabled(m_pTBEMData);
+
     pSimuWidget->m_pctrlWind1->setEnabled(m_pTBEMData);
     pSimuWidget->m_pctrlWind2->setEnabled(m_pTBEMData);
     pSimuWidget->m_pctrlWindDelta->setEnabled(m_pTBEMData);
@@ -498,9 +534,15 @@ void QBEM::CheckButtons()
     pSimuWidget->m_pctrlLSLineEdit->setEnabled(m_pBEMData);
     pSimuWidget->m_pctrlLELineEdit->setEnabled(m_pBEMData);
     pSimuWidget->m_pctrlLDLineEdit->setEnabled(m_pBEMData);
+    pSimuWidget->m_pctrlWindspeed->setEnabled(m_pBEMData);
+    pSimuWidget->m_pctrlDeleteBEM->setEnabled(m_pBEMData);
+
+
 
     pSimuWidget->CreateCharSim->setEnabled(m_pBlade);
 	pSimuWidget->StartCharSim->setEnabled(m_pCBEMData);
+    pSimuWidget->m_pctrlDeleteCBEM->setEnabled(m_pCBEMData);
+
     pSimuWidget->WindStart->setEnabled(m_pCBEMData);
     pSimuWidget->WindEnd->setEnabled(m_pCBEMData);
     pSimuWidget->WindDelta->setEnabled(m_pCBEMData);
@@ -529,6 +571,8 @@ void QBEM::CheckButtons()
     pSimuWidget->m_pctrlLSLineEdit->setValue(dlg_lambdastart);
     pSimuWidget->m_pctrlLELineEdit->setValue(dlg_lambdaend);
     pSimuWidget->m_pctrlLDLineEdit->setValue(dlg_lambdadelta);
+    pSimuWidget->m_pctrlWindspeed->setValue(dlg_windspeed);
+
 
     pSimuWidget->m_pctrlWind1->setValue(dlg_windstart);
     pSimuWidget->m_pctrlWind2->setValue(dlg_windend);
@@ -556,33 +600,48 @@ void QBEM::CheckButtons()
     m_pctrlNewWing->setEnabled(g_360PolarStore.size());
     m_pctrlDeleteWing->setEnabled(m_pBlade);
 
+    m_pctrlDecompose360->setEnabled(m_pCur360Polar);
+
+    if (m_bDecompose) m_pctrlDecompose360 ->setEnabled(false);
+
+    if (m_pCur360Polar){
+        m_pctrlDelete360Polar->setEnabled(!m_bNew360Polar && !m_bDecompose);
+        m_pctrlRename360Polar->setEnabled(!m_bNew360Polar && !m_bDecompose);
+        IsDecomposed->setVisible(true);
+        if (m_pCur360Polar->m_bisDecomposed) IsDecomposed->setText("Decomposed Polar");
+        else IsDecomposed->setText("Not Decomposed");
+        IsDecomposed->setVisible(!m_bNew360Polar && !m_bDecompose);
+    }
+    else{
+        m_pctrlDelete360Polar->setEnabled(false);
+        m_pctrlRename360Polar->setEnabled(false);
+        IsDecomposed->setVisible(false);
+    }
+
+
+
+
     if (m_pCurPolar)
     {
-        if(m_pCurPolar->m_Alpha.size() > 8)
-        {
-             m_pctrlNew360->setEnabled(!m_bNew360Polar);
-             m_pctrlDelete360Polar->setEnabled(!m_bNew360Polar);
-             if(m_pCurFoil->m_bisCircular) m_pctrlNew360->setEnabled(false);
-             ///////// new code JW /////////////////////////
-             if(m_pCurFoil->m_bisCircular) m_pctrlStallModelMontg->setEnabled(false);
-             else m_pctrlStallModelMontg->setEnabled(!m_bNew360Polar);
+        m_pctrlNew360->setEnabled(!m_bNew360Polar && !m_bDecompose);
+        if(m_pCurFoil->m_bisCircular) m_pctrlNew360->setEnabled(false);
+        if(m_pCurFoil->m_bisCircular) m_pctrlDecompose360->setEnabled(false);
 
-             if(m_pCurFoil->m_bisCircular) m_pctrlStallModelVit->setEnabled(false);
-             else m_pctrlStallModelVit->setEnabled(!m_bNew360Polar);
-             ///////// end new code JW /////////////////////
-        }
+        if(m_pCurFoil->m_bisCircular) m_pctrlStallModelMontg->setEnabled(false);
+        else m_pctrlStallModelMontg->setEnabled(!m_bNew360Polar && !m_bDecompose);
+        if(m_pCurFoil->m_bisCircular) m_pctrlStallModelVit->setEnabled(false);
+        else m_pctrlStallModelVit->setEnabled(!m_bNew360Polar&& !m_bDecompose);
     }
     else
     {
         m_pctrlNew360->setEnabled(false);
-        m_pctrlDelete360Polar->setEnabled(false);
-        ///////// new code JW /////////////////////////
         m_pctrlStallModelVit->setEnabled(false);
         m_pctrlStallModelMontg->setEnabled(false);
-        ///////// end new code JW /////////////////////
     }
-    m_pctrlSave360->setEnabled(m_bNew360Polar);
-	m_pctrlCancel360->setEnabled(m_bNew360Polar);
+    m_pctrlSave360->setEnabled(m_bNew360Polar || m_bDecompose);
+    m_pctrlCancel360->setEnabled(m_bNew360Polar || m_bDecompose);
+
+
 
 
     QString str;
@@ -604,8 +663,14 @@ void QBEM::CheckButtons()
 	g_mainFrame->AziGraphAct->setVisible(false);
     ///// new code JW /////
 
+    if (m_pCurGraph){
+        g_mainFrame->autoResetCurGraphScales->setChecked(!m_pCurGraph->m_autoReset);
+    }
+
     if(!m_pCurGraph)
     {
+        g_mainFrame->autoResetCurGraphScales->setChecked(false);
+
 		g_mainFrame->BladeGraphAct->setEnabled(false);
 		g_mainFrame->RotorGraphAct->setEnabled(false);
 		g_mainFrame->WeibullGraphAct->setEnabled(false);
@@ -630,6 +695,8 @@ void QBEM::CheckButtons()
 		g_mainFrame->ParamWindAct->setChecked(false);
 		g_mainFrame->ParamRotAct->setChecked(false);
 		g_mainFrame->ParamNoneAct->setChecked(false);
+
+
 
     }
     else if(m_pCurGraph->m_Type == 1)
@@ -758,12 +825,37 @@ void QBEM::CheckButtons()
     m_pctrlB->setEnabled(m_bNew360Polar     && !m_bStallModel);
     m_pctrlAm->setEnabled(m_bNew360Polar    && !m_bStallModel);
     m_pctrlBm->setEnabled(m_bNew360Polar    && !m_bStallModel);
-    m_360Name->setEnabled(m_bNew360Polar    && !m_bStallModel);
     m_pctrlCD90->setEnabled(m_bNew360Polar  && !m_bStallModel);
+
+    SliderGroup->setVisible(m_bNew360Polar && !m_bStallModel);
+    RangeGroup->setVisible(m_bNew360Polar);
+
+
+    m_posStall->setEnabled(m_bNew360Polar || m_bDecompose);
+    m_posSep->setEnabled(m_bNew360Polar || m_bDecompose);
+    m_negStall->setEnabled(m_bNew360Polar || m_bDecompose);
+    m_negSep->setEnabled(m_bNew360Polar || m_bDecompose);
+    m_pos180Stall->setEnabled(m_bNew360Polar || m_bDecompose);
+    m_pos180Sep->setEnabled(m_bNew360Polar || m_bDecompose);
+    m_neg180Stall->setEnabled(m_bNew360Polar || m_bDecompose);
+    m_neg180Sep->setEnabled(m_bNew360Polar || m_bDecompose);
+
+    DecomposeGroup->setVisible(m_bNew360Polar || m_bDecompose);
+    m_360Name->setEnabled(m_bNew360Polar    || m_bDecompose);
+
+
     /////////end JW modification //////////////////////
     ///////// new code JW //////////////////////
-    m_pctrlAR->setEnabled(m_bNew360Polar   && m_bStallModel);
+    ViternaGroup->setVisible(m_bNew360Polar   && m_bStallModel);
     /////////end new code JW //////////////////////
+
+
+    m_pctrlSave360->setVisible(m_pctrlSave360->isEnabled());
+    m_pctrlCancel360->setVisible(m_pctrlCancel360->isEnabled());
+    m_pctrlNew360->setVisible(!m_bNew360Polar && !m_bDecompose);
+    m_pctrlDelete360Polar->setVisible(!m_bNew360Polar && !m_bDecompose);
+    m_pctrlDecompose360->setVisible(!m_bNew360Polar && !m_bDecompose);
+    m_pctrlRename360Polar->setVisible(!m_bNew360Polar && !m_bDecompose);
 
     SetCurveParams();
 
@@ -780,8 +872,9 @@ void QBEM::CheckWing()
 
     for (int i=0;i<=m_pBlade->m_NPanel;i++)
     {
-        if (m_pBlade->m_Polar.at(i) == "") finished = false;
-        if (m_pBlade->m_Airfoils.at(i) == "") finished = false;
+        if (m_pBlade->m_Polar.at(i) == "-----") finished = false;
+        if (m_pBlade->m_Airfoils.at(i) == "-----") finished = false;
+        if (!m_pBlade->m_bisSinglePolar && m_pBlade->m_Range.at(i) == "-----") finished = false;
     }
 
     //// check if solidity < 1 at all stations
@@ -796,7 +889,7 @@ void QBEM::CheckWing()
 
     if (max >= 1)
     {
-        text = "<font color='Red'> Solidity is " +var.sprintf("%.2f",double(max))+ " at station " +var2.sprintf("%.0f",double(station+1))+" it has to be smaller than one - reduce the chord length or change twist angle at station " +var2+"</font>";
+        text = "<font color='Red'> Rotor solidity at section " +var2.sprintf("%.0f",double(station+1))+" is " +var.sprintf("%.2f",double(max))+ " (must be smaller 1) reduce chord or increase twist at section " +var2+"</font>";
         finished = false;
     }
 
@@ -974,15 +1067,91 @@ void QBEM::CheckTurbineButtons()
 
 }
 
+void QBEM::ComputeDecomposition(){
+
+    double AoA, AoA_sep1 = m_negSep->value(), AoA_sep2 = m_posSep->value(), AoA_sep3 = m_pos180Sep->value(), AoA_sep4 = m_neg180Sep->value(), AoA0;
+    double AoA_fs1 = m_negStall->value() , AoA_fs2 = m_posStall->value(), AoA_fs3 = m_pos180Stall->value(), AoA_fs4 = m_neg180Stall->value();
+    double Cl_st, Cl_lin, fst;    
+
+    m_bDecompose = true;
+
+    m_pCur360Polar->m_Cl_att.clear();
+    m_pCur360Polar->m_Cl_sep.clear();
+    m_pCur360Polar->m_fst.clear();
+    AoA0=m_pCur360Polar->alpha_zero;
+
+    // calculate linear lift
+    // determine separation and fully separated AoA
+    for (int i=0; i < m_pCur360Polar->m_Alpha.size(); i++)
+    {
+        AoA = m_pCur360Polar->m_Alpha.at(i);
+        Cl_st = m_pCur360Polar->m_Cl.at(i);
+
+        if (fabs(Cl_st) < 0.0001)
+            Cl_st=0;
+
+        if (AoA>-90 && AoA<90)
+        {
+            Cl_lin = m_pCur360Polar->slope*(AoA-AoA0);
+            fst=pow(2*sqrt(Cl_st/Cl_lin * fabs((AoA-AoA0)*PI/180/(sin((AoA-AoA0)*PI/180))))-1, 2);
+        }
+        else if (AoA<=-90)
+        {
+            Cl_lin = 0.8*m_pCur360Polar->slope*(AoA-AoA0+180);
+            fst=pow(2*sqrt(Cl_st/Cl_lin * fabs((AoA-AoA0+180)*PI/180/(sin((AoA-AoA0+180)*PI/180))))-1, 2);
+        }
+            else
+        {
+            Cl_lin = 0.8*m_pCur360Polar->slope*(AoA-AoA0-180);
+            fst=pow(2*sqrt(Cl_st/Cl_lin * fabs((AoA-AoA0-180)*PI/180/(sin((AoA-AoA0-180)*PI/180))))-1, 2);
+        }
+
+//        // separation point function
+//        fst=pow(2*sqrt(Cl_st/Cl_lin)-1, 2);
+
+        // fully attached
+        if (fst>1 || (AoA>AoA_sep1 && AoA<AoA_sep2) || AoA>AoA_sep3 || AoA<AoA_sep4 )
+        {
+            fst = 1;
+            m_pCur360Polar->m_Cl_att.append(Cl_st);
+            m_pCur360Polar->m_Cl_sep.append(0.5*Cl_st);
+        }
+        // fully separated
+        else if (fst<0 || (AoA<AoA_fs1 && AoA>AoA_fs4) || (AoA>AoA_fs2 && AoA<AoA_fs3))
+        {
+            fst = 0;
+            m_pCur360Polar->m_Cl_att.append(Cl_lin);
+            m_pCur360Polar->m_Cl_sep.append(Cl_st);
+        }
+        // transition region
+        else
+        {
+            m_pCur360Polar->m_Cl_att.append(Cl_lin);
+            m_pCur360Polar->m_Cl_sep.append((Cl_st-Cl_lin*fst)/(1-fst));
+        }
+
+        if (std::isnan(fst)) fst = 0;
+
+        m_pCur360Polar->m_fst.append(fst);
+    }
+
+    m_pCur360Polar->m_bisDecomposed = true;
+
+}
+
+void QBEM::ComputePolar(){
+    if (!m_bStallModel) Compute360Polar();
+    else ComputeViterna360Polar();
+}
+
 
 void QBEM::Compute360Polar()
 {
-    double CLmax=0, CLmin=100, CLabsmin=100/*, alphamax*//*, alphamin*/, CLzero = 0, CL180 = 0;
+    double CLzero = 0, CL180 = 0;
     double alphazero = 0, slope = 0, deltaCD = 0;
-	double deltaalpha = 1;
-    double smallestalpha = 100, smallestAlpha=100;
+    double deltaalpha = 1;
 
-    int posalphamax = 0/*, posalphamin*//*, possmallestalpha*/;
+    int posalphamax = 0;
 
     double a1plus,a1minus,a2plus,a2minus;
     double CL1plus, CL1minus,CL2plus,CL2minus;
@@ -990,70 +1159,26 @@ void QBEM::Compute360Polar()
 
     double am, G , k;
 
+
+    slope = m_Slope->value();
+
     m_pCur360Polar->m_Alpha.clear();
     m_pCur360Polar->m_Cl.clear();
     m_pCur360Polar->m_Cd.clear();
-
-    //get important variables from current polar
-
-    for (int i=0; i<m_pCurPolar->m_Alpha.size(); i++)
-    {
-
-        if (m_pCurPolar->m_Alpha.at(i) > -25 && m_pCurPolar->m_Alpha.at(i) < 25)
-        {
-            if (m_pCurPolar->m_Cl.at(i) > CLmax)
-            {
-                CLmax = m_pCurPolar->m_Cl.at(i);
-//                alphamax = m_pCurPolar->m_Alpha.at(i);
-                posalphamax=i;
-            }
-
-            if (m_pCurPolar->m_Cl.at(i) < CLmin)
-            {
-                CLmin = m_pCurPolar->m_Cl.at(i);
-//                alphamin = m_pCurPolar->m_Alpha.at(i);
-//                posalphamin=i;
-            }
-
-            if (fabs(m_pCurPolar->m_Alpha.at(i)) < smallestAlpha)
-            {
-                smallestAlpha = fabs(m_pCurPolar->m_Alpha.at(i));
-                smallestalpha=m_pCurPolar->m_Alpha.at(i);
-                slope = (m_pCurPolar->m_Cl.at(i+3)-m_pCurPolar->m_Cl.at(i))/(m_pCurPolar->m_Alpha.at(i+3)-m_pCurPolar->m_Alpha.at(i));
-            }
-        }
-
-    }
-
-    for (int i=0; i<m_pCurPolar->m_Alpha.size(); i++)
-    {
-        if (m_pCurPolar->m_Alpha.at(i) > -25 && m_pCurPolar->m_Alpha.at(i) < 25)
-        {
-            if (m_pCurPolar->m_Alpha.at(i) == smallestalpha)
-            {
-                CLzero = m_pCurPolar->m_Cl.at(i)-slope*smallestalpha;
-            }
-
-            if (fabs(m_pCurPolar->m_Cl.at(i)) < CLabsmin)
-            {
-                CLabsmin=fabs(m_pCurPolar->m_Cl.at(i));
-//                possmallestalpha=i;
-				alphazero = m_pCurPolar->m_Alpha.at(i)-m_pCurPolar->m_Cl.at(i)/slope;
-
-            }
-        }
-    }
-
+    m_pCur360Polar->m_Cm.clear();
     m_pCur360Polar->slope = slope;
-    m_pCur360Polar->alpha_zero = alphazero;
 
+
+    alphazero=m_pCur360Polar->alpha_zero;
+    posalphamax=m_pCur360Polar->posalphamax;
+    CLzero=m_pCur360Polar->CLzero;
 
     //start constructing the positive extrapolation
 
         m_pctrlA->setMaximum(30);
         m_pctrlA->setMinimum(-10);
 
-    if (m_pctrlA->value()+posalphamax+2 < m_pCurPolar->m_Alpha.size() && m_pctrlA->value()+posalphamax  >= 0)
+    if (m_pctrlA->value()+posalphamax < m_pCurPolar->m_Alpha.size() && m_pctrlA->value()+posalphamax  >= 0)
     {
     a1plus = m_pCurPolar->m_Alpha.at(posalphamax+m_pctrlA->value());
     CL1plus= m_pCurPolar->m_Cl.at(posalphamax+m_pctrlA->value());
@@ -1065,7 +1190,7 @@ void QBEM::Compute360Polar()
     }
 
 
-    if ((posalphamax+m_pctrlB->value()+m_pctrlA->value() +2) < m_pCurPolar->m_Alpha.size() && (posalphamax+m_pctrlB->value()+m_pctrlA->value()) >= 0)
+    if ((posalphamax+m_pctrlB->value()+m_pctrlA->value()) < m_pCurPolar->m_Alpha.size() && (posalphamax+m_pctrlB->value()+m_pctrlA->value()) >= 0)
     {
     a2plus = m_pCurPolar->m_Alpha.at(posalphamax+m_pctrlB->value()+m_pctrlA->value());
     CL2plus =m_pCurPolar->m_Cl.at(posalphamax+m_pctrlB->value()+m_pctrlA->value());
@@ -1078,6 +1203,10 @@ void QBEM::Compute360Polar()
 
     f1plus=((CL1plus-PlateFlow(alphazero, CLzero, a1plus))/(PotFlow(CLzero, slope, a1plus)-PlateFlow(alphazero, CLzero, a1plus)));
     f2plus=((CL2plus-PlateFlow(alphazero, CLzero, a2plus))/(PotFlow(CLzero, slope, a2plus)-PlateFlow(alphazero, CLzero, a2plus)));
+
+    if (f1plus == 1) f1plus += 10e-6;
+    if (f2plus == 1) f2plus += 10e-6;
+
 
     G=pow((fabs((1/f1plus-1)/(1/f2plus-1))),0.25);
 
@@ -1125,8 +1254,6 @@ void QBEM::Compute360Polar()
     {
         if (alpha < am2 - 70)
         {
-
-
         if (alpha<am)
         {
         delta=0;
@@ -1283,6 +1410,12 @@ while (alpha >= -180)
     alpha=alpha-deltaalpha;
 }
 
+
+
+CombinePolars();
+
+ComputeDecomposition();
+
 }
 
 ////// new code JW //////////
@@ -1295,6 +1428,7 @@ void QBEM::ComputeViterna360Polar()
     m_pCur360Polar->m_Alpha.clear();
     m_pCur360Polar->m_Cl.clear();
     m_pCur360Polar->m_Cd.clear();
+    m_pCur360Polar->m_Cm.clear();
 
     //get important variables from current polar
     for (int i=0; i<m_pCurPolar->m_Alpha.size(); i++)
@@ -1327,7 +1461,7 @@ void QBEM::ComputeViterna360Polar()
     // R...blade tip radius
     // c...blade chord
 
-    double CDmax = 1.11 + 0.018 * m_AR;
+    double CDmax = m_AR;
 
 
     // positive extrapolation
@@ -1383,6 +1517,10 @@ void QBEM::ComputeViterna360Polar()
         pos++;
     }
 
+    CombinePolars();
+
+    ComputeDecomposition();
+
 }
 ////// end new code JW //////
 
@@ -1392,8 +1530,77 @@ void QBEM::ComputeGeometry(bool isVawt)
 
         m_pBlade->CreateSurfaces(isVawt);
         m_pBlade->ComputeGeometry();
-        for (int i=0; i<m_pBlade->m_NSurfaces; i++) m_pBlade->m_Surface[i].SetSidePoints(NULL, 0.0, 0.0);
+
+        for (int i=0;i<m_pBlade->m_StrutList.size();i++){
+            m_pBlade->m_StrutList.at(i)->CreateSurfaces(1);
+        }
+
         UpdateView();
+}
+
+void QBEM::ComputePolarVars()
+{
+    double CLmax=0, CLmin=100, CLabsmin=100, CLzero = 0;
+    double alphazero = 0, slope = 0;
+    double smallestalpha = 100, smallestAlpha=100;
+    int posalphamax = 0;
+
+    //get important variables from current polar
+    for (int i=0; i<m_pCurPolar->m_Alpha.size(); i++)
+    {
+
+        if (m_pCurPolar->m_Alpha.at(i) > -25 && m_pCurPolar->m_Alpha.at(i) < 25)
+        {
+            if (m_pCurPolar->m_Cl.at(i) > CLmax)
+            {
+                CLmax = m_pCurPolar->m_Cl.at(i);
+                posalphamax=i;
+            }
+
+            if (m_pCurPolar->m_Cl.at(i) < CLmin)
+            {
+                CLmin = m_pCurPolar->m_Cl.at(i);
+            }
+
+            if (fabs(m_pCurPolar->m_Alpha.at(i)) < smallestAlpha)
+            {
+                smallestAlpha = fabs(m_pCurPolar->m_Alpha.at(i));
+                smallestalpha=m_pCurPolar->m_Alpha.at(i);
+                if ((i+5)<m_pCurPolar->m_Cl.size() && (i-3) >= 0){
+                slope = (m_pCurPolar->m_Cl.at(i+5)-m_pCurPolar->m_Cl.at(i-3))/(m_pCurPolar->m_Alpha.at(i+5)-m_pCurPolar->m_Alpha.at(i-3));
+                }
+                else slope = pow(PI,2)/90;// 2PI slope
+            }
+        }
+
+    }
+
+    for (int i=0; i<m_pCurPolar->m_Alpha.size(); i++)
+    {
+        if (m_pCurPolar->m_Alpha.at(i) > -25 && m_pCurPolar->m_Alpha.at(i) < 25)
+        {
+            if (m_pCurPolar->m_Alpha.at(i) == smallestalpha)
+            {
+                CLzero = m_pCurPolar->m_Cl.at(i)-slope*smallestalpha;
+            }
+
+            if (fabs(m_pCurPolar->m_Cl.at(i)) < CLabsmin)
+            {
+                CLabsmin=fabs(m_pCurPolar->m_Cl.at(i));
+                if ((i+5)<m_pCurPolar->m_Cl.size() && (i-3) >= 0){
+                slope = (m_pCurPolar->m_Cl.at(i+5)-m_pCurPolar->m_Cl.at(i-3))/(m_pCurPolar->m_Alpha.at(i+5)-m_pCurPolar->m_Alpha.at(i-3));
+                }
+                else slope = pow(PI,2)/90; // 2PI slope
+                alphazero = m_pCurPolar->m_Alpha.at(i)-m_pCurPolar->m_Cl.at(i)/slope;
+            }
+        }
+    }
+
+    m_pCur360Polar->slope = slope;
+    m_pCur360Polar->alpha_zero = alphazero;
+    m_pCur360Polar->posalphamax = posalphamax;
+    m_pCur360Polar->CLzero = CLzero;
+
 }
 
 void QBEM::Connect()
@@ -1402,7 +1609,6 @@ connect(m_pctrlInsertBefore, SIGNAL(clicked()),this, SLOT(OnInsertBefore()));
 connect(m_pctrlInsertAfter, SIGNAL(clicked()),this, SLOT(OnInsertAfter()));
 connect(m_pctrlDeleteSection, SIGNAL(clicked()),this, SLOT(OnDeleteSection()));
 
-connect(m_pctrlIsOrtho, SIGNAL(clicked()),this, SLOT(OnOrtho()));
 connect(m_pctrlWingColor, SIGNAL(clicked()),this, SLOT(OnBladeColor()));
 connect(m_pctrlSectionColor, SIGNAL(clicked()),this, SLOT(OnSectionColor()));
 
@@ -1421,6 +1627,11 @@ connect(m_pctrlCurveColor, SIGNAL(clicked()), this, SLOT(OnCurveColor()));
 connect(m_pctrlShowPoints, SIGNAL(clicked()), this, SLOT(OnShowPoints()));
 connect(m_pctrlShowCurve, SIGNAL(clicked()), this, SLOT(OnShowCurve()));
 
+connect(m_SingleMultiGroup, SIGNAL(buttonToggled(int,bool)), this, SLOT(OnSingleMultiPolarChanged()));
+
+
+
+
 // viterna 360 polar
 //---------------------------------------------------------------------------------
 ///////////// new code JW ////////////////////////////////////////////////
@@ -1434,15 +1645,18 @@ connect(m_pctrlAR, SIGNAL(valueChanged(double)), SLOT(OnSetAR(double)));
 
 
 
-connect(m_pctrlSave, SIGNAL(clicked()),this, SLOT (OnSaveWing()));
+connect(m_pctrlSave, SIGNAL(clicked()),this, SLOT (OnSaveBlade()));
 
 connect(m_pctrlHubRadius,  SIGNAL(editingFinished()), this, SLOT(OnHubChanged()));
 connect(m_pctrlBlades,  SIGNAL(valueChanged(int)), this, SLOT(OnCellChanged()));
 
 
 connect(m_pctrlNew360, SIGNAL(clicked()),this, SLOT (OnNew360Polar()));
+connect(m_pctrlDecompose360, SIGNAL(clicked()),this, SLOT (OnDecompose360Polar()));
+
 connect(m_pctrlCancel360, SIGNAL(clicked()),this, SLOT (OnDiscard360Polar()));
 connect(m_pctrlDelete360Polar, SIGNAL(clicked()),this, SLOT (OnDelete360Polar()));
+connect(m_pctrlRename360Polar, SIGNAL(clicked()),this, SLOT (OnRename360Polar()));
 
 
 connect(m_pctrlA, SIGNAL(valueChanged(int)), this, SLOT (Compute360Polar()));
@@ -1450,20 +1664,47 @@ connect(m_pctrlB, SIGNAL(valueChanged(int)), this, SLOT (Compute360Polar()));
 connect(m_pctrlAm, SIGNAL(valueChanged(int)), this, SLOT (Compute360Polar()));
 connect(m_pctrlBm, SIGNAL(valueChanged(int)), this, SLOT (Compute360Polar()));
 
+
+connect(m_Slope, SIGNAL(valueChanged(double)), this, SLOT (ComputePolar()));
+connect(m_posAoA, SIGNAL(valueChanged(double)), this, SLOT (ComputePolar()));
+connect(m_negAoA, SIGNAL(valueChanged(double)), this, SLOT (ComputePolar()));
+
+
+connect(m_posStall, SIGNAL(valueChanged(double)), this, SLOT (ComputeDecomposition()));
+connect(m_posSep, SIGNAL(valueChanged(double)), this, SLOT (ComputeDecomposition()));
+connect(m_negStall, SIGNAL(valueChanged(double)), this, SLOT (ComputeDecomposition()));
+connect(m_negSep, SIGNAL(valueChanged(double)), this, SLOT (ComputeDecomposition()));
+connect(m_pos180Stall, SIGNAL(valueChanged(double)), this, SLOT (ComputeDecomposition()));
+connect(m_pos180Sep, SIGNAL(valueChanged(double)), this, SLOT (ComputeDecomposition()));
+connect(m_neg180Stall, SIGNAL(valueChanged(double)), this, SLOT (ComputeDecomposition()));
+connect(m_neg180Sep, SIGNAL(valueChanged(double)), this, SLOT (ComputeDecomposition()));
+
+connect(m_posStall, SIGNAL(valueChanged(double)), this, SLOT (CreateSinglePolarCurve()));
+connect(m_posSep, SIGNAL(valueChanged(double)), this, SLOT (CreateSinglePolarCurve()));
+connect(m_negStall, SIGNAL(valueChanged(double)), this, SLOT (CreateSinglePolarCurve()));
+connect(m_negSep, SIGNAL(valueChanged(double)), this, SLOT (CreateSinglePolarCurve()));
+connect(m_pos180Stall, SIGNAL(valueChanged(double)), this, SLOT (CreateSinglePolarCurve()));
+connect(m_pos180Sep, SIGNAL(valueChanged(double)), this, SLOT (CreateSinglePolarCurve()));
+connect(m_neg180Stall, SIGNAL(valueChanged(double)), this, SLOT (CreateSinglePolarCurve()));
+connect(m_neg180Sep, SIGNAL(valueChanged(double)), this, SLOT (CreateSinglePolarCurve()));
+connect(m_Slope, SIGNAL(valueChanged(double)), this, SLOT (CreateSinglePolarCurve()));
+connect(m_posAoA, SIGNAL(valueChanged(double)), this, SLOT (CreateSinglePolarCurve()));
+connect(m_negAoA, SIGNAL(valueChanged(double)), this, SLOT (CreateSinglePolarCurve()));
+
+
 connect(m_pctrlA, SIGNAL(valueChanged(int)), this, SLOT (CreateSinglePolarCurve()));
 connect(m_pctrlB, SIGNAL(valueChanged(int)), this, SLOT (CreateSinglePolarCurve()));
 connect(m_pctrlAm, SIGNAL(valueChanged(int)), this, SLOT (CreateSinglePolarCurve()));
 connect(m_pctrlBm, SIGNAL(valueChanged(int)), this, SLOT (CreateSinglePolarCurve()));
 
-connect(m_pctrlPitchBladeButton, SIGNAL(clicked()), this, SLOT (PitchBlade()));
-
+connect(m_pctrlPitchBlade, SIGNAL(valueChanged(double)), this, SLOT (PitchBlade()));
 connect(m_pctrlSave360, SIGNAL(clicked()), this, SLOT (OnSave360Polar()));
 
 
 
 //---------------//
 connect(m_pctrlNewWing, SIGNAL(clicked()), this, SLOT (OnNewBlade()));
-connect(m_pctrlEditWing, SIGNAL(clicked()), this, SLOT (OnEditWing()));
+connect(m_pctrlEditWing, SIGNAL(clicked()), this, SLOT (OnEditBlade()));
 connect(m_pctrlDeleteWing, SIGNAL(clicked()), this, SLOT (OnDeleteBlade()));
 
 
@@ -1476,7 +1717,7 @@ connect(m_pctrlBladeCoordinates2, SIGNAL(clicked()), SLOT(BladeCoordsChanged()))
 
 
 
-connect(m_pctrlPerspective, SIGNAL(clicked()), SLOT(UpdateView()));
+connect(m_pctrlPerspective, SIGNAL(clicked()), SLOT(onPerspectiveChanged()));
 
 connect(m_pctrlShowTurbine, SIGNAL(clicked()), SLOT(UpdateView()));
 connect(m_pctrlShowTurbine, SIGNAL(clicked()), SLOT(OnCenterScene()));
@@ -1503,7 +1744,7 @@ connect(m_pctrlDeleteTurbine, SIGNAL(clicked()), SLOT(OnDeleteTurbine()));
 
 
 connect(m_pctrlOptimize, SIGNAL(clicked()), SLOT(OnOptimize()));
-connect(m_pctrlBack, SIGNAL(clicked()), SLOT(OnDiscardWing()));
+connect(m_pctrlBack, SIGNAL(clicked()), SLOT(OnDiscardBlade()));
 
 
 // new code JW //
@@ -1521,35 +1762,60 @@ connect(m_pctrlPitchList, SIGNAL(clicked()), SLOT(OnPrescribePitch()));
 connect(m_pctrlRotList, SIGNAL(clicked()), SLOT(OnPrescribeRot()));
 }
 
-void QBEM::CreateSinglePolarCurve()
+void QBEM::CreateSinglePolarCurve(bool showPolar)
 {
-    m_360CLGraph.DeleteCurves();
-    m_360CDGraph.DeleteCurves();
+    m_360Graph1.DeleteCurves();
+    m_360Graph2.DeleteCurves();
+    m_360Graph3.DeleteCurves();
+    m_360Graph4.DeleteCurves();
 
-    m_360CDGraph.SetAuto(true);
-    m_360CLGraph.SetAuto(true);
+    m_360Graph1.ResetIfAuto();
+    m_360Graph2.ResetIfAuto();
+    m_360Graph3.ResetIfAuto();
+    m_360Graph4.ResetIfAuto();
 
-    if (m_pCurPolar)
+    if (m_pCurPolar && m_pCur360Polar)
     {
-        if (m_pCurPolar->m_bIsVisible && m_pCurPolar->m_Alpha.size()>0)
+        if (m_pCurPolar->m_Alpha.size()>0 && showPolar)
         {
-            CCurve* pPolarCurve = m_360CLGraph.AddCurve();
+            if (!(m_360Graph1.GetXVariable() > 3) && !(m_360Graph1.GetYVariable() > 3)){
+                CCurve* pPolarCurve = m_360Graph1.AddCurve();
+//                pPolarCurve->ShowPoints(m_pCurPolar->m_bShowPoints);
+//                pPolarCurve->SetStyle(m_pCurPolar->m_Style);
+                pPolarCurve->SetColor(m_pCur360Polar->m_Color);
+                pPolarCurve->SetWidth(m_pCur360Polar->m_Width+2);
+                FillPolarCurve(pPolarCurve, m_pCurPolar, m_360Graph1.GetXVariable(), m_360Graph1.GetYVariable());
+                pPolarCurve->SetTitle(m_pCurPolar->getName());
+            }
 
-            pPolarCurve->ShowPoints(m_pCurPolar->m_bShowPoints);
-            pPolarCurve->SetStyle(m_pCurPolar->m_Style);
-            pPolarCurve->SetColor(m_pCurPolar->m_Color);
-            pPolarCurve->SetWidth(m_pCurPolar->m_Width);
-            FillPolarCurve(pPolarCurve, m_pCurPolar, m_360CLGraph.GetXVariable(), m_360CLGraph.GetYVariable());
-            pPolarCurve->SetTitle(m_pCurPolar->getName());
+            if (!(m_360Graph2.GetXVariable() > 3) && !(m_360Graph2.GetYVariable() > 3)){
+                CCurve* pPolarCurve = m_360Graph2.AddCurve();
+//                pPolarCurve->ShowPoints(m_pCurPolar->m_bShowPoints);
+//                pPolarCurve->SetStyle(m_pCurPolar->m_Style);
+                pPolarCurve->SetColor(m_pCur360Polar->m_Color);
+                pPolarCurve->SetWidth(m_pCur360Polar->m_Width+2);
+                FillPolarCurve(pPolarCurve, m_pCurPolar, m_360Graph2.GetXVariable(), m_360Graph2.GetYVariable());
+                pPolarCurve->SetTitle(m_pCurPolar->getName());
+            }
+            if (!(m_360Graph3.GetXVariable() > 3) && !(m_360Graph3.GetYVariable() > 3)){
+                CCurve* pPolarCurve = m_360Graph3.AddCurve();
+//                pPolarCurve->ShowPoints(m_pCurPolar->m_bShowPoints);
+//                pPolarCurve->SetStyle(m_pCurPolar->m_Style);
+                pPolarCurve->SetColor(m_pCur360Polar->m_Color);
+                pPolarCurve->SetWidth(m_pCur360Polar->m_Width+2);
+                FillPolarCurve(pPolarCurve, m_pCurPolar, m_360Graph3.GetXVariable(), m_360Graph3.GetYVariable());
+                pPolarCurve->SetTitle(m_pCurPolar->getName());
+            }
 
-            pPolarCurve = m_360CDGraph.AddCurve();
-
-            pPolarCurve->ShowPoints(m_pCurPolar->m_bShowPoints);
-            pPolarCurve->SetStyle(m_pCurPolar->m_Style);
-            pPolarCurve->SetColor(m_pCurPolar->m_Color);
-            pPolarCurve->SetWidth(m_pCurPolar->m_Width);
-            FillPolarCurve(pPolarCurve, m_pCurPolar, m_360CDGraph.GetXVariable(), m_360CDGraph.GetYVariable());
-            pPolarCurve->SetTitle(m_pCurPolar->getName());
+            if (!(m_360Graph4.GetXVariable() > 3) && !(m_360Graph4.GetYVariable() > 3)){
+                CCurve* pPolarCurve = m_360Graph4.AddCurve();
+//                pPolarCurve->ShowPoints(m_pCurPolar->m_bShowPoints);
+//                pPolarCurve->SetStyle(m_pCurPolar->m_Style);
+                pPolarCurve->SetColor(m_pCur360Polar->m_Color);
+                pPolarCurve->SetWidth(m_pCur360Polar->m_Width+2);
+                FillPolarCurve(pPolarCurve, m_pCurPolar, m_360Graph4.GetXVariable(), m_360Graph4.GetYVariable());
+                pPolarCurve->SetTitle(m_pCurPolar->getName());
+            }
         }
     }
 
@@ -1558,24 +1824,222 @@ void QBEM::CreateSinglePolarCurve()
 
             if (m_pCur360Polar->m_bIsVisible && m_pCur360Polar->m_Alpha.size()>0)
             {
-                CCurve* pPolarCurve2 = m_360CLGraph.AddCurve();
+                CCurve* pPolarCurve2 = m_360Graph1.AddCurve();
 
                 pPolarCurve2->ShowPoints(m_pCur360Polar->m_bShowPoints);
                 pPolarCurve2->SetStyle(m_pCur360Polar->m_Style);
                 pPolarCurve2->SetColor(m_pCur360Polar->m_Color);
                 pPolarCurve2->SetWidth(m_pCur360Polar->m_Width);
 
-                FillPolarCurve(pPolarCurve2, m_pCur360Polar, m_360CLGraph.GetXVariable(), m_360CLGraph.GetYVariable());
+                FillPolarCurve(pPolarCurve2, m_pCur360Polar, m_360Graph1.GetXVariable(), m_360Graph1.GetYVariable());
                 pPolarCurve2->SetTitle(m_pCur360Polar->getName());
 
-                pPolarCurve2= m_360CDGraph.AddCurve();
+                pPolarCurve2= m_360Graph2.AddCurve();
 
                 pPolarCurve2->ShowPoints(m_pCur360Polar->m_bShowPoints);
                 pPolarCurve2->SetStyle(m_pCur360Polar->m_Style);
                 pPolarCurve2->SetColor(m_pCur360Polar->m_Color);
                 pPolarCurve2->SetWidth(m_pCur360Polar->m_Width);
-                FillPolarCurve(pPolarCurve2, m_pCur360Polar, m_360CDGraph.GetXVariable(), m_360CDGraph.GetYVariable());
+                FillPolarCurve(pPolarCurve2, m_pCur360Polar, m_360Graph2.GetXVariable(), m_360Graph2.GetYVariable());
                 pPolarCurve2->SetTitle(m_pCur360Polar->getName());
+
+                pPolarCurve2= m_360Graph3.AddCurve();
+
+                pPolarCurve2->ShowPoints(m_pCur360Polar->m_bShowPoints);
+                pPolarCurve2->SetStyle(m_pCur360Polar->m_Style);
+                pPolarCurve2->SetColor(m_pCur360Polar->m_Color);
+                pPolarCurve2->SetWidth(m_pCur360Polar->m_Width);
+                FillPolarCurve(pPolarCurve2, m_pCur360Polar, m_360Graph3.GetXVariable(), m_360Graph3.GetYVariable());
+                pPolarCurve2->SetTitle(m_pCur360Polar->getName());
+
+                pPolarCurve2= m_360Graph4.AddCurve();
+
+                pPolarCurve2->ShowPoints(m_pCur360Polar->m_bShowPoints);
+                pPolarCurve2->SetStyle(m_pCur360Polar->m_Style);
+                pPolarCurve2->SetColor(m_pCur360Polar->m_Color);
+                pPolarCurve2->SetWidth(m_pCur360Polar->m_Width);
+                FillPolarCurve(pPolarCurve2, m_pCur360Polar, m_360Graph4.GetXVariable(), m_360Graph4.GetYVariable());
+                pPolarCurve2->SetTitle(m_pCur360Polar->getName());
+
+                if (m_pctrlA->value()+m_pCur360Polar->posalphamax < m_pCurPolar->m_Alpha.size() && m_pctrlA->value()+m_pCur360Polar->posalphamax  >= 0 && !m_bStallModel && showPolar && m_pctrlA->isEnabled()){
+
+                    QList <double> *pX;
+                    QList <double> *pY;
+                    QList <double> ClCd;
+                    if (!(m_360Graph1.GetXVariable() > 3) && !(m_360Graph1.GetYVariable() > 3)){
+                        pPolarCurve2 = m_360Graph1.AddCurve();
+                        pPolarCurve2->ShowPoints(true);
+                        pPolarCurve2->SetStyle(m_pCur360Polar->m_Style);
+                        pPolarCurve2->SetColor(m_pCur360Polar->m_Color);
+                        pPolarCurve2->SetWidth(m_pCur360Polar->m_Width+3);
+                        pX = (QList <double> *) GetVariable(m_pCurPolar, m_360Graph1.GetXVariable());
+                        pY = (QList <double> *) GetVariable(m_pCurPolar, m_360Graph1.GetYVariable());
+                        for (int i=0;i<m_pCurPolar->m_Cl.size();i++)
+                        {
+                            ClCd.append(m_pCurPolar->m_Cl.at(i)/m_pCurPolar->m_Cd.at(i));
+                        }
+                        pPolarCurve2->SetSelected(-1);
+                        int i = m_pctrlA->value()+m_pCur360Polar->posalphamax;
+                        if (m_360Graph1.GetXVariable() == 3 && m_360Graph1.GetYVariable() == 3) pPolarCurve2->AddPoint(ClCd.at(i),ClCd.at(i));
+                        else if (m_360Graph1.GetXVariable() == 3) pPolarCurve2->AddPoint(ClCd.at(i), pY->at(i));
+                        else if (m_360Graph1.GetYVariable() == 3) pPolarCurve2->AddPoint(pX->at(i), ClCd.at(i));
+                        else pPolarCurve2->AddPoint(pX->at(i),pY->at(i));
+                        pPolarCurve2->SetTitle(m_pCurPolar->getName()+"vizpoint");
+                    }
+
+                    if (!(m_360Graph2.GetXVariable() > 3) && !(m_360Graph2.GetYVariable() > 3)){
+                        pPolarCurve2 = m_360Graph2.AddCurve();
+                        pPolarCurve2->ShowPoints(true);
+                        pPolarCurve2->SetStyle(m_pCur360Polar->m_Style);
+                        pPolarCurve2->SetColor(m_pCur360Polar->m_Color);
+                        pPolarCurve2->SetWidth(m_pCur360Polar->m_Width+3);
+                        pX = (QList <double> *) GetVariable(m_pCurPolar, m_360Graph2.GetXVariable());
+                        pY = (QList <double> *) GetVariable(m_pCurPolar, m_360Graph2.GetYVariable());
+                        for (int i=0;i<m_pCurPolar->m_Cl.size();i++)
+                        {
+                            ClCd.append(m_pCurPolar->m_Cl.at(i)/m_pCurPolar->m_Cd.at(i));
+                        }
+                        pPolarCurve2->SetSelected(-1);
+                        int i = m_pctrlA->value()+m_pCur360Polar->posalphamax;
+                        if (m_360Graph2.GetXVariable() == 3 && m_360Graph2.GetYVariable() == 3) pPolarCurve2->AddPoint(ClCd.at(i),ClCd.at(i));
+                        else if (m_360Graph2.GetXVariable() == 3) pPolarCurve2->AddPoint(ClCd.at(i), pY->at(i));
+                        else if (m_360Graph2.GetYVariable() == 3) pPolarCurve2->AddPoint(pX->at(i), ClCd.at(i));
+                        else pPolarCurve2->AddPoint(pX->at(i),pY->at(i));
+                        pPolarCurve2->SetTitle(m_pCurPolar->getName()+"vizpoint");
+                    }
+
+                    if (!(m_360Graph3.GetXVariable() > 3) && !(m_360Graph3.GetYVariable() > 3)){
+                        pPolarCurve2 = m_360Graph3.AddCurve();
+                        pPolarCurve2->ShowPoints(true);
+                        pPolarCurve2->SetStyle(m_pCur360Polar->m_Style);
+                        pPolarCurve2->SetColor(m_pCur360Polar->m_Color);
+                        pPolarCurve2->SetWidth(m_pCur360Polar->m_Width+3);
+                        pX = (QList <double> *) GetVariable(m_pCurPolar, m_360Graph3.GetXVariable());
+                        pY = (QList <double> *) GetVariable(m_pCurPolar, m_360Graph3.GetYVariable());
+                        for (int i=0;i<m_pCurPolar->m_Cl.size();i++)
+                        {
+                            ClCd.append(m_pCurPolar->m_Cl.at(i)/m_pCurPolar->m_Cd.at(i));
+                        }
+                        pPolarCurve2->SetSelected(-1);
+                        int i = m_pctrlA->value()+m_pCur360Polar->posalphamax;
+                        if (m_360Graph3.GetXVariable() == 3 && m_360Graph3.GetYVariable() == 3) pPolarCurve2->AddPoint(ClCd.at(i),ClCd.at(i));
+                        else if (m_360Graph3.GetXVariable() == 3) pPolarCurve2->AddPoint(ClCd.at(i), pY->at(i));
+                        else if (m_360Graph3.GetYVariable() == 3) pPolarCurve2->AddPoint(pX->at(i), ClCd.at(i));
+                        else pPolarCurve2->AddPoint(pX->at(i),pY->at(i));
+                        pPolarCurve2->SetTitle(m_pCurPolar->getName()+"vizpoint");
+                    }
+
+                    if (!(m_360Graph4.GetXVariable() > 3) && !(m_360Graph4.GetYVariable() > 3)){
+                        pPolarCurve2 = m_360Graph4.AddCurve();
+                        pPolarCurve2->ShowPoints(true);
+                        pPolarCurve2->SetStyle(m_pCur360Polar->m_Style);
+                        pPolarCurve2->SetColor(m_pCur360Polar->m_Color);
+                        pPolarCurve2->SetWidth(m_pCur360Polar->m_Width+3);
+                        pX = (QList <double> *) GetVariable(m_pCurPolar, m_360Graph4.GetXVariable());
+                        pY = (QList <double> *) GetVariable(m_pCurPolar, m_360Graph4.GetYVariable());
+                        for (int i=0;i<m_pCurPolar->m_Cl.size();i++)
+                        {
+                            ClCd.append(m_pCurPolar->m_Cl.at(i)/m_pCurPolar->m_Cd.at(i));
+                        }
+                        pPolarCurve2->SetSelected(-1);
+                        int i = m_pctrlA->value()+m_pCur360Polar->posalphamax;
+                        if (m_360Graph4.GetXVariable() == 3 && m_360Graph4.GetYVariable() == 3) pPolarCurve2->AddPoint(ClCd.at(i),ClCd.at(i));
+                        else if (m_360Graph4.GetXVariable() == 3) pPolarCurve2->AddPoint(ClCd.at(i), pY->at(i));
+                        else if (m_360Graph4.GetYVariable() == 3) pPolarCurve2->AddPoint(pX->at(i), ClCd.at(i));
+                        else pPolarCurve2->AddPoint(pX->at(i),pY->at(i));
+                        pPolarCurve2->SetTitle(m_pCurPolar->getName()+"vizpoint");
+                    }
+                }
+                if (m_pctrlA->value()+m_pctrlB->value()+m_pCur360Polar->posalphamax < m_pCurPolar->m_Alpha.size() && m_pctrlA->value()+m_pctrlB->value()+m_pCur360Polar->posalphamax  >= 0 && !m_bStallModel && showPolar && m_pctrlB->isEnabled()){
+
+                    QList <double> *pX;
+                    QList <double> *pY;
+                    QList <double> ClCd;
+                    if (!(m_360Graph1.GetXVariable() > 3) && !(m_360Graph1.GetYVariable() > 3)){
+                        pPolarCurve2 = m_360Graph1.AddCurve();
+                        pPolarCurve2->ShowPoints(true);
+                        pPolarCurve2->SetStyle(m_pCur360Polar->m_Style);
+                        pPolarCurve2->SetColor(m_pCur360Polar->m_Color);
+                        pPolarCurve2->SetWidth(m_pCur360Polar->m_Width+3);
+                        pX = (QList <double> *) GetVariable(m_pCurPolar, m_360Graph1.GetXVariable());
+                        pY = (QList <double> *) GetVariable(m_pCurPolar, m_360Graph1.GetYVariable());
+                        for (int i=0;i<m_pCurPolar->m_Cl.size();i++)
+                        {
+                            ClCd.append(m_pCurPolar->m_Cl.at(i)/m_pCurPolar->m_Cd.at(i));
+                        }
+                        pPolarCurve2->SetSelected(-1);
+                        int i = m_pctrlA->value()+m_pctrlB->value()+m_pCur360Polar->posalphamax;
+                        if (m_360Graph1.GetXVariable() == 3 && m_360Graph1.GetYVariable() == 3) pPolarCurve2->AddPoint(ClCd.at(i),ClCd.at(i));
+                        else if (m_360Graph1.GetXVariable() == 3) pPolarCurve2->AddPoint(ClCd.at(i), pY->at(i));
+                        else if (m_360Graph1.GetYVariable() == 3) pPolarCurve2->AddPoint(pX->at(i), ClCd.at(i));
+                        else pPolarCurve2->AddPoint(pX->at(i),pY->at(i));
+                        pPolarCurve2->SetTitle(m_pCurPolar->getName()+"vizpoint");
+                    }
+
+                    if (!(m_360Graph2.GetXVariable() > 3) && !(m_360Graph2.GetYVariable() > 3)){
+                        pPolarCurve2 = m_360Graph2.AddCurve();
+                        pPolarCurve2->ShowPoints(true);
+                        pPolarCurve2->SetStyle(m_pCur360Polar->m_Style);
+                        pPolarCurve2->SetColor(m_pCur360Polar->m_Color);
+                        pPolarCurve2->SetWidth(m_pCur360Polar->m_Width+3);
+                        pX = (QList <double> *) GetVariable(m_pCurPolar, m_360Graph2.GetXVariable());
+                        pY = (QList <double> *) GetVariable(m_pCurPolar, m_360Graph2.GetYVariable());
+                        for (int i=0;i<m_pCurPolar->m_Cl.size();i++)
+                        {
+                            ClCd.append(m_pCurPolar->m_Cl.at(i)/m_pCurPolar->m_Cd.at(i));
+                        }
+                        pPolarCurve2->SetSelected(-1);
+                        int i = m_pctrlA->value()+m_pctrlB->value()+m_pCur360Polar->posalphamax;
+                        if (m_360Graph2.GetXVariable() == 3 && m_360Graph2.GetYVariable() == 3) pPolarCurve2->AddPoint(ClCd.at(i),ClCd.at(i));
+                        else if (m_360Graph2.GetXVariable() == 3) pPolarCurve2->AddPoint(ClCd.at(i), pY->at(i));
+                        else if (m_360Graph2.GetYVariable() == 3) pPolarCurve2->AddPoint(pX->at(i), ClCd.at(i));
+                        else pPolarCurve2->AddPoint(pX->at(i),pY->at(i));
+                        pPolarCurve2->SetTitle(m_pCurPolar->getName()+"vizpoint");
+                    }
+
+                    if (!(m_360Graph3.GetXVariable() > 3) && !(m_360Graph3.GetYVariable() > 3)){
+                        pPolarCurve2 = m_360Graph3.AddCurve();
+                        pPolarCurve2->ShowPoints(true);
+                        pPolarCurve2->SetStyle(m_pCur360Polar->m_Style);
+                        pPolarCurve2->SetColor(m_pCur360Polar->m_Color);
+                        pPolarCurve2->SetWidth(m_pCur360Polar->m_Width+3);
+                        pX = (QList <double> *) GetVariable(m_pCurPolar, m_360Graph3.GetXVariable());
+                        pY = (QList <double> *) GetVariable(m_pCurPolar, m_360Graph3.GetYVariable());
+                        for (int i=0;i<m_pCurPolar->m_Cl.size();i++)
+                        {
+                            ClCd.append(m_pCurPolar->m_Cl.at(i)/m_pCurPolar->m_Cd.at(i));
+                        }
+                        pPolarCurve2->SetSelected(-1);
+                        int i = m_pctrlA->value()+m_pctrlB->value()+m_pCur360Polar->posalphamax;
+                        if (m_360Graph3.GetXVariable() == 3 && m_360Graph3.GetYVariable() == 3) pPolarCurve2->AddPoint(ClCd.at(i),ClCd.at(i));
+                        else if (m_360Graph3.GetXVariable() == 3) pPolarCurve2->AddPoint(ClCd.at(i), pY->at(i));
+                        else if (m_360Graph3.GetYVariable() == 3) pPolarCurve2->AddPoint(pX->at(i), ClCd.at(i));
+                        else pPolarCurve2->AddPoint(pX->at(i),pY->at(i));
+                        pPolarCurve2->SetTitle(m_pCurPolar->getName()+"vizpoint");
+                    }
+
+                    if (!(m_360Graph4.GetXVariable() > 3) && !(m_360Graph4.GetYVariable() > 3)){
+                        pPolarCurve2 = m_360Graph4.AddCurve();
+                        pPolarCurve2->ShowPoints(true);
+                        pPolarCurve2->SetStyle(m_pCur360Polar->m_Style);
+                        pPolarCurve2->SetColor(m_pCur360Polar->m_Color);
+                        pPolarCurve2->SetWidth(m_pCur360Polar->m_Width+3);
+                        pX = (QList <double> *) GetVariable(m_pCurPolar, m_360Graph4.GetXVariable());
+                        pY = (QList <double> *) GetVariable(m_pCurPolar, m_360Graph4.GetYVariable());
+                        for (int i=0;i<m_pCurPolar->m_Cl.size();i++)
+                        {
+                            ClCd.append(m_pCurPolar->m_Cl.at(i)/m_pCurPolar->m_Cd.at(i));
+                        }
+                        pPolarCurve2->SetSelected(-1);
+                        int i = m_pctrlA->value()+m_pctrlB->value()+m_pCur360Polar->posalphamax;
+                        if (m_360Graph4.GetXVariable() == 3 && m_360Graph4.GetYVariable() == 3) pPolarCurve2->AddPoint(ClCd.at(i),ClCd.at(i));
+                        else if (m_360Graph4.GetXVariable() == 3) pPolarCurve2->AddPoint(ClCd.at(i), pY->at(i));
+                        else if (m_360Graph4.GetYVariable() == 3) pPolarCurve2->AddPoint(pX->at(i), ClCd.at(i));
+                        else pPolarCurve2->AddPoint(pX->at(i),pY->at(i));
+                        pPolarCurve2->SetTitle(m_pCurPolar->getName()+"vizpoint");
+                    }
+                }
+
 
             }
 
@@ -1583,13 +2047,21 @@ void QBEM::CreateSinglePolarCurve()
 
     if (m_b360PolarChanged)
     {
-        m_360CLGraph.SetAutoY(true);
-        m_360CLGraph.SetXMin(-180);
-        m_360CLGraph.SetXMax(180);
+        m_360Graph1.SetAutoY(true);
+        m_360Graph1.SetXMin(-180);
+        m_360Graph1.SetXMax(180);
 
-        m_360CDGraph.SetAutoY(true);
-        m_360CDGraph.SetXMin(-180);
-        m_360CDGraph.SetXMax(180);
+        m_360Graph2.SetAutoY(true);
+        m_360Graph2.SetXMin(-180);
+        m_360Graph2.SetXMax(180);
+
+        m_360Graph3.SetAutoY(true);
+        m_360Graph3.SetXMin(-180);
+        m_360Graph3.SetXMax(180);
+
+        m_360Graph4.SetAutoY(true);
+        m_360Graph4.SetXMin(-180);
+        m_360Graph4.SetXMax(180);
 
         m_b360PolarChanged = false;
     }
@@ -1598,61 +2070,66 @@ void QBEM::CreateSinglePolarCurve()
 
 void QBEM::CreatePolarCurve()
 {
-	m_360CLGraph.DeleteCurves();
-	m_360CDGraph.DeleteCurves();
+    m_360Graph1.DeleteCurves();
+    m_360Graph2.DeleteCurves();
+    m_360Graph3.DeleteCurves();
+    m_360Graph4.DeleteCurves();
 	
-	m_360CDGraph.SetAuto(true);
-	m_360CLGraph.SetAuto(true);
-	
-    if (g_polarStore.size() && m_pCurPolar)
-    {
-        if (m_pCurPolar->m_bIsVisible && m_pCurPolar->m_Alpha.size()>0)
-        {
-            CCurve* pPolarCurve2 = m_360CLGraph.AddCurve();
+    m_360Graph1.ResetIfAuto();
+    m_360Graph2.ResetIfAuto();
+    m_360Graph3.ResetIfAuto();
+    m_360Graph4.ResetIfAuto();
 
-            pPolarCurve2->ShowPoints(m_pCurPolar->m_bShowPoints);
-            pPolarCurve2->SetStyle(m_pCurPolar->m_Style);
-            pPolarCurve2->SetColor(m_pCurPolar->m_Color);
-            pPolarCurve2->SetWidth(m_pCurPolar->m_Width);
-
-            FillPolarCurve(pPolarCurve2, m_pCurPolar, m_360CLGraph.GetXVariable(), m_360CLGraph.GetYVariable());
-            pPolarCurve2->SetTitle(m_pCurPolar->getName());
-
-            pPolarCurve2= m_360CDGraph.AddCurve();
-
-            pPolarCurve2->ShowPoints(m_pCurPolar->m_bShowPoints);
-            pPolarCurve2->SetStyle(m_pCurPolar->m_Style);
-            pPolarCurve2->SetColor(m_pCurPolar->m_Color);
-            pPolarCurve2->SetWidth(m_pCurPolar->m_Width);
-            FillPolarCurve(pPolarCurve2, m_pCurPolar, m_360CDGraph.GetXVariable(), m_360CDGraph.GetYVariable());
-            pPolarCurve2->SetTitle(m_pCurPolar->getName());
-
-        }
-    }
-	
     if (g_360PolarStore.size())
 	{
         for (int i=0; i< g_360PolarStore.size();i++)
         {
             if (g_360PolarStore.at(i)->m_bIsVisible && g_360PolarStore.at(i)->m_Alpha.size()>0)
             {
-                CCurve* pPolarCurve2 = m_360CLGraph.AddCurve();
+                CCurve* pPolarCurve2 = m_360Graph1.AddCurve();
 
                 pPolarCurve2->ShowPoints(g_360PolarStore.at(i)->m_bShowPoints);
                 pPolarCurve2->SetStyle(g_360PolarStore.at(i)->m_Style);
                 pPolarCurve2->SetColor(g_360PolarStore.at(i)->m_Color);
                 pPolarCurve2->SetWidth(g_360PolarStore.at(i)->m_Width);
+                if (g_360PolarStore.at(i) == m_pCur360Polar) pPolarCurve2->SetWidth(g_360PolarStore.at(i)->m_Width+2);
 
-                FillPolarCurve(pPolarCurve2, g_360PolarStore.at(i), m_360CLGraph.GetXVariable(), m_360CLGraph.GetYVariable());
+
+                FillPolarCurve(pPolarCurve2, g_360PolarStore.at(i), m_360Graph1.GetXVariable(), m_360Graph1.GetYVariable());
                 pPolarCurve2->SetTitle(g_360PolarStore.at(i)->getName());
 
-                pPolarCurve2= m_360CDGraph.AddCurve();
+
+                pPolarCurve2= m_360Graph2.AddCurve();
 
                 pPolarCurve2->ShowPoints(g_360PolarStore.at(i)->m_bShowPoints);
                 pPolarCurve2->SetStyle(g_360PolarStore.at(i)->m_Style);
                 pPolarCurve2->SetColor(g_360PolarStore.at(i)->m_Color);
                 pPolarCurve2->SetWidth(g_360PolarStore.at(i)->m_Width);
-                FillPolarCurve(pPolarCurve2, g_360PolarStore.at(i), m_360CDGraph.GetXVariable(), m_360CDGraph.GetYVariable());
+                if (g_360PolarStore.at(i) == m_pCur360Polar) pPolarCurve2->SetWidth(g_360PolarStore.at(i)->m_Width+2);
+
+                FillPolarCurve(pPolarCurve2, g_360PolarStore.at(i), m_360Graph2.GetXVariable(), m_360Graph2.GetYVariable());
+                pPolarCurve2->SetTitle(g_360PolarStore.at(i)->getName());
+
+                pPolarCurve2= m_360Graph3.AddCurve();
+
+                pPolarCurve2->ShowPoints(g_360PolarStore.at(i)->m_bShowPoints);
+                pPolarCurve2->SetStyle(g_360PolarStore.at(i)->m_Style);
+                pPolarCurve2->SetColor(g_360PolarStore.at(i)->m_Color);
+                pPolarCurve2->SetWidth(g_360PolarStore.at(i)->m_Width);
+                if (g_360PolarStore.at(i) == m_pCur360Polar) pPolarCurve2->SetWidth(g_360PolarStore.at(i)->m_Width+2);
+
+                FillPolarCurve(pPolarCurve2, g_360PolarStore.at(i), m_360Graph3.GetXVariable(), m_360Graph3.GetYVariable());
+                pPolarCurve2->SetTitle(g_360PolarStore.at(i)->getName());
+
+                pPolarCurve2= m_360Graph4.AddCurve();
+
+                pPolarCurve2->ShowPoints(g_360PolarStore.at(i)->m_bShowPoints);
+                pPolarCurve2->SetStyle(g_360PolarStore.at(i)->m_Style);
+                pPolarCurve2->SetColor(g_360PolarStore.at(i)->m_Color);
+                pPolarCurve2->SetWidth(g_360PolarStore.at(i)->m_Width);
+                if (g_360PolarStore.at(i) == m_pCur360Polar) pPolarCurve2->SetWidth(g_360PolarStore.at(i)->m_Width+2);
+
+                FillPolarCurve(pPolarCurve2, g_360PolarStore.at(i), m_360Graph4.GetXVariable(), m_360Graph4.GetYVariable());
                 pPolarCurve2->SetTitle(g_360PolarStore.at(i)->getName());
 
             }
@@ -1661,13 +2138,21 @@ void QBEM::CreatePolarCurve()
 	
 	if (m_b360PolarChanged)
 	{
-		m_360CLGraph.SetAutoY(true);
-		m_360CLGraph.SetXMin(-180);
-		m_360CLGraph.SetXMax(180);
+        m_360Graph1.SetAutoY(true);
+        m_360Graph1.SetXMin(-180);
+        m_360Graph1.SetXMax(180);
 		
-		m_360CDGraph.SetAutoY(true);
-		m_360CDGraph.SetXMin(-180);
-		m_360CDGraph.SetXMax(180);
+        m_360Graph2.SetAutoY(true);
+        m_360Graph2.SetXMin(-180);
+        m_360Graph2.SetXMax(180);
+
+        m_360Graph3.SetAutoY(true);
+        m_360Graph3.SetXMin(-180);
+        m_360Graph3.SetXMax(180);
+
+        m_360Graph4.SetAutoY(true);
+        m_360Graph4.SetXMin(-180);
+        m_360Graph4.SetXMax(180);
 		
 		m_b360PolarChanged = false;
 	}
@@ -2596,6 +3081,7 @@ void QBEM::DisableAllButtons()
 
 	g_mainFrame->m_pctrlMainToolBar->setEnabled(false);
 
+    pSimuWidget->m_pctrlDeleteTBEM->setEnabled(false);
     pSimuWidget->m_pctrlDefineTurbineSim->setEnabled(false);
     pSimuWidget->m_pctrlStartTurbineSim->setEnabled(false);
     pSimuWidget->m_pctrlWind1->setEnabled(false);
@@ -2603,51 +3089,13 @@ void QBEM::DisableAllButtons()
     pSimuWidget->m_pctrlWindDelta->setEnabled(false);
 
     pSimuWidget->m_pctrlCreateBEM->setEnabled(false);
+    pSimuWidget->m_pctrlDeleteBEM->setEnabled(false);
     pSimuWidget->m_pctrlStartBEM->setEnabled(false);
     pSimuWidget->m_pctrlLSLineEdit->setEnabled(false);
     pSimuWidget->m_pctrlLELineEdit->setEnabled(false);
     pSimuWidget->m_pctrlLDLineEdit->setEnabled(false);
-}
+    pSimuWidget->m_pctrlWindspeed->setEnabled(false);
 
-void QBEM::drawRotorName() {
-    glPushAttrib (GL_ALL_ATTRIB_BITS);  // save the openGL state
-    glMatrixMode(GL_PROJECTION);
-    glPushMatrix();
-    glLoadIdentity();
-    glMatrixMode(GL_MODELVIEW);
-    glPushMatrix();
-    glLoadIdentity();
-
-    const double width = m_pGLWidget->width();
-    const double height = m_pGLWidget->height();
-
-    glDisable(GL_LIGHT0);
-    glDisable(GL_LIGHTING);
-    glDisable(GL_DEPTH_TEST);
-
-    glEnable(GL_POLYGON_OFFSET_FILL);  // polygons get a reduced Z-value. Now the grid is drawn onto the WindField surface
-    glPolygonOffset(1.0, 0);
-    glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
-
-    glColor3d(0,0,0);
-
-    if (m_pGLWidget->rect().width()>300){
-
-
-//    int why = 0.015*m_pGLWidget->rect().width();
-    QFont font("Arial", 15);
-
-    m_pGLWidget->renderText(50.0/width-1,1 - 80.0/height,0,
-                           m_pBlade->getName(),  // index shift
-                           font);
-
-    }
-
-    glMatrixMode(GL_MODELVIEW);  // restore state
-    glPopMatrix();
-    glMatrixMode(GL_PROJECTION);
-    glPopMatrix();
-    glPopAttrib ();
 }
 
 void QBEM::EnableAllButtons()
@@ -2861,19 +3309,10 @@ void QBEM::FillTableRow(int row)
         ind = m_pWingModel->index(row, 3, QModelIndex());
         m_pWingModel->setData(ind, m_pBlade->m_Airfoils[row]);
 
-
         ind = m_pWingModel->index(row, 4, QModelIndex());
 
-        if (m_pBlade->m_Polar.length()>row)
-        {
-        m_pWingModel->setData(ind, m_pBlade->m_Polar.at(row));
-        }
-        else
-        {
-        QString strong = "";
-        m_pWingModel->setData(ind, strong);
-        }
-
+        if (m_pBlade->m_bisSinglePolar) m_pWingModel->setData(ind, m_pBlade->m_Polar.at(row));
+        else m_pWingModel->setData(ind, m_pBlade->m_Range.at(row));
 
 }
 
@@ -2893,20 +3332,13 @@ void QBEM::FillAdvancedTableRow(int row)
         }
 
         ind = m_pBladeAxisModel->index(row, 1, QModelIndex());
-        m_pBladeAxisModel->setData(ind, m_pBlade->m_TOffset[row] * g_mainFrame->m_mtoUnit);
-
-//        ind = m_pBladeAxisModel->index(row, 2, QModelIndex());
-//        m_pBladeAxisModel->setData(ind, m_pBlade->m_TDihedral[row]);
+        m_pBladeAxisModel->setData(ind, m_pBlade->m_TOffsetX[row] * g_mainFrame->m_mtoUnit);
 
         ind = m_pBladeAxisModel->index(row, 2, QModelIndex());
+        m_pBladeAxisModel->setData(ind, m_pBlade->m_TOffsetZ[row]);
+
+        ind = m_pBladeAxisModel->index(row, 3, QModelIndex());
         m_pBladeAxisModel->setData(ind, m_pBlade->m_TFoilPAxisX[row]);
-
-//        ind = m_pBladeAxisModel->index(row, 3, QModelIndex());
-//        m_pBladeAxisModel->setData(ind, m_pBlade->m_TFoilPAxisZ[row]);
-
-
-
-
 
 }
 
@@ -3135,8 +3567,11 @@ QGraph* QBEM::GetGraph(QPoint &pt)
 		if(g_mainFrame->m_iView==POLARVIEW)// new JW, old: m_iView
         {
 
-                        if(m_360CLGraph.IsInDrawRect(pt)){return &m_360CLGraph;}
-                        else if(m_360CDGraph.IsInDrawRect(pt)){return &m_360CDGraph;}
+                        if(m_360Graph1.IsInDrawRect(pt)){return &m_360Graph1;}
+                        else if(m_360Graph2.IsInDrawRect(pt)){return &m_360Graph2;}
+                        else if(m_360Graph3.IsInDrawRect(pt)){return &m_360Graph3;}
+                        else if(m_360Graph4.IsInDrawRect(pt)){return &m_360Graph4;}
+
                         else return NULL;
 
         }
@@ -3193,38 +3628,6 @@ CPolar* QBEM::GetPolar(QString m_FoilName, QString PolarName)  // NM TODO replac
         return NULL;
 }
 
-BEMData* QBEM::GetRotorSimulation(QString WingName, QString BEMName)
-{
-
-    if (!WingName.length() || !BEMName.length()) return NULL;
-
-	for (int i=0; i<g_bemdataStore.size(); i++)
-    {
-		if (g_bemdataStore.at(i)->m_WingName == WingName && g_bemdataStore.at(i)->m_BEMName == BEMName)
-        {
-			return g_bemdataStore.at(i);
-        }
-    }
-
-    return NULL;
-}
-
-CBEMData* QBEM::GetCharSimulation(QString WingName, QString SimName)
-{
-
-    if (!WingName.length() || !SimName.length()) return NULL;
-
-	for (int i=0; i<g_cbemdataStore.size(); i++)
-    {
-		if (g_cbemdataStore.at(i)->m_WingName == WingName && g_cbemdataStore.at(i)->m_SimName == SimName)
-        {
-			return g_cbemdataStore.at(i);
-        }
-    }
-
-    return NULL;
-}
-
 void * QBEM::GetRotorVariable(void *Data, int iVar)
 {
         // returns a pointer to the variable array defined by its index iVar
@@ -3257,7 +3660,30 @@ void * QBEM::GetRotorVariable(void *Data, int iVar)
 
                         pVar = &pBEMData->m_one_over_Lambda;
                         break;
+                case 6:
 
+                        pVar = &pBEMData->m_P;
+                        break;
+                case 7:
+
+                        pVar = &pBEMData->m_S;
+                        break;
+                case 8:
+
+                        pVar = &pBEMData->m_Torque;
+                        break;
+                case 9:
+
+                        pVar = &pBEMData->m_Omega;
+                        break;
+                case 10:
+
+                        pVar = &pBEMData->m_V;
+                        break;
+                case 11:
+
+                        pVar = &pBEMData->m_Bending;
+                        break;
                 default:
 
                         pVar = &pBEMData->m_Lambda;
@@ -3332,13 +3758,37 @@ void * QBEM::GetBladeVariable(void *Data, int iVar)
                     break;
             case 14:
 
-                    pVar = &pBData->m_Iterations;
+                    pVar = &pBData->m_Reynolds;
                     break;
             case 15:
 
-                    pVar = &pBData->m_Fa_axial;
+                    pVar = &pBData->m_DeltaReynolds;
                     break;
             case 16:
+
+                    pVar = &pBData->m_p_tangential;
+                    break;
+            case 17:
+
+                    pVar = &pBData->m_p_normal;
+                    break;
+            case 18:
+
+                    pVar = &pBData->m_circ;
+                    break;
+            case 19:
+
+                    pVar = &pBData->m_Windspeed;
+                    break;
+            case 20:
+
+                    pVar = &pBData->m_Iterations;
+                    break;
+            case 21:
+
+                    pVar = &pBData->m_Fa_axial;
+                    break;
+            case 22:
 
                     pVar = &pBData->m_Fa_radial;
                     break;
@@ -3390,24 +3840,6 @@ BData* QBEM::GetTurbineBladeData(QString Windspeed)
 
     return NULL;
 }
-
-
-TBEMData* QBEM::GetTurbineSimulation(QString TurbineName, QString SimName)
-{
-
-    if (!TurbineName.length() || !SimName.length()) return NULL;
-
-	for (int i=0; i<g_tbemdataStore.size(); i++)
-    {
-		if (g_tbemdataStore.at(i)->m_TurbineName == TurbineName && g_tbemdataStore.at(i)->m_SimName == SimName)
-        {
-			return g_tbemdataStore.at(i);
-        }
-    }
-
-    return NULL;
-}
-
 
 // new code JW //
 void * QBEM::GetWeibullXVariable(int iVar)
@@ -3760,7 +4192,16 @@ void * QBEM::GetVariable(C360Polar *pPolar, int iVar)
 						break;
 				case 3:
 						pVar = &pPolar->m_Cd;
-						break;
+						break;  
+                case 4:
+                        pVar = &pPolar->m_Cl_att;
+                        break;
+                case 5:
+                        pVar = &pPolar->m_Cl_sep;
+                        break;
+                case 6:
+                        pVar = &pPolar->m_fst;
+                        break;
 
 				default:
 						pVar = &pPolar->m_Alpha;
@@ -3781,88 +4222,115 @@ CBlade * QBEM::GetWing(QString WingName)
         return NULL;
 }
 
-void QBEM::GLCallViewLists()
-{
-//        glDisable(GL_LIGHTING);
-//        glDisable(GL_LIGHT0);
+void QBEM::InvertedClicked(){
 
+}
 
-//        if(m_bglLight)
-//        {
-//                glEnable(GL_LIGHTING);
-//                glEnable(GL_LIGHT0);
-//        }
-//        else
-//        {
-//                glDisable(GL_LIGHTING);
-//                glDisable(GL_LIGHT0);
-//        }
+void QBEM::OnLengthHeightChanged(){
 
-        if(m_bSurfaces)
-        {
-                if(m_pBlade)  glCallList(WINGSURFACES);
+}
 
-
-        }
-
-        if(m_bOutline)
-        {
-                if(m_pBlade)  glCallList(WINGOUTLINE);
-
-        }
-
-                        if(m_iSection>=0)
-                        {
-                               glCallList(SECTIONHIGHLIGHT);
-                       }
-
-
-        if (m_pBlade)
-        {
-        if (m_pctrlShowTurbine->isChecked())
-        {
-            for (int i=1;i<m_pBlade->m_blades;i++)
-            {
-                glRotated(360.0/m_pBlade->m_blades,0,0,1);
-                if(m_bSurfaces)
-                {
-                        if(m_pBlade)  glCallList(WINGSURFACES);
-
-
-                }
-
-                if(m_bOutline)
-                {
-                        if(m_pBlade)  glCallList(WINGOUTLINE);
-
-                }
-
-                                if(m_iSection>=0)
-                                {
-                                       glCallList(SECTIONHIGHLIGHT);
-                               }
-            }
-        }
-        }
-
-        if (GLscreenMessage(BEM,g_mainFrame->m_iView,m_pGLWidget)) return;
-
-
-        if (m_pBlade) drawRotorName();
-
-
-
-
-
-
+void QBEM::OnHubValChanged(){
 
 }
 
 
+void QBEM::GLCallViewLists() {
+	if(m_bSurfaces) {
+		if (m_pBlade)
+			glCallList(WINGSURFACES);
+	}
+	
+	if(m_bOutline) {
+		if(m_pBlade)
+			glCallList(WINGOUTLINE);
+	}
+	
+	if(m_iSection>=0) {
+		glCallList(SECTIONHIGHLIGHT);
+	}
+	
+	if (m_pBlade) {
+		if (m_pctrlShowTurbine->isChecked()) {
+			for (int i = 1; i < m_pBlade->m_blades; ++i) {
+				glRotated (360.0/m_pBlade->m_blades,0,0,1);
+				if(m_bSurfaces) {
+					if(m_pBlade)
+						glCallList(WINGSURFACES);
+				}
+				
+				if(m_bOutline) {
+					if(m_pBlade)  glCallList(WINGOUTLINE);
+				}
+				
+				if(m_iSection>=0) {
+					glCallList(SECTIONHIGHLIGHT);
+				}
+			}
+		}
+	}
+}
+
+void QBEM::configureGL() {
+	glPushAttrib(GL_ALL_ATTRIB_BITS);  // saves current GL settings
+    glClearColor(g_mainFrame->m_BackgroundColor.redF(), g_mainFrame->m_BackgroundColor.greenF(), g_mainFrame->m_BackgroundColor.blueF(), 0.0);
+	if (m_pctrlPerspective->isChecked()) {
+		m_pGLWidget->camera()->setType(qglviewer::Camera::PERSPECTIVE);
+	} else {
+		m_pGLWidget->camera()->setType(qglviewer::Camera::ORTHOGRAPHIC);
+	}
+    UpdateView();
+}
+
+void QBEM::drawGL() {
+	if (!m_pBlade) {  // NM TODO this should not be possible! Assumption needs validation.
+		return;
+	}    
+	
+	GLWidget *glWidget = g_mainFrame->getGlWidget();
+	
+    GLDraw3D();  // prepares the lists
+    GLRenderView();  // renders the lists
+	
+	if (m_pctrlAxes->isChecked()) {
+        glWidget->setOverpaintFont(QFont(g_mainFrame->m_TextFont.family(), 15));
+		m_pBlade->drawCoordinateAxes();
+	}
+
+	if (m_pctrlFoilNames->isChecked()) {
+		glWidget->setOverpaintFont(QFont(g_mainFrame->m_TextFont.family(), 10));
+		for (int i = 0; i <= m_pBlade->m_NPanel; ++i) {
+			glWidget->overpaintText(m_pBlade->m_PlanformSpan/10, m_pBlade->m_TPos[i], 0.0, m_pBlade->m_Airfoils[i]);
+		}
+	}
+	
+	if (m_pctrlPositions->isChecked()) {
+		glWidget->setOverpaintFont(QFont(g_mainFrame->m_TextFont.family(), 10));
+        for (int i = 0; i <= m_pBlade->m_NPanel; ++i) {
+			glWidget->overpaintText(-m_pBlade->m_PlanformSpan/10, m_pBlade->m_TPos[i], 0.0,
+									QString("%1 m").arg(m_pBlade->m_TPos[i], 7, 'f', 3, ' '));
+        }
+    }
+}
+
+void QBEM::overpaint(QPainter &painter) {
+	if (!m_pBlade) {
+		return;
+	}
+	
+	if (m_pGLWidget->width() > 300) {
+		painter.setFont(QFont(g_mainFrame->m_TextFont.family(), 15));
+		painter.drawText(10, 25, m_pBlade->getName());
+	}
+}
 
 void QBEM::GLCreateGeom(CBlade *pWing, int List)
 {
         if(!pWing) return;
+        if (!pWing->m_Surface.size()) return;
+        if (pWing->m_NSurfaces < 1) return;
+
+
 
         static int j, l, style, width;
         static CVector Pt, PtNormal, A, B, C, D, N, BD, AC, LATB, TALB;
@@ -3927,6 +4395,33 @@ void QBEM::GLCreateGeom(CBlade *pWing, int List)
                     }
                 }
 
+                //strut top
+                if (m_pctrlSurfaces->isChecked())
+                {
+                for (int k=0; k<pWing->m_StrutList.size();k++){
+                    for (j=0; j<pWing->m_StrutList.at(k)->m_Surface.size(); j++)
+                    {
+                            glBegin(GL_QUAD_STRIP);
+                            {
+                                    for (l=0; l<=100; l++)
+                                    {
+
+                                            x = (double)l/100.0;
+
+                                            pWing->m_StrutList.at(k)->m_Surface[j].GetPoint(x,x,0.0,Pt, PtNormal,1);
+                                            glNormal3d(PtNormal.x, PtNormal.y, PtNormal.z);
+                                            glVertex3d(Pt.x, Pt.y, Pt.z);
+
+                                            pWing->m_StrutList.at(k)->m_Surface[j].GetPoint(x,x,1.0,Pt, PtNormal,1);
+                                            glVertex3d(Pt.x, Pt.y, Pt.z);
+
+                                    }
+                            }
+                            glEnd();
+                    }
+                }
+                }
+
 //                bottom surface
                         if (m_pctrlSurfaces->isChecked())
                         {
@@ -3950,6 +4445,33 @@ void QBEM::GLCreateGeom(CBlade *pWing, int List)
 
                                 }
 
+                        }
+
+                        //strut bottom
+                        if (m_pctrlSurfaces->isChecked())
+                        {
+                        for (int k=0; k<pWing->m_StrutList.size();k++){
+                            for (j=0; j<pWing->m_StrutList.at(k)->m_Surface.size(); j++)
+                            {
+                                    glBegin(GL_QUAD_STRIP);
+                                    {
+                                            for (l=0; l<=100; l++)
+                                            {
+
+                                                    x = (double)l/100.0;
+
+                                                    pWing->m_StrutList.at(k)->m_Surface[j].GetPoint(x,x,0.0,Pt, PtNormal,-1);
+                                                    glNormal3d(-PtNormal.x, -PtNormal.y, -PtNormal.z);
+                                                    glVertex3d(Pt.x, Pt.y, Pt.z);
+
+                                                    pWing->m_StrutList.at(k)->m_Surface[j].GetPoint(x,x,1.0,Pt, PtNormal,-1);
+                                                    glVertex3d(Pt.x, Pt.y, Pt.z);
+
+                                            }
+                                    }
+                                    glEnd();
+                            }
+                        }
                         }
 
 
@@ -4086,6 +4608,141 @@ void QBEM::GLCreateGeom(CBlade *pWing, int List)
                         }
                 }
         }
+
+        for (int k=0; k<pWing->m_StrutList.size();k++){
+            for (j=0; j<pWing->m_StrutList.at(k)->m_Surface.size(); j++)
+            {
+
+//left tip surface strut
+                if (j==0 && !m_bAdvancedEdit && m_pctrlSurfaces->isChecked())
+                {
+
+                    glBegin(GL_QUAD_STRIP);
+                    {
+                            pWing->m_StrutList.at(k)->m_Surface[0].GetPanel(0, 0, BOTSURFACE);
+                            C. Copy(pWing->m_StrutList.at(k)->m_Surface[0].LA);
+                            D. Copy(pWing->m_StrutList.at(k)->m_Surface[0].TA);
+                            pWing->m_StrutList.at(k)->m_Surface[0].GetPanel(0, 0, TOPSURFACE);
+                            A. Copy(pWing->m_StrutList.at(k)->m_Surface[0].TA);
+                            B. Copy(pWing->m_StrutList.at(k)->m_Surface[0].LA);
+
+                            BD = D-B;
+                            AC = C-A;
+                            N  = AC*BD;
+                            N.Normalize();
+                            glNormal3d( N.x, N.y, N.z);
+
+                            for (l=0; l<SIDEPOINTS; l++)
+                            {
+                                    x = xDistrib[l];
+                                    pWing->m_StrutList.at(k)->m_Surface[0].GetPoint(x,x,0.0,Pt, PtNormal,1);
+
+                                    glVertex3d(Pt.x, Pt.y, Pt.z);
+
+                                    pWing->m_StrutList.at(k)->m_Surface[0].GetPoint(x,x,0.0,Pt, PtNormal,-1);
+                                    glVertex3d(Pt.x, Pt.y, Pt.z);
+                            }
+                    }
+                    glEnd();
+
+                }
+
+                // right tip surface strut
+                if (j==pWing->m_StrutList.at(k)->m_Surface.size()-1 && !m_bAdvancedEdit && m_pctrlSurfaces->isChecked())
+                {
+                              glBegin(GL_QUAD_STRIP);
+                              {
+                                      pWing->m_StrutList.at(k)->m_Surface[pWing->m_StrutList.at(k)->m_Surface.size()-1].GetPanel(pWing->m_StrutList.at(k)->m_Surface[pWing->m_StrutList.at(k)->m_Surface.size()-1].m_NYPanels-1,0, TOPSURFACE);
+                                      A. Copy(pWing->m_Surface[0].TB);
+                                      B. Copy(pWing->m_Surface[0].LB);
+                                      pWing->m_StrutList.at(k)->m_Surface[pWing->m_StrutList.at(k)->m_Surface.size()-1].GetPanel(pWing->m_StrutList.at(k)->m_Surface[pWing->m_StrutList.at(k)->m_Surface.size()-1].m_NYPanels-1,0, BOTSURFACE);
+                                      C. Copy(pWing->m_Surface[0].LB);
+                                      D. Copy(pWing->m_Surface[0].TB);
+
+                                      BD = D-B;
+                                      AC = C-A;
+                                      N  = BD * AC;
+                                      N.Normalize();
+                                      glNormal3d( N.x,  N.y,  N.z);
+
+                                      for (l=0; l<SIDEPOINTS; l++)
+                                      {
+                                              x = xDistrib[l];
+                                              pWing->m_StrutList.at(k)->m_Surface[pWing->m_StrutList.at(k)->m_Surface.size()-1].GetPoint(x,x,1.0,Pt, PtNormal,1);
+
+                                              glVertex3d(Pt.x, Pt.y, Pt.z);
+                                              pWing->m_StrutList.at(k)->m_Surface[pWing->m_StrutList.at(k)->m_Surface.size()-1].GetPoint(x,x,1.0,Pt, PtNormal,-1);
+                                              glVertex3d(Pt.x, Pt.y, Pt.z);
+                                      }
+                              }
+                              glEnd();
+                }
+
+                if (m_bAdvancedEdit || m_pctrlAirfoils->isChecked())
+                {
+                              glColor3d(m_OutlineColor.redF(),m_OutlineColor.greenF(),m_OutlineColor.blueF());
+                              glBegin(GL_QUAD_STRIP);
+                              {
+                                      pWing->m_StrutList.at(k)->m_Surface[j].GetPanel(pWing->m_StrutList.at(k)->m_Surface[j].m_NYPanels-1,0, TOPSURFACE);
+                                      A. Copy(pWing->m_StrutList.at(k)->m_Surface[0].TB);
+                                      B. Copy(pWing->m_StrutList.at(k)->m_Surface[0].LB);
+                                      pWing->m_StrutList.at(k)->m_Surface[j].GetPanel(pWing->m_Surface[j].m_NYPanels-1,0, BOTSURFACE);
+                                      C. Copy(pWing->m_StrutList.at(k)->m_Surface[0].LB);
+                                      D. Copy(pWing->m_StrutList.at(k)->m_Surface[0].TB);
+
+                                      BD = D-B;
+                                      AC = C-A;
+                                      N  = BD * AC;
+                                      N.Normalize();
+                                      glNormal3d( N.x,  N.y,  N.z);
+
+                                      for (l=0; l<SIDEPOINTS; l++)
+                                      {
+                                              x = xDistrib[l];
+                                              pWing->m_StrutList.at(k)->m_Surface[j].GetPoint(x,x,1.0,Pt, PtNormal,1);
+
+                                              glVertex3d(Pt.x, Pt.y, Pt.z);
+                                              pWing->m_StrutList.at(k)->m_Surface[j].GetPoint(x,x,1.0,Pt, PtNormal,-1);
+                                              glVertex3d(Pt.x, Pt.y, Pt.z);
+                                      }
+                              }
+                              glEnd();
+
+                              if (j==0)
+                              {
+                                  glBegin(GL_QUAD_STRIP);
+                                  {
+                                          pWing->m_StrutList.at(k)->m_Surface[j].GetPanel(0, 0, BOTSURFACE);
+                                          C. Copy(pWing->m_StrutList.at(k)->m_Surface[0].LA);
+                                          D. Copy(pWing->m_StrutList.at(k)->m_Surface[0].TA);
+                                          pWing->m_StrutList.at(k)->m_Surface[j].GetPanel(0, 0, TOPSURFACE);
+                                          A. Copy(pWing->m_StrutList.at(k)->m_Surface[0].TA);
+                                          B. Copy(pWing->m_StrutList.at(k)->m_Surface[0].LA);
+
+                                          BD = D-B;
+                                          AC = C-A;
+                                          N  = AC*BD;
+                                          N.Normalize();
+                                          glNormal3d( N.x, N.y, N.z);
+
+                                          for (l=0; l<SIDEPOINTS; l++)
+                                          {
+                                                  x = xDistrib[l];
+                                                  pWing->m_StrutList.at(k)->m_Surface[j].GetPoint(x,x,0.0,Pt, PtNormal,1);
+
+                                                  glVertex3d(Pt.x, Pt.y, Pt.z);
+
+                                                  pWing->m_StrutList.at(k)->m_Surface[j].GetPoint(x,x,0.0,Pt, PtNormal,-1);
+                                                  glVertex3d(Pt.x, Pt.y, Pt.z);
+                                          }
+                                  }
+                                  glEnd();
+                              }
+                }
+        }
+        }
+
+
         glEndList();
 
         //OUTLINE
@@ -4161,6 +4818,67 @@ void QBEM::GLCreateGeom(CBlade *pWing, int List)
                         }
                         glEnd();
 
+                }
+                }
+
+
+                if (m_pctrlOutline->isChecked())
+                {
+                //TOP outline strut
+                for (int k=0; k<pWing->m_StrutList.size();k++){
+                for (j=0; j<pWing->m_StrutList.at(k)->m_Surface.size(); j++)
+                {
+                        glBegin(GL_LINE_STRIP);
+                        {
+                                for (l=0; l<=100; l++)
+                                {
+                                        x = (double)l/100.0;
+                                        pWing->m_StrutList.at(k)->m_Surface[j].GetPoint(x,x,0.0,Pt, PtNormal,1);
+                                        glVertex3d(Pt.x, Pt.y, Pt.z);
+                                }
+                        }
+                        glEnd();
+
+                        glBegin(GL_LINE_STRIP);
+                        {
+                                for (l=0; l<=100; l++)
+                                {
+                                        x = (double)l/100.0;
+                                        pWing->m_StrutList.at(k)->m_Surface[j].GetPoint(x,x,1.0,Pt, PtNormal,1);
+                                        glVertex3d(Pt.x, Pt.y, Pt.z);
+                                }
+                        }
+                        glEnd();
+                }
+                }
+
+                //BOTTOM outline strut
+                for (int k=0; k<pWing->m_StrutList.size();k++){
+                for (j=0; j<pWing->m_StrutList.at(k)->m_Surface.size(); j++)
+                {
+                        glBegin(GL_LINE_STRIP);
+                        {
+                                for (l=0; l<=100; l++)
+                                {
+                                        x = (double)l/100.0;
+                                        pWing->m_StrutList.at(k)->m_Surface[j].GetPoint(x,x,0.0,Pt, PtNormal,-1);
+                                        glVertex3d(Pt.x, Pt.y, Pt.z);
+                                }
+                        }
+                        glEnd();
+
+                        glBegin(GL_LINE_STRIP);
+                        {
+                                for (l=0; l<=100; l++)
+                                {
+                                        x = (double)l/100.0;
+                                        pWing->m_StrutList.at(k)->m_Surface[j].GetPoint(x,x,1.0,Pt, PtNormal,-1);
+                                        glVertex3d(Pt.x, Pt.y, Pt.z);
+                                }
+                        }
+                        glEnd();
+
+                }
                 }
                 }
 
@@ -4246,6 +4964,98 @@ void QBEM::GLCreateGeom(CBlade *pWing, int List)
                         }
                         glEnd();
                 }
+
+
+                for (int k=0; k<pWing->m_StrutList.size();k++){
+
+
+                glBegin(GL_LINE_STRIP);
+                {
+                        for (l=0; l<=100; l++)
+                        {
+                                x = (double)l/100.0;
+                                pWing->m_StrutList[k]->m_Surface[0].GetPoint(x,x,0.0,Pt, PtNormal,1);
+                                glVertex3d(Pt.x, Pt.y, Pt.z);
+                        }
+                }
+                glEnd();
+
+                glBegin(GL_LINE_STRIP);
+                {
+                        for (l=0; l<=100; l++)
+                        {
+                                x = (double)l/100.0;
+                                pWing->m_StrutList[k]->m_Surface[0].GetPoint(x,x,0.0,Pt, PtNormal,-1);
+                                glVertex3d(Pt.x, Pt.y, Pt.z);
+                        }
+                }
+                glEnd();
+
+                glBegin(GL_LINE_STRIP);
+                {
+                        for (l=0; l<=100; l++)
+                        {
+                                x = (double)l/100.0;
+                                pWing->m_StrutList[k]->m_Surface[pWing->m_StrutList[k]->m_Surface.size()-1].GetPoint(x,x,1.0,Pt, PtNormal,1);
+                                glVertex3d(Pt.x, Pt.y, Pt.z);
+                        }
+                }
+                glEnd();
+
+                glBegin(GL_LINE_STRIP);
+                {
+                        for (l=0; l<=100; l++)
+                        {
+                                x = (double)l/100.0;
+                                pWing->m_StrutList[k]->m_Surface[pWing->m_StrutList[k]->m_Surface.size()-1].GetPoint(x,x,1.0,Pt, PtNormal,-1);
+                                glVertex3d(Pt.x, Pt.y, Pt.z);
+                        }
+                }
+                glEnd();
+
+
+                //WingContour
+                //Leading edge outline strut
+                for (j=0; j<pWing->m_StrutList[k]->m_Surface.size(); j++)
+                {
+                        glBegin(GL_LINES);
+                        {
+                                pWing->m_StrutList[k]->m_Surface[j].GetPanel(0,pWing->m_StrutList[k]->m_Surface[j].m_NXPanels-1, MIDSURFACE);
+                                glVertex3d(pWing->m_StrutList[k]->m_Surface[j].LA.x,
+                                                   pWing->m_StrutList[k]->m_Surface[j].LA.y,
+                                                   pWing->m_StrutList[k]->m_Surface[j].LA.z);
+                                pWing->m_StrutList[k]->m_Surface[j].GetPanel( pWing->m_StrutList[k]->m_Surface[j].m_NYPanels-1,pWing->m_StrutList[k]->m_Surface[j].m_NXPanels-1, MIDSURFACE);
+                                glVertex3d(pWing->m_StrutList[k]->m_Surface[j].LB.x,
+                                                   pWing->m_StrutList[k]->m_Surface[j].LB.y,
+                                                   pWing->m_StrutList[k]->m_Surface[j].LB.z);
+                        }
+                        glEnd();
+                }
+                //Trailing edge outline strut
+                for (j=0; j<pWing->m_StrutList[k]->m_Surface.size(); j++)
+                {
+                        glBegin(GL_LINES);
+                        {
+                                pWing->m_StrutList[k]->m_Surface[j].GetPanel(0,0, MIDSURFACE);
+                                glVertex3d(pWing->m_StrutList[k]->m_Surface[j].TA.x,
+                                                   pWing->m_StrutList[k]->m_Surface[j].TA.y,
+                                                   pWing->m_StrutList[k]->m_Surface[j].TA.z);
+                                pWing->m_StrutList[k]->m_Surface[j].GetPanel( pWing->m_StrutList[k]->m_Surface[j].m_NYPanels-1, 0, MIDSURFACE);
+                                glVertex3d(pWing->m_StrutList[k]->m_Surface[j].TB.x,
+                                                   pWing->m_StrutList[k]->m_Surface[j].TB.y,
+                                                   pWing->m_StrutList[k]->m_Surface[j].TB.z);
+                        }
+                        glEnd();
+                }
+
+
+
+
+
+                }
+
+
+
                 //flap outline....
                 for (j=0; j<pWing->m_NSurfaces; j++)
                 {
@@ -4341,15 +5151,27 @@ void QBEM::GLCreateGeom(CBlade *pWing, int List)
                 if (m_bAdvancedEdit)
                 {
 
-                glLineWidth((GLfloat)5);
+                if (!m_pctrlAxes->isChecked()){
+                glLineWidth((GLfloat)2);
                 glColor3d(255,0,0);
-//				glColor3d(g_mainFrame->m_TextColor.redF(),g_mainFrame->m_TextColor.greenF(),g_mainFrame->m_TextColor.blueF());
-
                 glBegin(GL_LINE_STRIP);
                 {
                     for (j=0; j<=pWing->m_NPanel; j++)
                     {
-                        Pt=CVector(pWing->m_TPAxisX[j],pWing->m_TPAxisY[j],pWing->m_TPAxisZ[j]);
+                        Pt=CVector(/*pWing->m_TPAxisX[j],*/0,pWing->m_TPAxisY[j],0/*pWing->m_TOffsetZ[j]*/);
+                        glVertex3d(Pt.x, Pt.y, Pt.z);
+                    }
+                }
+                glEnd();
+                }
+
+                glColor3d(0,0,255);
+                glPointSize(5.0);
+                glBegin(GL_POINTS);
+                {
+                    for (j=0; j<=pWing->m_NPanel; j++)
+                    {
+                        Pt=CVector(pWing->m_TPAxisX[j],pWing->m_TPAxisY[j],pWing->m_TOffsetZ[j]);
                         glVertex3d(Pt.x, Pt.y, Pt.z);
                     }
                 }
@@ -4439,103 +5261,112 @@ void QBEM::GLCreateSectionHighlight()
     }
 }
 
-void QBEM::GLDraw3D()
-{
-        if (!m_pBlade)
-        {
-                m_bResetglGeom = true;
-
-        }
-
-		glClearColor(g_mainFrame->m_BackgroundColor.redF(), g_mainFrame->m_BackgroundColor.greenF(), g_mainFrame->m_BackgroundColor.blueF(),0.0);
-
-
-		if(m_bResetglGeom  && g_mainFrame->m_iView==BLADEVIEW)// new JW, old: m_iView
-        {
-                if(m_pBlade)
-                {
-                        if(glIsList(WINGSURFACES))
-                        {
-                                glDeleteLists(WINGSURFACES,2);
-                        }
-                        GLCreateGeom(m_pBlade,WINGSURFACES);
-                }
-
-
-                m_bResetglGeom = false;
-        }
-        if(m_bResetglSectionHighlight)
-        {
-                if(glIsList(SECTIONHIGHLIGHT))
-                {
-                        glDeleteLists(SECTIONHIGHLIGHT,1);
-                }
-                if(m_iSection>=0)
-                {
-                        GLCreateSectionHighlight();
-                        m_bResetglSectionHighlight = false;
-                }
-        }
-
-        m_bResetglGeom=false;
-
+void QBEM::GLDraw3D() {
+	if (!m_pBlade) {
+		m_bResetglGeom = true;
+	}
+    if (!m_pBlade->m_Surface.size()) return;
+	
+	if (m_bResetglGeom  && g_mainFrame->m_iView==BLADEVIEW) {
+		if (m_pBlade) {
+			if (glIsList(WINGSURFACES)) {
+				glDeleteLists (WINGSURFACES, 2);
+			}
+			GLCreateGeom(m_pBlade,WINGSURFACES);
+		}
+		m_bResetglGeom = false;
+	}
+	
+	if (m_bResetglSectionHighlight) {
+		if (glIsList(SECTIONHIGHLIGHT)) {
+			glDeleteLists (SECTIONHIGHLIGHT, 1);
+		}
+		if (m_iSection>=0) {
+			GLCreateSectionHighlight ();
+			m_bResetglSectionHighlight = false;
+		}
+	}
+	m_bResetglGeom=false;
 }
 
 void QBEM::GLRenderView()
 {
-//        static GLdouble pts[4];
-//        pts[0]= 0.0; pts[1]=0.0; pts[2]=-1.0; pts[3]= m_ClipPlanePos;  //x=m_VerticalSplit
-//        glClipPlane(GL_CLIP_PLANE1, pts);
-//        if(m_ClipPlanePos>4.9999) 	glDisable(GL_CLIP_PLANE1);
-//        else						glEnable(GL_CLIP_PLANE1);
-
-
-
-
-//        // Clear the viewport
-//        glFlush();
-//        glEnable(GL_DEPTH_TEST);
-//        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-
-    // set background
-    glClearColor(g_mainFrame->m_BackgroundColor.redF(),
-                 g_mainFrame->m_BackgroundColor.greenF(),
-                 g_mainFrame->m_BackgroundColor.blueF(),
-                 0.0);
     glEnable(GL_DEPTH_TEST);
 
     glDepthFunc(GL_LESS);  // accept fragment if it is closer to the camera than the former one
     glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);  // polygons are filled from both sides
-    glEnable(GL_POLYGON_OFFSET_FILL);  // polygons get a reduced Z-value. Now the grid is drawn onto the WindField surface
+    glEnable(GL_POLYGON_OFFSET_FILL);  // polygons get a reduced Z-value. Now the grid is drawn onto the surface
     glPolygonOffset(1.0, 0);
     glLineWidth(1);
-    // disable smooth functions that otherwise make rendering worse
 
-    glDisable(GL_POLYGON_SMOOTH);
+    glDisable(GL_POLYGON_SMOOTH);  // disable smooth functions that otherwise make rendering worse
     glEnable(GL_POINT_SMOOTH);
     glEnable(GL_LINE_SMOOTH);
 
+    double LightFactor;
+    if(m_pBlade) LightFactor =  (GLfloat)pow(m_pBlade->m_PlanformSpan/2.0,0.1);
+    else           LightFactor = 1.0;
+    m_pGLWidget->GLSetupLight(m_GLLightDlg, 0, LightFactor);
+    GLCallViewLists();
+}
 
+void QBEM::OnSingleMultiPolarChanged(){
+    m_pBlade->m_bisSinglePolar = m_SingleMultiGroup->button(0)->isChecked();
 
+    if (g_mainFrame->m_iApp == BEM){
+        if (m_pBlade->m_bisSinglePolar) m_pWingModel->setHeaderData(4, Qt::Horizontal, QObject::tr("Polar"));
+        else m_pWingModel->setHeaderData(4, Qt::Horizontal, QObject::tr("Polar Range"));
+    }
+    else if (g_mainFrame->m_iApp == DMS){
+        if (m_pBlade->m_bisSinglePolar) m_pWingModel->setHeaderData(7, Qt::Horizontal, QObject::tr("Polar"));
+        else m_pWingModel->setHeaderData(7, Qt::Horizontal, QObject::tr("Polar Range"));
+    }
 
-//        glPushMatrix();
-//        {
+    for (int i=0; i<=m_pBlade->m_NPanel;i++){
+        FillTableRow(i);
+    }
 
+    CheckWing();
 
+}
 
-                double LightFactor;
-                if(m_pBlade) LightFactor =  (GLfloat)pow(m_pBlade->m_PlanformSpan/2.0,0.1);
-                else           LightFactor = 1.0;
-                m_pGLWidget->GLSetupLight(m_GLLightDlg, 0, LightFactor);
+void QBEM::OnPolarDialog(){
+    if (m_iSection < 0) return;
 
-                GLCallViewLists();
+    CFoil *pFoil = GetFoil(m_pBlade->m_Airfoils.at(m_iSection));
+    if (pFoil){
 
+        bool bFound = false;
+        for (int i=0;i<g_360PolarStore.size();i++){
+            if (g_360PolarStore.at(i)->m_airfoil->getName() == pFoil->getName()) bFound = true;
+        }
+        if (!bFound) return;
+    }
+    else return;
 
-//        }
-//        glPopMatrix();
-//        glDisable(GL_CLIP_PLANE1);
+    PolarSelectionDialog dialog(pFoil, m_pBlade);
 
-
+    if (QDialog::Accepted==dialog.exec()){
+        bool bExisting = false;
+        for (int i=0; i<m_pBlade->m_PolarAssociatedFoils.size();i++){
+            if (m_pBlade->m_PolarAssociatedFoils.at(i) == pFoil->getName()){
+                m_pBlade->m_MultiPolars.replace(i, dialog.GetPolarNamesList());
+                m_pBlade->m_MinMaxReynolds.replace(i,QString("%1 to %2").arg(dialog.GetMin()).arg(dialog.GetMax()));
+                bExisting = true;
+                break;
+            }
+        }
+        if(!bExisting){
+            m_pBlade->m_PolarAssociatedFoils.append(pFoil->getName());
+            m_pBlade->m_MultiPolars.append(dialog.GetPolarNamesList());
+            m_pBlade->m_MinMaxReynolds.append(QString("%1 to %2").arg(dialog.GetMin()).arg(dialog.GetMax()));
+        }
+        for (int i=0;i<m_pBlade->m_Range.size();i++){
+            if (m_pBlade->m_Airfoils.at(i) == pFoil->getName()){
+            ReadSectionData(i);
+            }
+        }
+    }
 
 }
 
@@ -4549,22 +5380,20 @@ bool QBEM::InitDialog(CBlade *pWing)
         m_iSection = 0;
 
         if (m_pWingModel) delete m_pWingModel;
+        if (m_pBladeDelegate) delete m_pBladeDelegate;
 
         m_pBlade = pWing;
 
         m_pctrlSave->setEnabled(false);
         m_pctrlOptimize->setEnabled(false);
 
-
         if(!m_pBlade) return false;
-
 
         ComputeGeometry();
 
 		GetLengthUnit(str, g_mainFrame->m_LengthUnit);
 
         m_pctrlWingName->setText(m_pBlade->getName());
-
 
         m_pWingModel = new QStandardItemModel;
         m_pWingModel->setRowCount(100);//temporary
@@ -4574,46 +5403,28 @@ bool QBEM::InitDialog(CBlade *pWing)
         m_pWingModel->setHeaderData(1, Qt::Horizontal, tr("Chord (")+str+")");
         m_pWingModel->setHeaderData(2, Qt::Horizontal, tr("Twist"));
         m_pWingModel->setHeaderData(3, Qt::Horizontal, QObject::tr("Foil"));
-        m_pWingModel->setHeaderData(4, Qt::Horizontal, QObject::tr("Polar"));
 
-
-
+        if (m_pBlade->m_bisSinglePolar) m_pWingModel->setHeaderData(4, Qt::Horizontal, QObject::tr("Polar"));
+        else m_pWingModel->setHeaderData(4, Qt::Horizontal, QObject::tr("Polar Range"));
 
         m_pctrlBladeTable->setModel(m_pWingModel);
 
-        for (int i=0;i<5;i++)
-        {
-        if (i==0) m_pctrlBladeTable->setColumnWidth(i,65);
-        if (i==1) m_pctrlBladeTable->setColumnWidth(i,65);
-        if (i==2) m_pctrlBladeTable->setColumnWidth(i,65);
-        if (i==3) m_pctrlBladeTable->setColumnWidth(i,90);
-        if (i==4) m_pctrlBladeTable->setColumnWidth(i,122);
-        }
-
-
+        OnResize();
 
         QItemSelectionModel *selectionModel = new QItemSelectionModel(m_pWingModel);
         m_pctrlBladeTable->setSelectionModel(selectionModel);
         connect(selectionModel, SIGNAL(currentChanged(QModelIndex,QModelIndex)), this, SLOT(OnItemClicked(QModelIndex)));
 
-
-
-        m_pBladeDelegate = new BladeDelegate;
+        m_pBladeDelegate = new BladeDelegate(m_pBlade, this);
         m_pctrlBladeTable->setItemDelegate(m_pBladeDelegate);
         connect(m_pBladeDelegate,  SIGNAL(closeEditor(QWidget *)), this, SLOT(OnCellChanged()));
-
-
 
         int  *precision = new int[3];
         precision[0] = 3;
         precision[1] = 3;
         precision[2] = 2;
 
-
-
         m_pBladeDelegate->SetPointers(precision,&m_pBlade->m_NPanel);
-
-
         m_pBladeDelegate->itemmodel = m_pWingModel;
 
         FillDataTable();
@@ -4650,25 +5461,19 @@ bool QBEM::InitAdvancedDialog(CBlade *pWing)
 
     m_pBladeAxisModel = new QStandardItemModel;
     m_pBladeAxisModel->setRowCount(100);//temporary
-    m_pBladeAxisModel->setColumnCount(3);
+    m_pBladeAxisModel->setColumnCount(4);
 
     m_pBladeAxisModel->setHeaderData(0, Qt::Horizontal, tr("Position (")+str+")");
-    m_pBladeAxisModel->setHeaderData(1, Qt::Horizontal, tr("Offset (")+str+")");
+    m_pBladeAxisModel->setHeaderData(1, Qt::Horizontal, tr("X Offset (")+str+")");
 //    m_pBladeAxisModel->setHeaderData(2, Qt::Horizontal, tr("Dihedral (in deg)"));
-    m_pBladeAxisModel->setHeaderData(2, Qt::Horizontal, tr("Thread Axis X (% chord)"));
+    m_pBladeAxisModel->setHeaderData(2, Qt::Horizontal, tr("Z Offset (")+str+")");
+    m_pBladeAxisModel->setHeaderData(3, Qt::Horizontal, tr("Twist Pt (%c)"));
+
 //    m_pBladeAxisModel->setHeaderData(3, Qt::Horizontal, tr("Thread Axis Z (% chord)"));
 
     m_pctrlBladeAxisTable->setModel(m_pBladeAxisModel);
 
-    for (int i=0;i<2;i++)
-    {
-    m_pctrlBladeAxisTable->setColumnWidth(i,130);
-    }
-    m_pctrlBladeAxisTable->setColumnWidth(2,145);
-
-//    m_pctrlBladeAxisTable->setColumnWidth(3,105);
-//    m_pctrlBladeAxisTable->setColumnWidth(4,105);
-
+    OnResize();
 
     QItemSelectionModel *selectionModel = new QItemSelectionModel(m_pBladeAxisModel);
     m_pctrlBladeAxisTable->setSelectionModel(selectionModel);
@@ -4699,8 +5504,36 @@ bool QBEM::InitAdvancedDialog(CBlade *pWing)
     return true;
 }
 
+void QBEM::OnResize()
+{
+    m_pctrlBladeTableView->setMaximumWidth(0.9*g_mainFrame->m_pctrlBEMWidget->width());
+    m_pctrlBladeTableView->setMinimumWidth(0.9*g_mainFrame->m_pctrlBEMWidget->width());
+    int unitwidth = (int)((m_pctrlBladeTableView->width())/6);
+    m_pctrlBladeTableView->setColumnWidth(0,unitwidth);
+    m_pctrlBladeTableView->setColumnWidth(1,unitwidth);
+    m_pctrlBladeTableView->setColumnWidth(2,unitwidth);
+    m_pctrlBladeTableView->setColumnWidth(3,1.5*unitwidth);
+    m_pctrlBladeTableView->setColumnWidth(4,1.5*unitwidth);
 
-void QBEM::InitWingTable()
+    m_pctrlBladeAxisTable->setMaximumWidth(0.9*g_mainFrame->m_pctrlBEMWidget->width());
+    m_pctrlBladeAxisTable->setMinimumWidth(0.9*g_mainFrame->m_pctrlBEMWidget->width());
+    unitwidth = (int)((m_pctrlBladeAxisTable->width())/4);
+    m_pctrlBladeAxisTable->setColumnWidth(0,unitwidth);
+    m_pctrlBladeAxisTable->setColumnWidth(1,unitwidth);
+    m_pctrlBladeAxisTable->setColumnWidth(2,unitwidth);
+    m_pctrlBladeAxisTable->setColumnWidth(3,unitwidth);
+
+    m_pctrlBladeTable->setMaximumWidth(0.9*g_mainFrame->m_pctrlBEMWidget->width());
+    m_pctrlBladeTable->setMinimumWidth(0.9*g_mainFrame->m_pctrlBEMWidget->width());
+    unitwidth = (int)((m_pctrlBladeTable->width())/6);
+    m_pctrlBladeTable->setColumnWidth(0,unitwidth);
+    m_pctrlBladeTable->setColumnWidth(1,unitwidth);
+    m_pctrlBladeTable->setColumnWidth(2,unitwidth);
+    m_pctrlBladeTable->setColumnWidth(3,1.5*unitwidth);
+    m_pctrlBladeTable->setColumnWidth(4,1.5*unitwidth);
+}
+
+void QBEM::InitBladeTable()
 {
 	m_bResetglSectionHighlight = true;
 
@@ -4714,8 +5547,13 @@ void QBEM::InitWingTable()
 		QString text, blades, hub;
         blades.sprintf("%.0f",double(m_pBlade->m_blades));
         hub.sprintf("%.2f",m_pBlade->m_HubRadius*g_mainFrame->m_mtoUnit);
-        text = m_pBlade->getName()+": "+blades+" blades and "+hub+" "+str+" hub radius";
+        text = blades+" blades and "+hub+" "+str+" hub radius";
 		m_pctrlBladesAndHubLabel->setText(text);
+
+        m_pctrlWingNameLabel->setText(m_pBlade->getName());
+        if (m_pBlade->m_bisSinglePolar) m_pctrlSingleMultiLabel->setText("");
+        else m_pctrlSingleMultiLabel->setText("Multi Reynolds Number Polars");
+
 		
 		
 		m_pWingModel = new QStandardItemModel;
@@ -4726,19 +5564,14 @@ void QBEM::InitWingTable()
 		m_pWingModel->setHeaderData(1, Qt::Horizontal, tr("Chord (")+str+")");
 		m_pWingModel->setHeaderData(2, Qt::Horizontal, tr("Twist"));
 		m_pWingModel->setHeaderData(3, Qt::Horizontal, QObject::tr("Foil"));
-		m_pWingModel->setHeaderData(4, Qt::Horizontal, QObject::tr("Polar"));
+        if (m_pBlade->m_bisSinglePolar) m_pWingModel->setHeaderData(4, Qt::Horizontal, QObject::tr("Polar"));
+        else m_pWingModel->setHeaderData(4, Qt::Horizontal, QObject::tr("Polar Range"));
+
 		
 		m_pctrlBladeTableView->setModel(m_pWingModel);
 		
-		for (int i=0;i<5;i++)
-		{
-            if (i==0) m_pctrlBladeTableView->setColumnWidth(i,65);
-            if (i==1) m_pctrlBladeTableView->setColumnWidth(i,65);
-            if (i==2) m_pctrlBladeTableView->setColumnWidth(i,65);
-            if (i==3) m_pctrlBladeTableView->setColumnWidth(i,90);
-            if (i==4) m_pctrlBladeTableView->setColumnWidth(i,122);
-		}
-		
+        OnResize();
+
 		m_iSection = -1;
 		FillDataTable();
 		ComputeGeometry();
@@ -4778,7 +5611,7 @@ void QBEM::InitTurbineData(TData *pTData)
 		CutIn->setText(strong.number(pTData->CutIn*g_mainFrame->m_mstoUnit,'f',2));
 		CutOut->setText(strong.number(pTData->CutOut*g_mainFrame->m_mstoUnit,'f',2));
 		Switch->setText(strong.number(pTData->Switch*g_mainFrame->m_mstoUnit,'f',2));
-		FixedLosses->setText(strong.number(pTData->FixedLosses*g_mainFrame->m_WtoUnit,'f',2));
+		FixedLosses->setText(strong.number(pTData->m_fixedLosses*g_mainFrame->m_WtoUnit,'f',2));
         VariableLosses->setText(strong.number(pTData->VariableLosses,'f',3));
 		OuterRadius->setText(strong.number(pTData->OuterRadius*g_mainFrame->m_mtoUnit,'f',2));
         Blade->setText(pTData->m_WingName);
@@ -5171,72 +6004,78 @@ void QBEM::keyReleaseEvent(QKeyEvent *event)
 
 void QBEM::LoadSettings(QSettings *pSettings)
 {
-        pSettings->beginGroup("XBEM");
-        {
-            dlg_lambda      =       pSettings->value("Lambda").toDouble();
-            dlg_epsilon     =       pSettings->value("Epsilon").toDouble();
-            dlg_iterations  =       pSettings->value("Interations").toInt();
-            dlg_elements    =       pSettings->value("Elements").toInt();
-            dlg_rho         =       pSettings->value("Rho").toDouble();
-            dlg_relax       =       pSettings->value("Relax").toDouble();
-            dlg_tiploss     =       pSettings->value("TipLoss").toBool();
-            dlg_rootloss    =       pSettings->value("RootLoss").toBool();
-            dlg_3dcorrection=       pSettings->value("3DCorrection").toBool();
-            dlg_interpolation=      pSettings->value("Interpolation").toBool();
-            //m_iView         =       pSettings->value("iView").toInt();
-            dlg_lambdastart =       pSettings->value("lambdastart").toDouble();
-            dlg_lambdaend   =       pSettings->value("lambdaend").toDouble();
-            dlg_lambdadelta =       pSettings->value("lambdadelta").toDouble();
-            dlg_windstart   =       pSettings->value("windstart").toDouble();
-            dlg_windend     =       pSettings->value("windend").toDouble();
-			dlg_winddelta   =       pSettings->value("winddelta").toDouble();
-            dlg_newtiploss  =       pSettings->value("newtiploss").toBool();
-            dlg_newrootloss =       pSettings->value("newrootloss").toBool();
-            dlg_visc        =       pSettings->value("visc").toDouble();
-            dlg_pitchstart  =       pSettings->value("pitchstart").toDouble();
-            dlg_pitchend    =       pSettings->value("pitchend").toDouble();
-            dlg_pitchdelta  =       pSettings->value("pitchdelta").toDouble();
-            dlg_rotstart    =       pSettings->value("rotstart").toDouble();
-            dlg_rotend      =       pSettings->value("rotend").toDouble();
-            dlg_rotdelta    =       pSettings->value("rotdelta").toDouble();
-			dlg_windstart2  =       pSettings->value("windstartt").toDouble();
-			dlg_windend2    =       pSettings->value("windendt").toDouble();
-			dlg_winddelta2  =       pSettings->value("winddeltat").toDouble();
-			dlg_reynolds    =       pSettings->value("reynolds").toDouble();
-        }
-        pSettings->endGroup();
+	pSettings->beginGroup("XBEM");
+	{
+		dlg_lambda      =       pSettings->value("Lambda").toDouble();
+		dlg_epsilon     =       pSettings->value("Epsilon").toDouble();
+		dlg_iterations  =       pSettings->value("Interations").toInt();
+		dlg_elements    =       pSettings->value("Elements").toInt();
+		dlg_rho         =       pSettings->value("Rho").toDouble();
+		dlg_relax       =       pSettings->value("Relax").toDouble();
+		dlg_tiploss     =       pSettings->value("TipLoss").toBool();
+		dlg_rootloss    =       pSettings->value("RootLoss").toBool();
+		dlg_3dcorrection=       pSettings->value("3DCorrection").toBool();
+		dlg_interpolation=      pSettings->value("Interpolation").toBool();
+		//m_iView         =       pSettings->value("iView").toInt();
+        dlg_windspeed =       pSettings->value("tsrwindspeed").toDouble();
+		dlg_lambdastart =       pSettings->value("lambdastart").toDouble();
+		dlg_lambdaend   =       pSettings->value("lambdaend").toDouble();
+		dlg_lambdadelta =       pSettings->value("lambdadelta").toDouble();
+		dlg_windstart   =       pSettings->value("windstart").toDouble();
+		dlg_windend     =       pSettings->value("windend").toDouble();
+		dlg_winddelta   =       pSettings->value("winddelta").toDouble();
+		dlg_newtiploss  =       pSettings->value("newtiploss").toBool();
+		dlg_newrootloss =       pSettings->value("newrootloss").toBool();
+		dlg_visc        =       pSettings->value("visc").toDouble();
+		dlg_pitchstart  =       pSettings->value("pitchstart").toDouble();
+		dlg_pitchend    =       pSettings->value("pitchend").toDouble();
+		dlg_pitchdelta  =       pSettings->value("pitchdelta").toDouble();
+		dlg_rotstart    =       pSettings->value("rotstart").toDouble();
+		dlg_rotend      =       pSettings->value("rotend").toDouble();
+		dlg_rotdelta    =       pSettings->value("rotdelta").toDouble();
+		dlg_windstart2  =       pSettings->value("windstartt").toDouble();
+		dlg_windend2    =       pSettings->value("windendt").toDouble();
+		dlg_winddelta2  =       pSettings->value("winddeltat").toDouble();
+		dlg_reynolds    =       pSettings->value("reynolds").toDouble();
+	}
+	pSettings->endGroup();
+	
+	m_GLLightDlg.LoadSettings(pSettings);
+	
+	m_RotorGraph1.LoadSettings(pSettings);
+	m_RotorGraph2.LoadSettings(pSettings);
+	m_RotorGraph3.LoadSettings(pSettings);
+	m_PowerGraph1.LoadSettings(pSettings);
+	m_PowerGraph2.LoadSettings(pSettings);
+	m_PowerGraph3.LoadSettings(pSettings);
+	m_CharGraph1.LoadSettings(pSettings);
+	m_CharGraph2.LoadSettings(pSettings);
+	m_CharGraph3.LoadSettings(pSettings);
+	m_CharGraph4.LoadSettings(pSettings);
+    m_360Graph1.LoadSettings(pSettings);
+    m_360Graph2.LoadSettings(pSettings);
+    m_360Graph3.LoadSettings(pSettings);
+    m_360Graph4.LoadSettings(pSettings);
 
-        m_RotorGraph1.LoadSettings(pSettings);
-        m_RotorGraph2.LoadSettings(pSettings);
-        m_RotorGraph3.LoadSettings(pSettings);
-        m_PowerGraph1.LoadSettings(pSettings);
-        m_PowerGraph2.LoadSettings(pSettings);
-        m_PowerGraph3.LoadSettings(pSettings);
-        m_CharGraph1.LoadSettings(pSettings);
-        m_CharGraph2.LoadSettings(pSettings);
-        m_CharGraph3.LoadSettings(pSettings);
-        m_CharGraph4.LoadSettings(pSettings);
-        m_360CLGraph.LoadSettings(pSettings);
-        m_360CDGraph.LoadSettings(pSettings);
-
-SetPowerGraphTitles(&m_PowerGraph1);
-SetPowerGraphTitles(&m_PowerGraph2);
-SetPowerGraphTitles(&m_PowerGraph3);
-//new code JW//
-SetWeibullGraphTitles(&m_PowerGraph1);
-SetWeibullGraphTitles(&m_PowerGraph2);
-SetWeibullGraphTitles(&m_PowerGraph3);
-//end new code JW //
-SetRotorGraphTitles(&m_RotorGraph1);
-SetRotorGraphTitles(&m_RotorGraph2);
-SetRotorGraphTitles(&m_RotorGraph3);
-SetPolarGraphTitles(&m_360CLGraph);
-SetPolarGraphTitles(&m_360CDGraph);
-SetCharGraphTitles(&m_CharGraph1);
-SetCharGraphTitles(&m_CharGraph2);
-SetCharGraphTitles(&m_CharGraph3);
-SetCharGraphTitles(&m_CharGraph4);
-
+	SetPowerGraphTitles(&m_PowerGraph1);
+	SetPowerGraphTitles(&m_PowerGraph2);
+	SetPowerGraphTitles(&m_PowerGraph3);
+	//new code JW//
+	SetWeibullGraphTitles(&m_PowerGraph1);
+	SetWeibullGraphTitles(&m_PowerGraph2);
+	SetWeibullGraphTitles(&m_PowerGraph3);
+	//end new code JW //
+	SetRotorGraphTitles(&m_RotorGraph1);
+	SetRotorGraphTitles(&m_RotorGraph2);
+	SetRotorGraphTitles(&m_RotorGraph3);
+    SetPolarGraphTitles(&m_360Graph1);
+    SetPolarGraphTitles(&m_360Graph2);
+    SetPolarGraphTitles(&m_360Graph3);
+    SetPolarGraphTitles(&m_360Graph4);
+	SetCharGraphTitles(&m_CharGraph1);
+	SetCharGraphTitles(&m_CharGraph2);
+	SetCharGraphTitles(&m_CharGraph3);
+	SetCharGraphTitles(&m_CharGraph4);
 }
 
 void QBEM::mouseDoubleClickEvent ( QMouseEvent * /*event*/ )
@@ -5295,12 +6134,6 @@ void QBEM::MouseMoveEvent(QMouseEvent *event)
                         {
                                 m_PowerLegendOffset.rx() += Delta.x();
                                 m_PowerLegendOffset.ry() += Delta.y();
-                                UpdateView();
-                        }
-                        else if(g_mainFrame->m_iView == POLARVIEW)// new JW, old: m_iView
-                        {
-                                m_360LegendOffset.rx() += Delta.x();
-                                m_360LegendOffset.ry() += Delta.y();
                                 UpdateView();
                         }
                     }
@@ -5428,11 +6261,13 @@ void QBEM::TabChanged()
     if (SimpleAdvanced->currentIndex() == 0)
     {
     m_bAdvancedEdit = false;
+    m_pBlade->setName(m_pctrlWingName->text());
     InitDialog(m_pBlade);
     }
     else if (SimpleAdvanced->currentIndex() == 1)
     {
     m_bAdvancedEdit = true;
+    m_pBlade->setName(m_pctrlWingName->text());
     InitAdvancedDialog(m_pBlade);
     }
 
@@ -5543,7 +6378,16 @@ void QBEM::OnLightDlg()
     else           LightFactor = 1.0;
     pGLWidget->GLSetupLight(m_GLLightDlg, 0, LightFactor);
     UpdateView();
+	
+}
 
+void QBEM::onPerspectiveChanged() {
+	if (m_pctrlPerspective->isChecked()) {
+		m_pGLWidget->camera()->setType(qglviewer::Camera::PERSPECTIVE);
+    } else {
+		m_pGLWidget->camera()->setType(qglviewer::Camera::ORTHOGRAPHIC);
+	}
+	UpdateView();
 }
 
 void QBEM::OnSelChangeTurbine(int /*i*/)
@@ -5554,7 +6398,6 @@ void QBEM::OnSelChangeTurbine(int /*i*/)
 
             InitTurbineData(m_pTData);
             UpdateTurbines();
-            m_bChanged=false;
             CheckButtons();
 
 
@@ -5567,18 +6410,21 @@ void QBEM::OnStartRotorSimulation()
 
     SimuWidget *pSimuWidget = (SimuWidget *) m_pSimuWidget;
 
-    double lstart, lend, ldelta;
+    double lstart, lend, ldelta, inflowspeed;
     int times;
 
     lstart  =   pSimuWidget->m_pctrlLSLineEdit->getValue();
     lend    =   pSimuWidget->m_pctrlLELineEdit->getValue();
     ldelta  =   pSimuWidget->m_pctrlLDLineEdit->getValue();
+    inflowspeed = pSimuWidget->m_pctrlWindspeed->getValue();
     times   =   int((lend-lstart)/ldelta);
 
 
     dlg_lambdastart = pSimuWidget->m_pctrlLSLineEdit->getValue();
     dlg_lambdaend   = pSimuWidget->m_pctrlLELineEdit->getValue();
     dlg_lambdadelta = pSimuWidget->m_pctrlLDLineEdit->getValue();
+    dlg_windspeed = pSimuWidget->m_pctrlWindspeed->getValue();
+
 
     m_pBEMData->Clear();
 
@@ -5598,7 +6444,8 @@ void QBEM::OnStartRotorSimulation()
 
 
     m_pBladeData = new BData;
-    m_pBEMData->Compute(m_pBladeData,m_pBlade,lstart+i*ldelta,0);
+    m_pBEMData->Compute(m_pBladeData,m_pBlade,lstart+i*ldelta,inflowspeed);
+
 	m_pBladeData->m_Color = g_mainFrame->GetColor(9);
 
     m_pBData = m_pBEMData->m_BData[0];
@@ -5611,7 +6458,7 @@ void QBEM::OnStartRotorSimulation()
 
 
 
-    UpdateWings();
+    UpdateBlades();
     SetCurveParams();
     FillComboBoxes();
 
@@ -5944,14 +6791,14 @@ void QBEM::OnStartTurbineSimulation()
                 {
 //if pitch controll is enabled compute pitch angles to reduce power output
 
-                if ((1-m_pTData->VariableLosses)*PI/2*pow(m_pTData->OuterRadius,2)*m_pTBEMData->rho*pow(windspeed,3)*m_pBladeData->cp-m_pTData->FixedLosses > m_pTData->Generator)
+                if ((1-m_pTData->VariableLosses)*PI/2*pow(m_pTData->OuterRadius,2)*m_pTBEMData->rho*pow(windspeed,3)*m_pBladeData->cp-m_pTData->m_fixedLosses > m_pTData->Generator)
                     {
 
-                        while ((1-m_pTData->VariableLosses)*PI/2*pow(m_pTData->OuterRadius,2)*m_pTBEMData->rho*pow(windspeed,3)*m_pBladeData->cp-m_pTData->FixedLosses > m_pTData->Generator)
+                        while ((1-m_pTData->VariableLosses)*PI/2*pow(m_pTData->OuterRadius,2)*m_pTBEMData->rho*pow(windspeed,3)*m_pBladeData->cp-m_pTData->m_fixedLosses > m_pTData->Generator)
                             {
                                 if (m_pBladeData) delete m_pBladeData;
                                 m_pBladeData= new BData;
-                                pitch = pitch + 0.05;
+                                pitch = pitch - 0.05;
                                 m_pTBEMData->Compute(m_pBladeData,pWing,lambda,pitch,windspeed);
                                 oo++;
                                 QString curpitch;
@@ -5961,7 +6808,7 @@ void QBEM::OnStartTurbineSimulation()
                                 progress.setValue(i+oo);
                                 if (progress.wasCanceled()) break;
                             }
-                                m_pBladeData->cp = (m_pTData->Generator + m_pTData->FixedLosses)/((1-m_pTData->VariableLosses)*PI/2*pow(m_pTData->OuterRadius,2)*m_pTBEMData->rho*pow(windspeed,3));
+                                m_pBladeData->cp = (m_pTData->Generator + m_pTData->m_fixedLosses)/((1-m_pTData->VariableLosses)*PI/2*pow(m_pTData->OuterRadius,2)*m_pTBEMData->rho*pow(windspeed,3));
                     }
 
                 }
@@ -5975,13 +6822,13 @@ void QBEM::OnStartTurbineSimulation()
                 m_pTBEMData->m_Omega.append(rot);
                 m_pTBEMData->m_V.append(windspeed);
                 m_pTBEMData->m_BData.append(m_pBladeData);
-                if ((1-m_pTData->VariableLosses)*PI/2*pow(m_pTData->OuterRadius,2)*m_pTBEMData->rho*pow(windspeed,3)*m_pBladeData->cp-m_pTData->FixedLosses > 0)
+                if ((1-m_pTData->VariableLosses)*PI/2*pow(m_pTData->OuterRadius,2)*m_pTBEMData->rho*pow(windspeed,3)*m_pBladeData->cp-m_pTData->m_fixedLosses > 0)
                 {
-                m_pTBEMData->m_P.append((1-m_pTData->VariableLosses)*PI/2*pow(m_pTData->OuterRadius,2)*m_pTBEMData->rho*pow(windspeed,3)*m_pBladeData->cp-m_pTData->FixedLosses);
+                m_pTBEMData->m_P.append((1-m_pTData->VariableLosses)*PI/2*pow(m_pTData->OuterRadius,2)*m_pTBEMData->rho*pow(windspeed,3)*m_pBladeData->cp-m_pTData->m_fixedLosses);
                 }
                 else m_pTBEMData->m_P.append(0);
                 m_pTBEMData->m_Torque.append(PI/2*pow(m_pTData->OuterRadius,2)*m_pTBEMData->rho*pow(windspeed,3)*m_pBladeData->cp/(rot/60*2*PI));
-                m_pTBEMData->m_Cp_loss.append(((1-m_pTData->VariableLosses)*PI/2*pow(m_pTData->OuterRadius,2)*m_pTBEMData->rho*pow(windspeed,3)*m_pBladeData->cp-m_pTData->FixedLosses)/(PI/2*pow(m_pTData->OuterRadius,2)*m_pTBEMData->rho*pow(windspeed,3)));
+                m_pTBEMData->m_Cp_loss.append(((1-m_pTData->VariableLosses)*PI/2*pow(m_pTData->OuterRadius,2)*m_pTBEMData->rho*pow(windspeed,3)*m_pBladeData->cp-m_pTData->m_fixedLosses)/(PI/2*pow(m_pTData->OuterRadius,2)*m_pTBEMData->rho*pow(windspeed,3)));
                 m_pTBEMData->m_Ct.append(m_pBladeData->ct);
                 m_pTBEMData->m_Lambda.append(lambda);
                 m_pTBEMData->m_S.append(pow(m_pTData->OuterRadius,2)*PI*m_pTBEMData->rho/2*pow(windspeed,2)*m_pBladeData->ct);
@@ -5996,15 +6843,8 @@ void QBEM::OnStartTurbineSimulation()
                 double bending = 0;
                 for (int d=0;d<m_pBladeData->m_Reynolds.size();d++)
                 {
-                    m_pBladeData->m_Reynolds[d] = pow((pow(windspeed*(1-m_pBladeData->m_a_axial.at(d)),2)+pow(windspeed*m_pBladeData->m_lambda_local.at(d)*(1+m_pBladeData->m_a_tangential.at(d)),2)),0.5)*m_pBladeData->m_c_local[d]/dlg_visc*m_pTBEMData->rho;
-                    m_pBladeData->m_DeltaReynolds[d] = m_pBladeData->m_DeltaReynolds[d]-m_pBladeData->m_Reynolds[d];
                     m_pBladeData->m_Roughness[d] = 1000*100*dlg_visc/m_pTBEMData->rho/pow((pow(windspeed*(1-m_pBladeData->m_a_axial.at(d)),2)+pow(windspeed*m_pBladeData->m_lambda_local.at(d)*(1+m_pBladeData->m_a_tangential.at(d)),2)),0.5);
-                    m_pBladeData->m_Windspeed[d] = pow((pow(windspeed*(1-m_pBladeData->m_a_axial.at(d)),2)+pow(windspeed*m_pBladeData->m_lambda_local.at(d)*(1+m_pBladeData->m_a_tangential.at(d)),2)),0.5);
-                    m_pBladeData->m_p_normal[d] = pow(m_pBladeData->m_Windspeed[d],2)*m_pTBEMData->rho*0.5*m_pBladeData->m_c_local[d]*m_pBladeData->m_Cn[d];
-                    m_pBladeData->m_p_tangential[d] = pow(m_pBladeData->m_Windspeed[d],2)*m_pTBEMData->rho*0.5*m_pBladeData->m_c_local[d]*m_pBladeData->m_Ct[d];
                     bending = bending + m_pBladeData->m_p_normal.at(d)*m_pBladeData->deltas.at(d)*m_pBladeData->m_pos.at(d);
-                    m_pBladeData->m_Mach[d] = (m_pBladeData->m_Windspeed[d]/1235);
-                    m_pBladeData->m_circ[d] = (0.5*m_pBladeData->m_c_local.at(d)*m_pBladeData->m_CL.at(d)*m_pBladeData->m_Windspeed.at(d));
                 }
 
                 m_pTBEMData->m_Bending.append(bending);
@@ -6052,21 +6892,6 @@ void QBEM::OnOptimize()
     {
     dlg_lambda = OptDlg.Lambda0->getValue();
     }
-}
-
-void QBEM::OnOrtho()
-{
-    if (m_pctrlIsOrtho->isChecked()) m_pBlade->m_bIsOrtho = true;
-    else m_pBlade->m_bIsOrtho = false;
-
-    m_bResetglGeom = true;
-    m_bResetglSectionHighlight = true;
-    m_pBlade->CreateSurfaces();
-    ComputeGeometry();
-    UpdateView();
-
-
-
 }
 
 void QBEM::OnCreateCharacteristicSimulation()
@@ -6348,7 +7173,8 @@ void QBEM::OnShowPoints()
             {
                 m_pCur360Polar->m_bShowPoints = m_pctrlShowPoints->isChecked();
             }
-                CreatePolarCurve();
+            if (!m_bNew360Polar && !m_bDecompose) CreatePolarCurve();
+            else CreateSinglePolarCurve();
         }
 		else if (g_mainFrame->m_iView == TURBINEVIEW)// new JW, old: m_iView
         {
@@ -6391,7 +7217,8 @@ void QBEM::OnShowCurve()
             {
                 m_pCur360Polar->m_bIsVisible = m_pctrlShowCurve->isChecked();
             }
-                CreatePolarCurve();
+            if (!m_bNew360Polar && !m_bDecompose) CreatePolarCurve();
+            else CreateSinglePolarCurve();
         }
 		else if (g_mainFrame->m_iView == TURBINEVIEW)// new JW, old: m_iView
         {
@@ -6557,6 +7384,8 @@ void QBEM::OnHideAllRotorCurves()
 		for (int i=0; i< g_bemdataStore.size();i++)
         {
 			g_bemdataStore.at(i)->m_bIsVisible = false;
+            if (m_pBEMData) m_pBEMData->m_bIsVisible = true;
+
         }
     }
 	if (g_mainFrame->m_iView == TURBINEVIEW)// new JW, old: m_iView
@@ -6564,6 +7393,8 @@ void QBEM::OnHideAllRotorCurves()
 		for (int i=0;i<g_tbemdataStore.size();i++)
         {
 			g_tbemdataStore.at(i)->m_bIsVisible = false;
+            if (m_pTBEMData) m_pTBEMData->m_bIsVisible = true;
+
         }
     }
     if (g_mainFrame->m_iView == POLARVIEW)// new JW, old: m_iView
@@ -6571,6 +7402,7 @@ void QBEM::OnHideAllRotorCurves()
         for( int i=0;i<g_360PolarStore.size();i++)
         {
             g_360PolarStore.at(i)->m_bIsVisible = false;
+            if (m_pCur360Polar) m_pCur360Polar->m_bIsVisible = true;
         }
     }
 
@@ -6629,10 +7461,9 @@ void QBEM::OnDeleteCharSim()
     {
                g_cbemdataStore.remove(m_pCBEMData);
                m_pCBEMData = NULL;
-               UpdateWings();
+               UpdateBlades();
                CheckButtons();
     }
-
 }
 
 void QBEM::OnDeleteRotorSim()
@@ -6642,7 +7473,7 @@ void QBEM::OnDeleteRotorSim()
                g_bemdataStore.remove(m_pBEMData);
                m_pBEMData = NULL;
                m_pBData = NULL;
-               UpdateWings();
+               UpdateBlades();
                CheckButtons();
     }
 
@@ -6655,6 +7486,7 @@ void QBEM::OnDeleteTurbineSim()
     {
 
                g_tbemdataStore.remove(m_pTBEMData);
+               m_pTurbineBData = NULL;
                m_pTBEMData = NULL;
                m_pBData = NULL;
                UpdateTurbines();
@@ -6792,91 +7624,6 @@ void QBEM::OnSetWeibull()
 // end new code JW //
 
 
-/*
-void QBEM::OnSetWeibullA(double A)
-{
-
-    double K,V,f,energy = 0;
-
-	K=m_pctrlWk->value();
-
-    if (m_pTBEMData)
-    {
-
-		m_pTBEMData->A=A;
-
-        m_pTBEMData->m_Weibull.clear();
-		m_pTBEMData->m_WeibullV3.clear();
-
-
-        for (int i=0;i<m_pTBEMData->m_V.size();i++)
-        {
-           V=m_pTBEMData->m_V.at(i);
-
-           f=K/A*pow((V/A),(K-1))*exp(-pow((V/A),K));
-           m_pTBEMData->m_Weibull.append(f);
-           m_pTBEMData->m_WeibullV3.append(f*V*V);
-
-        }
-
-        for (int i=0;i<m_pTBEMData->m_V.size()-1;i++)
-        {
-            f = exp(-pow(m_pTBEMData->m_V.at(i)/A,K))-exp(-pow(m_pTBEMData->m_V.at(i+1)/A,K));
-
-            energy = energy + 0.5*(m_pTBEMData->m_P.at(i)+m_pTBEMData->m_P.at(i+1))*f*8760;
-        }
-
-        QString yield,str;
-		GetPowerUnit(str, g_mainFrame->m_PowerUnit);
-		yield.sprintf("%.0f",energy*g_mainFrame->m_WtoUnit);
-        m_pctrlYield->setText(yield+" "+str+"h");
-
-        CreatePowerCurves();
-    }
-}
-
-void QBEM::OnSetWeibullK(double K)
-{
-
-    double A,V,f,energy=0;
-
-	A=m_pctrlWA->value();
-
-    if (m_pTBEMData)
-    {
-
-		//m_pTBEMData->k=K;
-
-        m_pTBEMData->m_Weibull.clear();
-        m_pTBEMData->m_WeibullV3.clear();
-
-
-        for (int i=0;i<m_pTBEMData->m_V.size();i++)
-        {
-           V=m_pTBEMData->m_V.at(i);
-
-           f=K/A*pow((V/A),(K-1))*exp(-pow((V/A),K));
-           m_pTBEMData->m_Weibull.append(f);
-           m_pTBEMData->m_WeibullV3.append(f*V*V);
-        }
-
-        for (int i=0;i<m_pTBEMData->m_V.size()-1;i++)
-        {
-            f = exp(-pow(m_pTBEMData->m_V.at(i)/A,K))-exp(-pow(m_pTBEMData->m_V.at(i+1)/A,K));
-
-            energy = energy + 0.5*(m_pTBEMData->m_P.at(i)+m_pTBEMData->m_P.at(i+1))*f*8760;
-        }
-
-        QString yield,str;
-		GetPowerUnit(str, g_mainFrame->m_PowerUnit);
-		yield.sprintf("%.0f",energy*g_mainFrame->m_WtoUnit);
-        m_pctrlYield->setText(yield+" "+str+"h");
-
-        CreatePowerCurves();
-    }
-}
-*/
-
 void QBEM::OnSetCD90(double val)
 {
     m_CD90 = val;
@@ -6902,32 +7649,30 @@ void QBEM::OnSetAR(double val)
 }
 ////// end new code JW //////
 
-void QBEM::OnDiscardWing()
+void QBEM::OnDiscardBlade()
 {
-
-
 	QMessageBox msgBox;
 	msgBox.setText(tr("If you cancel the blade design will be lost!"));
 	msgBox.setInformativeText(tr("You want to proceed?"));
 	msgBox.addButton(tr("Ok"), QMessageBox::ActionRole);
 	QPushButton *backButton = msgBox.addButton(tr("Back to Design"), QMessageBox::ActionRole);
-
-
 	msgBox.exec();
 
-	if (msgBox.clickedButton() == backButton)
-	{
-	return;
-	}
+    if (msgBox.clickedButton() == backButton) return;
+
+    for (int i=0; i<m_pBlade->m_StrutList.size();i++) g_StrutStore.remove(m_pBlade->m_StrutList.at(i));
+
+    m_pBlade->deleteLater();
 
     if (g_mainFrame->m_iApp == BEM) SimpleAdvanced->setCurrentIndex(0); // return to simpleview
 
     ObjectIsEdited = false;
-
     m_WingEdited = false;
-    delete m_pBlade;
-    m_pBlade = NULL;
-    UpdateWings();
+
+    if (g_mainFrame->m_iApp == BEM) m_pBlade = m_BEMToolBar->m_rotorComboBox->currentObject();
+    if (g_mainFrame->m_iApp == DMS) m_pBlade = g_qdms->m_DMSToolBar->getRotorBox()->currentObject();
+
+    UpdateBlades();
     OnCenterScene();
     EnableAllButtons();
     CheckButtons();
@@ -6958,9 +7703,17 @@ void QBEM::OnDiscardTurbine()
 
 void QBEM::OnDiscard360Polar()
 {
-	Update360Polars();
+    delete m_pCur360Polar;
+
+    m_pCur360Polar = NULL;
+
+    EnableAllButtons();
+
+    Update360Polars();
 
 	m_bNew360Polar = false;
+    m_bDecompose = false;
+
 
 	CheckButtons();
 }
@@ -6988,7 +7741,6 @@ void QBEM::OnScaleBlade()
 
             m_pctrlHubRadius->setValue(m_pBlade->m_TPos[0]*g_mainFrame->m_mtoUnit);
             FillDataTable();
-            m_bChanged = true;
             m_bResetglGeom = true;
             m_bResetglSectionHighlight = true;
             ComputeGeometry();
@@ -7062,8 +7814,12 @@ void QBEM::OnLoadCylindricFoil()
 				pPolar->m_Alpha.append(i);
 				pPolar->m_Cd.append(pCircularFoilDlg->m_CircularDrag->getValue());
 				pPolar->m_Cl.append(0);
+                pPolar->m_Cl_att.append(0);
+                pPolar->m_Cl_sep.append(0);
+                pPolar->m_fst.append(0);
+                pPolar->m_Cm.append(0);
 			}
-			
+            pPolar->m_bisDecomposed = true;
 			pPolar->m_Color = g_mainFrame->GetColor(11);
 			g_360PolarStore.add(pPolar);
 			m_pCurFoil = pFoil;
@@ -7160,14 +7916,14 @@ if (m_pBlade)
             x += sin(angle)/totlength;
             angle += angle_incr;
             xDistrib[l]=x;
-            qDebug() << xDistrib[l] ;
+            qDebug() << xDistrib[l] <<l<<num_tri;
         }
 ///////////////////
 
 
-        double bladelength = m_pBlade->m_TRelPos[m_pBlade->m_NSurfaces];
+        double bladelength = m_pBlade->m_TPos[m_pBlade->m_NSurfaces]-m_pBlade->m_TPos[0];
         double frac = bladelength / spanwise_res;
-        double position = 0;
+        double position = m_pBlade->m_TPos[0];
         double a_frac, b_frac;
 
 
@@ -7183,11 +7939,11 @@ if (m_pBlade)
         for (int k=0; k<spanwise_res; k++)
         {
                         for (j=0;j<m_pBlade->m_NSurfaces;j++){
-                            if (position >= m_pBlade->m_TRelPos[j] && position < m_pBlade->m_TRelPos[j+1]){
-                                a_frac = (position-m_pBlade->m_TRelPos[j])/(m_pBlade->m_TRelPos[j+1]-m_pBlade->m_TRelPos[j]);
+                            if (position >= m_pBlade->m_TPos[j] && position < m_pBlade->m_TPos[j+1]){
+                                a_frac = (position-m_pBlade->m_TPos[j])/(m_pBlade->m_TPos[j+1]-m_pBlade->m_TPos[j]);
                                 for (n = j;n < m_pBlade->m_NSurfaces;n++){
-                                    if (position + frac > m_pBlade->m_TRelPos[n] && position + frac <= m_pBlade->m_TRelPos[n+1]+0.00000001 ){
-                                       b_frac = (position + frac - m_pBlade->m_TRelPos[n])/(m_pBlade->m_TRelPos[n+1]-m_pBlade->m_TRelPos[n]);
+                                    if (position + frac > m_pBlade->m_TPos[n] && position + frac <= m_pBlade->m_TPos[n+1]+0.00000001 ){
+                                       b_frac = (position + frac - m_pBlade->m_TPos[n])/(m_pBlade->m_TPos[n+1]-m_pBlade->m_TPos[n]);
                                        break;
                                     }
                                 }
@@ -7242,11 +7998,11 @@ if (m_pBlade)
 
                         }
 
-						for (l=0; l<num_tri-1; l++)
-						{
-						//bottom surface
-								x= xDistrib[l];
-								xp = xDistrib[l+1];
+                        for (l=0; l<num_tri-1; l++)
+                        {
+                        //bottom surface
+                                x= xDistrib[l];
+                                xp = xDistrib[l+1];
 
                                 m_pBlade->m_Surface[j].GetPoint(x,x,a_frac,Pt, PtNormal,-1);
                                 strong = QString("%1 %2 %3\n").arg(PtNormal.x,14,'e',5).arg(PtNormal.y,14,'e',5).arg(PtNormal.z,14,'e',5);
@@ -7465,7 +8221,7 @@ if (m_pBlade)
         {
             int kk;
 
-            position = 0;
+            position = m_pBlade->m_TPos[0];
 
             out << m_pBlade->getName() +"\n";
             out << "             x                       y                       z\n";
@@ -7473,11 +8229,11 @@ if (m_pBlade)
             for (int k=0; k<spanwise_res; k++)
             {
                             for (kk=0;kk<m_pBlade->m_NSurfaces;kk++){
-                                if (position >= m_pBlade->m_TRelPos[kk] && position < m_pBlade->m_TRelPos[kk+1]){
-                                    a_frac = (position-m_pBlade->m_TRelPos[kk])/(m_pBlade->m_TRelPos[kk+1]-m_pBlade->m_TRelPos[kk]);
+                                if (position >= m_pBlade->m_TPos[kk] && position < m_pBlade->m_TPos[kk+1]){
+                                    a_frac = (position-m_pBlade->m_TPos[kk])/(m_pBlade->m_TPos[kk+1]-m_pBlade->m_TPos[kk]);
                                     for (n = kk;n < m_pBlade->m_NSurfaces;n++){
-                                        if (position + frac > m_pBlade->m_TRelPos[n] && position + frac <= m_pBlade->m_TRelPos[n+1]+0.00000001 ){
-                                           b_frac = (position + frac - m_pBlade->m_TRelPos[n])/(m_pBlade->m_TRelPos[n+1]-m_pBlade->m_TRelPos[n]);
+                                        if (position + frac > m_pBlade->m_TPos[n] && position + frac <= m_pBlade->m_TPos[n+1]+0.00000001 ){
+                                           b_frac = (position + frac - m_pBlade->m_TPos[n])/(m_pBlade->m_TPos[n+1]-m_pBlade->m_TPos[n]);
                                            break;
                                         }
                                     }
@@ -7539,62 +8295,65 @@ if (m_pBlade)
 
 }
 
-
 void QBEM::OnEditCur360Polar()
 {
-	if (!m_pCurPolar) return;
+    if (!m_pCur360Polar) return;
 	
-	if (g_mainFrame->m_iView != POLARVIEW) On360View();// new JW, old: m_iView
+    if (g_mainFrame->m_iView != POLARVIEW) On360View();
 	
-	C360Polar MemPolar;
-	
+    C360Polar *newPolar = new C360Polar(m_pCur360Polar->getName(), m_pCur360Polar->getParent());
+
+    newPolar->alpha_zero = m_pCur360Polar->alpha_zero;
+    newPolar->slope = m_pCur360Polar->slope;
+    newPolar->CD90 = m_pCur360Polar->CD90;
+    newPolar->reynolds = m_pCur360Polar->reynolds;
+    newPolar->posalphamax = m_pCur360Polar->posalphamax;
+    newPolar->m_bisDecomposed = m_pCur360Polar->m_bisDecomposed;
+    newPolar->CLzero = m_pCur360Polar->CLzero;
+    newPolar->m_airfoil = m_pCur360Polar->m_airfoil;
+
 	for (int i=0; i<m_pCur360Polar->m_Alpha.size();i++)
 	{
-		MemPolar.m_Alpha.append(m_pCur360Polar->m_Alpha.at(i));
-		MemPolar.m_Cl.append(m_pCur360Polar->m_Cl.at(i));
-		MemPolar.m_Cd.append(m_pCur360Polar->m_Cd.at(i));
-	}
+        newPolar->m_Alpha.append(m_pCur360Polar->m_Alpha.at(i));
+        newPolar->m_Cl.append(m_pCur360Polar->m_Cl.at(i));
+        newPolar->m_Cd.append(m_pCur360Polar->m_Cd.at(i));
+        newPolar->m_Cl_att.append(m_pCur360Polar->m_Cl_att.at(i));
+        newPolar->m_Cl_sep.append(m_pCur360Polar->m_Cl_sep.at(i));
+        newPolar->m_fst.append(m_pCur360Polar->m_fst.at(i));
+    }
+
+    C360Polar *oldPolar = m_pCur360Polar;
+
+    m_pCur360Polar = newPolar;
 	
 	Edit360PolarDlg dlg;
-	dlg.m_pPolar = m_pCur360Polar;
+    dlg.m_pPolar = m_pCur360Polar;
 	dlg.m_pBEM = this;
 	dlg.InitDialog();
 	
-	bool bPoints = m_pCur360Polar->m_bShowPoints;
-	m_pCur360Polar->m_bShowPoints = true;
+    m_pCur360Polar->m_bShowPoints = true;
 	
-    CreateSinglePolarCurve();
+    CreateSinglePolarCurve(false);
 	UpdateView();
 	
 	if(dlg.exec() == QDialog::Accepted)
-	{
-		g_mainFrame->SetSaveState(false);
+    {
+        if (g_360PolarStore.add(m_pCur360Polar)){
+        g_mainFrame->SetSaveState(false);
+        m_pCur360Polar->m_bShowPoints = false;
+        }
+        else{
+            m_pCur360Polar = oldPolar;
+        }
 	}
 	else
 	{
-		m_pCur360Polar->m_Alpha.clear();
-		m_pCur360Polar->m_Cl.clear();
-		m_pCur360Polar->m_Cd.clear();
-		for (int i=0; i<MemPolar.m_Alpha.size();i++)
-		{
-			m_pCur360Polar->m_Alpha.append(MemPolar.m_Alpha.at(i));
-			m_pCur360Polar->m_Cl.append(MemPolar.m_Cl.at(i));
-			m_pCur360Polar->m_Cd.append(MemPolar.m_Cd.at(i));
-			
-		}
+        m_pCur360Polar = oldPolar;
+        delete newPolar;
 	}
-	m_pCur360Polar->m_bShowPoints = bPoints;
     CreatePolarCurve();
 	UpdateView();
 }
-
-
-
-
-
-
-
-
 
 void QBEM::OnHideWidgets()
 {
@@ -7673,7 +8432,6 @@ void QBEM::OnCellChanged()
 {
     if (m_WingEdited)
     {
-        m_bChanged = true;
         ReadParams();
     }
 }
@@ -7688,28 +8446,35 @@ void QBEM::OnDeleteSection()
                 return;
         }
 
-        int ny, k, size;
+        int k, size;
 
         size = m_pWingModel->rowCount();
-        if(size<=2) return;
-        int n=m_iSection;
-        ny = m_pBlade->m_NYPanels[m_iSection-1] + m_pBlade->m_NYPanels[m_iSection];
+        if(size<=2){
+            QMessageBox::warning(this, tr("Warning"),tr("At least two sections must remain"));
+            return;
+        }
 
-        m_pBlade->m_Airfoils.append("");// add new dummy station to temporarily store values
+        m_pBlade->m_Airfoils.append("-----");// add new dummy station to temporarily store values
+        m_pBlade->m_Polar.append("-----");// add new dummy station to temporarily store values
+        m_pBlade->m_Range.append("-----");// add new dummy station to temporarily store values
+
 
         for (k=m_iSection; k<size; k++)
         {
                 m_pBlade->m_TRelPos[k]      = m_pBlade->m_TRelPos[k+1];
                 m_pBlade->m_TChord[k]    = m_pBlade->m_TChord[k+1];
-                m_pBlade->m_TOffset[k]   = m_pBlade->m_TOffset[k+1];
+                m_pBlade->m_TOffsetX[k]   = m_pBlade->m_TOffsetX[k+1];
                 m_pBlade->m_TTwist[k]     = m_pBlade->m_TTwist[k+1];
                 m_pBlade->m_TDihedral[k]  = m_pBlade->m_TDihedral[k+1];
                 m_pBlade->m_NXPanels[k]   = m_pBlade->m_NXPanels[k+1];
                 m_pBlade->m_NYPanels[k]   = m_pBlade->m_NYPanels[k+1];
                 m_pBlade->m_Airfoils[k]      = m_pBlade->m_Airfoils[k+1];
+                m_pBlade->m_Polar[k]      = m_pBlade->m_Polar[k+1];
+                m_pBlade->m_Range[k]      = m_pBlade->m_Range[k+1];
+
                 m_pBlade->m_TPos[k]      = m_pBlade->m_TPos[k+1];
                 m_pBlade->m_TPAxisX[k] =   m_pBlade->m_TPAxisX[k+1];
-                m_pBlade->m_TPAxisZ[k] =   m_pBlade->m_TPAxisZ[k+1];
+                m_pBlade->m_TOffsetZ[k] =   m_pBlade->m_TOffsetZ[k+1];
                 m_pBlade->m_TFoilPAxisX[k] = m_pBlade->m_TFoilPAxisX[k+1];
                 m_pBlade->m_TFoilPAxisZ[k] = m_pBlade->m_TFoilPAxisZ[k+1];
         }
@@ -7718,12 +8483,16 @@ void QBEM::OnDeleteSection()
         m_pBlade->m_Airfoils.removeLast(); //delete the 2 last stations, now one less than before section was deleted
         m_pBlade->m_Airfoils.removeLast();
 
+        m_pBlade->m_Polar.removeLast(); //delete the 2 last stations, now one less than before section was deleted
+        m_pBlade->m_Polar.removeLast();
 
-        m_pBlade->m_NYPanels[m_iSection-1] = ny;
-        m_pBlade->m_Polar.removeAt(n);
+        m_pBlade->m_Range.removeLast(); //delete the 2 last stations, now one less than before section was deleted
+        m_pBlade->m_Range.removeLast();
+
+        m_iSection--;
+
         FillDataTable();
         ComputeGeometry();
-        m_bChanged = true;
         ReadParams();
 }
 
@@ -7743,22 +8512,28 @@ void QBEM::OnInsertBefore()
         }
         int k,n,ny;
 
-        m_pBlade->m_Airfoils.append(""); // add new dummy station to temporarily store values
+        m_pBlade->m_Airfoils.append("-----"); // add new dummy station to temporarily store values
+        m_pBlade->m_Polar.append("-----"); // add new dummy station to temporarily store values
+        m_pBlade->m_Range.append("-----"); // add new dummy station to temporarily store values
+
 
         n  = m_iSection;
         for (k=m_pBlade->m_NPanel; k>=n; k--)
         {
                 m_pBlade->m_TRelPos[k+1]      = m_pBlade->m_TRelPos[k];
                 m_pBlade->m_TChord[k+1]    = m_pBlade->m_TChord[k];
-                m_pBlade->m_TOffset[k+1]   = m_pBlade->m_TOffset[k];
+                m_pBlade->m_TOffsetX[k+1]   = m_pBlade->m_TOffsetX[k];
                 m_pBlade->m_TTwist[k+1]     = m_pBlade->m_TTwist[k];
                 m_pBlade->m_TDihedral[k+1]  = m_pBlade->m_TDihedral[k];
                 m_pBlade->m_NXPanels[k+1]   = m_pBlade->m_NXPanels[k];
                 m_pBlade->m_NYPanels[k+1]   = m_pBlade->m_NYPanels[k];
                 m_pBlade->m_Airfoils[k+1]      = m_pBlade->m_Airfoils[k];
+                m_pBlade->m_Polar[k+1]      = m_pBlade->m_Polar[k];
+                m_pBlade->m_Range[k+1]      = m_pBlade->m_Range[k];
+
                 m_pBlade->m_TPos[k+1]      = m_pBlade->m_TPos[k];
                 m_pBlade->m_TPAxisX[k+1] =   m_pBlade->m_TPAxisX[k];
-                m_pBlade->m_TPAxisZ[k+1] =   m_pBlade->m_TPAxisZ[k];
+                m_pBlade->m_TOffsetZ[k+1] =   m_pBlade->m_TOffsetZ[k];
                 m_pBlade->m_TFoilPAxisX[k+1] = m_pBlade->m_TFoilPAxisX[k];
                 m_pBlade->m_TFoilPAxisZ[k+1] = m_pBlade->m_TFoilPAxisZ[k];
         }
@@ -7766,13 +8541,13 @@ void QBEM::OnInsertBefore()
         ny = m_pBlade->m_NYPanels[n-1];
         m_pBlade->m_TRelPos[n]    = (m_pBlade->m_TRelPos[n+1]    + m_pBlade->m_TRelPos[n-1])   /2.0;
         m_pBlade->m_TChord[n]  = (m_pBlade->m_TChord[n+1]  + m_pBlade->m_TChord[n-1]) /2.0;
-        m_pBlade->m_TOffset[n] = (m_pBlade->m_TOffset[n+1] + m_pBlade->m_TOffset[n-1])/2.0;
+        m_pBlade->m_TOffsetX[n] = (m_pBlade->m_TOffsetX[n+1] + m_pBlade->m_TOffsetX[n-1])/2.0;
         m_pBlade->m_TTwist[n] = (m_pBlade->m_TTwist[n+1] + m_pBlade->m_TTwist[n-1])/2.0;
 
 
         m_pBlade->m_TPos[n]    = (m_pBlade->m_TPos[n+1]    + m_pBlade->m_TPos[n-1])   /2.0;
         m_pBlade->m_TPAxisX[n] = (m_pBlade->m_TPAxisX[n+1]+m_pBlade->m_TPAxisX[n-1]) /2.0;
-        m_pBlade->m_TPAxisZ[n] = (m_pBlade->m_TPAxisZ[n+1]+m_pBlade->m_TPAxisZ[n-1]) / 2.0;
+        m_pBlade->m_TOffsetZ[n] = (m_pBlade->m_TOffsetZ[n+1]+m_pBlade->m_TOffsetZ[n-1]) / 2.0;
         m_pBlade->m_TFoilPAxisX[n] = (m_pBlade->m_TFoilPAxisX[n+1]+ m_pBlade->m_TFoilPAxisX[n-1]) /2.0;
         m_pBlade->m_TFoilPAxisZ[n] = (m_pBlade->m_TFoilPAxisZ[n+1] + m_pBlade->m_TFoilPAxisZ[n-1]) / 2.0;
 
@@ -7783,14 +8558,12 @@ void QBEM::OnInsertBefore()
         if(m_pBlade->m_NYPanels[n-1]==0) m_pBlade->m_NYPanels[n-1]++;
 
         m_pBlade->m_NPanel++;
-        m_pBlade->m_Polar.insert(n,"");;
+
+        m_iSection++;
 
         FillDataTable();
         ComputeGeometry();
 
-        //SetWingData();
-
-        m_bChanged = true;
         m_bResetglSectionHighlight = true;
         ReadParams();
 }
@@ -7810,21 +8583,27 @@ void QBEM::OnInsertAfter()
         if(n<0) n=m_pBlade->m_NPanel;
         ny = m_pBlade->m_NYPanels[n];
 
-        m_pBlade->m_Airfoils.append("");// add new dummy station to temporarily store values
+        m_pBlade->m_Airfoils.append("-----");// add new dummy station to temporarily store values
+        m_pBlade->m_Polar.append("-----");// add new dummy station to temporarily store values
+        m_pBlade->m_Range.append("-----");// add new dummy station to temporarily store values
+
+
 
         for (k=m_pBlade->m_NPanel+1; k>n; k--)
         {
                 m_pBlade->m_TRelPos[k]       = m_pBlade->m_TRelPos[k-1];
                 m_pBlade->m_TChord[k]     = m_pBlade->m_TChord[k-1];
-                m_pBlade->m_TOffset[k]    = m_pBlade->m_TOffset[k-1];
+                m_pBlade->m_TOffsetX[k]    = m_pBlade->m_TOffsetX[k-1];
                 m_pBlade->m_TTwist[k]     = m_pBlade->m_TTwist[k-1];
                 m_pBlade->m_TDihedral[k]  = m_pBlade->m_TDihedral[k-1];
                 m_pBlade->m_NXPanels[k]   = m_pBlade->m_NXPanels[k-1];
                 m_pBlade->m_NYPanels[k]   = m_pBlade->m_NYPanels[k-1];
                 m_pBlade->m_Airfoils[k]      = m_pBlade->m_Airfoils[k-1];
+                m_pBlade->m_Range[k]      = m_pBlade->m_Range[k-1];
+                m_pBlade->m_Polar[k]      = m_pBlade->m_Polar[k-1];
                 m_pBlade->m_TPos[k]      = m_pBlade->m_TPos[k-1];
                 m_pBlade->m_TPAxisX[k] =   m_pBlade->m_TPAxisX[k-1];
-                m_pBlade->m_TPAxisZ[k] =   m_pBlade->m_TPAxisZ[k-1];
+                m_pBlade->m_TOffsetZ[k] =   m_pBlade->m_TOffsetZ[k-1];
                 m_pBlade->m_TFoilPAxisX[k] = m_pBlade->m_TFoilPAxisX[k-1];
                 m_pBlade->m_TFoilPAxisZ[k] = m_pBlade->m_TFoilPAxisZ[k-1];
         }
@@ -7833,13 +8612,13 @@ void QBEM::OnInsertAfter()
         {
                 m_pBlade->m_TRelPos[n+1]    = (m_pBlade->m_TRelPos[n]    + m_pBlade->m_TRelPos[n+2])   /2.0;
                 m_pBlade->m_TChord[n+1]  = (m_pBlade->m_TChord[n]  + m_pBlade->m_TChord[n+2]) /2.0;
-                m_pBlade->m_TOffset[n+1] = (m_pBlade->m_TOffset[n] + m_pBlade->m_TOffset[n+2])/2.0;
+                m_pBlade->m_TOffsetX[n+1] = (m_pBlade->m_TOffsetX[n] + m_pBlade->m_TOffsetX[n+2])/2.0;
                 m_pBlade->m_TTwist[n+1] = (m_pBlade->m_TTwist[n] + m_pBlade->m_TTwist[n+2])/2.0;
 
 
                 m_pBlade->m_TPos[n+1]    = (m_pBlade->m_TPos[n]    + m_pBlade->m_TPos[n+2])   /2.0;
                 m_pBlade->m_TPAxisX[n+1] = (m_pBlade->m_TPAxisX[n]+m_pBlade->m_TPAxisX[n+2]) /2.0;
-                m_pBlade->m_TPAxisZ[n+1] = (m_pBlade->m_TPAxisZ[n]+m_pBlade->m_TPAxisZ[n+2]) / 2.0;
+                m_pBlade->m_TOffsetZ[n+1] = (m_pBlade->m_TOffsetZ[n]+m_pBlade->m_TOffsetZ[n+2]) / 2.0;
                 m_pBlade->m_TFoilPAxisX[n+1] = (m_pBlade->m_TFoilPAxisX[n]+ m_pBlade->m_TFoilPAxisX[n+2]) /2.0;
                 m_pBlade->m_TFoilPAxisZ[n+1] = (m_pBlade->m_TFoilPAxisZ[n] + m_pBlade->m_TFoilPAxisZ[n+2]) / 2.0;
         }
@@ -7847,7 +8626,7 @@ void QBEM::OnInsertAfter()
         {
                 m_pBlade->m_TRelPos[n+1]     = m_pBlade->m_TRelPos[n+1]*1.1;
                 m_pBlade->m_TChord[n+1]   = m_pBlade->m_TChord[n+1]/1.1;
-                m_pBlade->m_TOffset[n+1]  = 0;//m_pBlade->m_TOffset[n+1] + m_pBlade->m_TChord[n] - m_pBlade->m_TChord[n+1] ;
+                m_pBlade->m_TOffsetX[n+1]  = 0;//m_pBlade->m_TOffsetX[n+1] + m_pBlade->m_TChord[n] - m_pBlade->m_TChord[n+1] ;
                 m_pBlade->m_TTwist[n+1]     = m_pBlade->m_TTwist[n];
 
         }
@@ -7856,6 +8635,9 @@ void QBEM::OnInsertAfter()
         m_pBlade->m_NXPanels[n+1]   = m_pBlade->m_NXPanels[n];
         m_pBlade->m_NYPanels[n+1]   = m_pBlade->m_NYPanels[n];
         m_pBlade->m_Airfoils[n+1]      = m_pBlade->m_Airfoils[n];
+        m_pBlade->m_Range[n+1]      = m_pBlade->m_Range[n];
+        m_pBlade->m_Polar[n+1]      = m_pBlade->m_Polar[n];
+
 
         m_pBlade->m_NYPanels[n+1] = qMax(1,(int)(ny/2));
         m_pBlade->m_NYPanels[n]   = qMax(1,ny-m_pBlade->m_NYPanels[n+1]);
@@ -7863,11 +8645,8 @@ void QBEM::OnInsertAfter()
         m_pBlade->m_NPanel++;
 
 
-        m_pBlade->m_Polar.insert(n+1,"");;
         FillDataTable();
         ComputeGeometry();
-        //SetWingData();
-        m_bChanged = true;
         ReadParams();
 }
 
@@ -7928,7 +8707,7 @@ void QBEM::OnNewTurbine()
         for (int i=0;i<g_tdataStore.size();i++){
             if (newname == g_tdataStore.at(i)->getName()){
                 newname = makeNameWithHigherNumber(newname);
-                i=0;
+                i = 0;
             }
         }
 
@@ -7961,7 +8740,7 @@ speed3->setText(str);
 
 if (!m_pTData) return;
 
-if (g_mainFrame->m_iView != TURBINEVIEW) OnPowerView();// new JW, old: m_iView
+if (g_mainFrame->m_iView != TURBINEVIEW) OnTurbineView();// new JW, old: m_iView
 m_TurbineEdited = true;
 
 CheckButtons();
@@ -7988,7 +8767,7 @@ m_pctrlGenerator->setValue(m_pTData->Generator*g_mainFrame->m_WtoUnit);
 m_pctrlFixedPitch->setValue(m_pTData->FixedPitch);
 
 m_pctrlVariableLosses->setValue(m_pTData->VariableLosses);
-m_pctrlFixedLosses->setValue(m_pTData->FixedLosses*g_mainFrame->m_WtoUnit);
+m_pctrlFixedLosses->setValue(m_pTData->m_fixedLosses*g_mainFrame->m_WtoUnit);
 
 pitchwindspeeds = m_pTData->pitchwindspeeds;
 pitchangles = m_pTData->pitchangles;
@@ -8087,11 +8866,11 @@ void QBEM::OnExportBladeTable(){
 
     QTextStream out(&XFile);
 
-    out << "Blade Export File Created with QBlade v0.8 on "<<date.toString("dd.MM.yyyy") << " at " << time.toString("hh:mm:ss") << "\n" ;
+    out << "Blade Export File Created with "<< g_mainFrame->m_VersionName<<" v0.96 on "<<date.toString("dd.MM.yyyy") << " at " << time.toString("hh:mm:ss") << "\n" ;
     out << QString(" %1 %2 %3 %4 %5 %6 %7").arg("Radial Position [m]",25).arg("Chord Length [m]",25).arg("Twist [deg]",25).arg("Pitch Axis Offset [m]",25).arg("Thread Axis in [% chord]",25).arg("Airfoil Name",25).arg("360 Polar Name",25) << endl;
     out << QString().fill('-',182) << endl;
     for (int i=0;i<=m_pBlade->m_NPanel;i++){
-        out << QString(" %1 %2 %3 %4 %5 %6 %7").arg(m_pBlade->m_TPos[i], 25, 'e', 5).arg(m_pBlade->m_TChord[i], 25, 'e', 5).arg(m_pBlade->m_TTwist[i], 25, 'e', 5).arg(m_pBlade->m_TOffset[i], 25, 'e', 5).arg(m_pBlade->m_TFoilPAxisX[i], 25, 'e', 5).arg(m_pBlade->m_Airfoils.at(i), 25).arg(m_pBlade->m_Polar.at(i), 25)<<endl;
+        out << QString(" %1 %2 %3 %4 %5 %6 %7").arg(m_pBlade->m_TPos[i], 25, 'e', 5).arg(m_pBlade->m_TChord[i], 25, 'e', 5).arg(m_pBlade->m_TTwist[i], 25, 'e', 5).arg(m_pBlade->m_TOffsetX[i], 25, 'e', 5).arg(m_pBlade->m_TFoilPAxisX[i], 25, 'e', 5).arg(m_pBlade->m_Airfoils.at(i), 25).arg(m_pBlade->m_Polar.at(i), 25)<<endl;
     }
     XFile.close();
 }
@@ -8103,7 +8882,7 @@ void QBEM::OnImportBladeGeometry(){
     bool isAeroDyn = false;
     bool isQBlade = false;
     bool isWT_Perf = false;
-    double HubRad;
+    double HubRad = 0;
 
     PathName = QFileDialog::getOpenFileName(g_mainFrame, tr("Open File"),
                                             g_mainFrame->m_LastDirName,
@@ -8184,7 +8963,7 @@ void QBEM::OnImportBladeGeometry(){
         }
 
         if(!isCorrect){
-            QString strange = tr("Data in file is corrupt or does contain wrong data and cannot be interpreted\n")+PathName;
+            QString strange = tr("Data in file in wrong order or not enough blade nodes present (minimum 2)\n")+PathName;
             QMessageBox::warning(g_mainFrame, tr("Warning"), strange);
             return;
         }
@@ -8214,36 +8993,45 @@ void QBEM::OnImportBladeGeometry(){
                 pBlade->m_TTwist[i] = data.at(i).at(1)-data.at(i).at(2)/2*(data.at(i+1).at(1)-data.at(i).at(1))/(data.at(i+1).at(0)-data.at(i).at(0));
                 pBlade->m_TPos[i] = data.at(i).at(0)-data.at(i).at(2)/2;
                 pBlade->m_TRelPos[i] = 0.0;
-                pBlade->m_TOffset[i] = 0.0;
+                pBlade->m_TOffsetX[i] = 0.0;
                 pBlade->m_TFoilPAxisX[i] = 0.25;
+                pBlade->m_TFoilPAxisZ[i] = 0.0;
+                pBlade->m_TOffsetZ[i] = 0.0;
                 pBlade->m_NYPanels[i]   = 1;
                 pBlade->m_NXPanels[i]   = 1;
-                pBlade->m_Airfoils.append("");
-                pBlade->m_Polar.append("");
+                pBlade->m_Airfoils.append("-----");
+                pBlade->m_Polar.append("-----");
+                pBlade->m_Range.append("-----");
                 }
                 else{
                 pBlade->m_TChord[i] = (data.at(i).at(3)+data.at(i-1).at(3))/2;
                 pBlade->m_TTwist[i] = (data.at(i).at(1)+data.at(i-1).at(1))/2;
                 pBlade->m_TPos[i] = data.at(i).at(0)-data.at(i).at(2)/2;
                 pBlade->m_TRelPos[i] = data.at(i).at(0)-data.at(i).at(2)/2-(data.at(0).at(0)-data.at(0).at(2)/2);
-                pBlade->m_TOffset[i] = 0.0;
+                pBlade->m_TOffsetX[i] = 0.0;
                 pBlade->m_TFoilPAxisX[i] = 0.25;
+                pBlade->m_TFoilPAxisZ[i] = 0.0;
+                pBlade->m_TOffsetZ[i] = 0.0;
                 pBlade->m_NYPanels[i]   = 1;
                 pBlade->m_NXPanels[i]   = 1;
-                pBlade->m_Airfoils.append("");
-                pBlade->m_Polar.append("");
+                pBlade->m_Airfoils.append("-----");
+                pBlade->m_Polar.append("-----");
+                pBlade->m_Range.append("-----");
                 }
                 if (i==size-1){
                 pBlade->m_TChord[size] = data.at(i).at(3)+data.at(i).at(2)/2*(data.at(i-1).at(3)-data.at(i).at(3))/(data.at(i-1).at(0)-data.at(i).at(0));//linear interpolation at the blade edges
                 pBlade->m_TTwist[size] = data.at(i).at(1)+data.at(i).at(2)/2*(data.at(i-1).at(1)-data.at(i).at(1))/(data.at(i-1).at(0)-data.at(i).at(0));
                 pBlade->m_TPos[size] = data.at(i).at(0)+data.at(i).at(2)/2;
                 pBlade->m_TRelPos[size] = data.at(i).at(0)+data.at(i).at(2)/2-(data.at(0).at(0)-data.at(0).at(2)/2);
-                pBlade->m_TOffset[size] = 0.0;
+                pBlade->m_TOffsetX[size] = 0.0;
                 pBlade->m_TFoilPAxisX[size] = 0.25;
+                pBlade->m_TFoilPAxisZ[size] = 0.0;
+                pBlade->m_TOffsetZ[size] = 0.0;
                 pBlade->m_NYPanels[size]   = 1;
                 pBlade->m_NXPanels[size]   = 1;
-                pBlade->m_Airfoils.append("");
-                pBlade->m_Polar.append("");
+                pBlade->m_Airfoils.append("-----");
+                pBlade->m_Polar.append("-----");
+                pBlade->m_Range.append("-----");
                 }
             }
             pBlade->m_HubRadius = pBlade->m_TPos[0];
@@ -8275,36 +9063,45 @@ void QBEM::OnImportBladeGeometry(){
                 pBlade->m_TTwist[i] = data.at(i).at(1)-DRNodes.at(i)/2*(data.at(i+1).at(1)-data.at(i).at(1))/(data.at(i+1).at(0)-data.at(i).at(0));
                 pBlade->m_TPos[i] = data.at(i).at(0)-DRNodes.at(i)/2;
                 pBlade->m_TRelPos[i] = 0.0;
-                pBlade->m_TOffset[i] = 0.0;
+                pBlade->m_TOffsetX[i] = 0.0;
                 pBlade->m_TFoilPAxisX[i] = 0.25;
+                pBlade->m_TFoilPAxisZ[i] = 0.0;
+                pBlade->m_TOffsetZ[i] = 0.0;
                 pBlade->m_NYPanels[i]   = 1;
                 pBlade->m_NXPanels[i]   = 1;
-                pBlade->m_Airfoils.append("");
-                pBlade->m_Polar.append("");
+                pBlade->m_Airfoils.append("-----");
+                pBlade->m_Polar.append("-----");
+                pBlade->m_Range.append("-----");
                 }
                 else{
                 pBlade->m_TChord[i] = (data.at(i).at(2)+data.at(i-1).at(2))/2;
                 pBlade->m_TTwist[i] = (data.at(i).at(1)+data.at(i-1).at(1))/2;
                 pBlade->m_TPos[i] = data.at(i).at(0)-DRNodes.at(i)/2;
                 pBlade->m_TRelPos[i] = data.at(i).at(0)-DRNodes.at(i)/2-(data.at(0).at(0)-DRNodes.at(0)/2);
-                pBlade->m_TOffset[i] = 0.0;
+                pBlade->m_TOffsetX[i] = 0.0;
                 pBlade->m_TFoilPAxisX[i] = 0.25;
+                pBlade->m_TFoilPAxisZ[i] = 0.0;
+                pBlade->m_TOffsetZ[i] = 0.0;
                 pBlade->m_NYPanels[i]   = 1;
                 pBlade->m_NXPanels[i]   = 1;
-                pBlade->m_Airfoils.append("");
-                pBlade->m_Polar.append("");
+                pBlade->m_Airfoils.append("-----");
+                pBlade->m_Polar.append("-----");
+                pBlade->m_Range.append("-----");
                 }
                 if (i==size-1){
                 pBlade->m_TChord[size] = data.at(i).at(2)+DRNodes.at(i)/2*(data.at(i-1).at(2)-data.at(i).at(2))/(data.at(i-1).at(0)-data.at(i).at(0));//linear interpolation at the blade edges
                 pBlade->m_TTwist[size] = data.at(i).at(1)+DRNodes.at(i)/2*(data.at(i-1).at(1)-data.at(i).at(1))/(data.at(i-1).at(0)-data.at(i).at(0));
                 pBlade->m_TPos[size] = data.at(i).at(0)+data.at(i).at(2)/2;
                 pBlade->m_TRelPos[size] = data.at(i).at(0)+data.at(i).at(2)/2-(data.at(0).at(0)-DRNodes.at(0)/2);
-                pBlade->m_TOffset[size] = 0.0;
+                pBlade->m_TOffsetX[size] = 0.0;
                 pBlade->m_TFoilPAxisX[size] = 0.25;
+                pBlade->m_TFoilPAxisZ[size] = 0.0;
+                pBlade->m_TOffsetZ[size] = 0.0;
                 pBlade->m_NYPanels[size]   = 1;
                 pBlade->m_NXPanels[size]   = 1;
-                pBlade->m_Airfoils.append("");
-                pBlade->m_Polar.append("");
+                pBlade->m_Airfoils.append("-----");
+                pBlade->m_Polar.append("-----");
+                pBlade->m_Range.append("-----");
                 }
             }
             pBlade->m_HubRadius = pBlade->m_TPos[0];
@@ -8328,14 +9125,17 @@ void QBEM::OnImportBladeGeometry(){
                     return;
                 }
             }
-            if (cols > 3) pBlade->m_TOffset[i] = data.at(i).at(3);
-            else pBlade->m_TOffset[i] = 0;
+            if (cols > 3) pBlade->m_TOffsetX[i] = data.at(i).at(3);
+            else pBlade->m_TOffsetX[i] = 0;
             if (cols > 3) pBlade->m_TFoilPAxisX[i] = data.at(i).at(4);
             else pBlade->m_TFoilPAxisX[i] = 0.25;
             pBlade->m_NYPanels[i]   = 1;
             pBlade->m_NXPanels[i]   = 1;
-            pBlade->m_Airfoils.append("");
-            pBlade->m_Polar.append("");
+            pBlade->m_TFoilPAxisZ[i] = 0.0;
+            pBlade->m_TOffsetZ[i] = 0.0;
+            pBlade->m_Airfoils.append("-----");
+            pBlade->m_Polar.append("-----");
+            pBlade->m_Range.append("-----");
             }
             pBlade->m_HubRadius = pBlade->m_TPos[0];
             pBlade->m_MaxRadius = pBlade->m_TPos[size-1];
@@ -8346,15 +9146,13 @@ void QBEM::OnImportBladeGeometry(){
             return;
         }
 
-
-
-        pitch_old = 0;
+        m_PitchOld = 0;
         pitch_new = 0;
         m_pctrlPitchBlade->setValue(0);
         ObjectIsEdited = true;
         m_pctrlBlades->setValue(pBlade->m_blades);
         DisableAllButtons();
-        if (g_mainFrame->m_iView != BLADEVIEW) OnWingView();// new JW, old: m_iView
+        if (g_mainFrame->m_iView != BLADEVIEW) OnBladeView();// new JW, old: m_iView
         m_WingEdited = true;
         m_pctrlHubRadius->setValue(pBlade->m_HubRadius * g_mainFrame->m_mtoUnit);
         m_pBlade = pBlade;
@@ -8362,9 +9160,6 @@ void QBEM::OnImportBladeGeometry(){
         OnCenterScene();
         mainWidget->setCurrentIndex(0);
         bladeWidget->setCurrentIndex(1);
-
-
-    qDebug() << data.size();
 
 }
 
@@ -8432,18 +9227,34 @@ void QBEM::OnImportPolar(){
         }
 
     }
+    QString msg(tr("Cannot interpret polar data due to the following issues:"));
     bool isCorrect = true;
     for (int i=0;i<alphavalues.size();i++)
     {
-        if (i>0) if (alphavalues.at(i)<alphavalues.at(i-1)) isCorrect = false;
-        if (alphavalues.at(i) < -180.0 || alphavalues.at(i) > 180.00) isCorrect = false;
-        if (liftvalues.at(i) > 10.0 || liftvalues.at(i) < -10.0) isCorrect = false;
-        if (dragvalues.at(i) > 10.0 || dragvalues.at(i) < -10.0) isCorrect = false;
-        if (alphavalues.size()<10) isCorrect = false;
+        if (i>0) if (alphavalues.at(i)<alphavalues.at(i-1)){
+            if (!msg.contains(tr("ascending"))) msg.append(tr("\n- AoA values must be in ascending order"));
+            isCorrect = false;
+        }
+        if (alphavalues.at(i) < -180.0 || alphavalues.at(i) > 180.00){
+            if (!msg.contains(tr("-180 and +180"))) msg.append(tr("\n- All AoA must be between -180 and +180"));
+            isCorrect = false;
+        }
+        if (liftvalues.at(i) > 10.0 || liftvalues.at(i) < -10.0){
+            if (!msg.contains(tr("Liftcoefficient"))) msg.append(tr("\n- Liftcoefficient with value higher/lower than 10 found"));
+            isCorrect = false;
+        }
+        if (dragvalues.at(i) > 10.0 || dragvalues.at(i) < -10.0){
+            if (!msg.contains(tr("Dragcoefficient"))) msg.append(tr("\n- Dragcoefficient with value higher/lower than 10 found"));
+            isCorrect = false;
+        }
+        if (alphavalues.size()<10) {
+            if (!msg.contains(tr("Less"))) msg.append(tr("\n- Less than 10 datalines in file"));
+            isCorrect = false;
+        }
     }
 
     if (!isCorrect){
-        QString strange = tr("Data in file is corrupt or does contain wrong data and cannot be interpreted\n")+PathName;
+        QString strange = msg;
         QMessageBox::warning(g_mainFrame, tr("Warning"), strange);
         return;
     }
@@ -8581,8 +9392,44 @@ void QBEM::OnImport360Polar(){
         pPolar->m_Cl.append(liftvalues.at(i));
         pPolar->m_Cd.append(dragvalues.at(i));
         pPolar->m_Cm.append(0);
-
+        pPolar->m_Cl_att.append(0);
+        pPolar->m_Cl_sep.append(0);
+        pPolar->m_fst.append(0);
     }
+
+    ////compute some 360Polar parameters
+    double smallestAlpha = 10e5, residue = 10e5, CLabsmin = 10e5, slope = 0, alphazero = 0, CD90 = 10e5;
+
+    for (int i=0; i<pPolar->m_Alpha.size(); i++)
+    {
+            if (fabs(pPolar->m_Alpha.at(i)) < smallestAlpha)
+            {
+                smallestAlpha = fabs(pPolar->m_Alpha.at(i));
+                if (pPolar->m_Cl.size() > i+4) slope = (pPolar->m_Cl.at(i+4)-pPolar->m_Cl.at(i))/(pPolar->m_Alpha.at(i+4)-pPolar->m_Alpha.at(i));
+            }
+            if (fabs(pPolar->m_Alpha.at(i) -90) < residue)
+            {
+                residue = fabs(pPolar->m_Alpha.at(i)-90);
+                CD90 = pPolar->m_Cd.at(i);
+            }
+    }
+    for (int i=0; i<pPolar->m_Alpha.size(); i++)
+    {
+        if (pPolar->m_Alpha.at(i) > -25 && pPolar->m_Alpha.at(i) < 25)
+        {
+            if (fabs(pPolar->m_Cl.at(i)) < CLabsmin)
+            {
+                CLabsmin=fabs(pPolar->m_Cl.at(i));
+                alphazero = pPolar->m_Alpha.at(i)-pPolar->m_Cl.at(i)/slope;
+            }
+        }
+    }
+    pPolar->slope = slope;
+    pPolar->alpha_zero = alphazero;
+    pPolar->CD90 = CD90;
+
+    qDebug() <<"Polar Values"<< slope << alphazero << CD90;
+
 
     ConnectToPolarDialog *dialog = new ConnectToPolarDialog (pPolar);
 
@@ -8824,7 +9671,7 @@ void QBEM::OnExportRotorToWT_Perf()
 					 QString("%1").arg(33.0, -21, 'f', 1) <<
 					 "WatDepth:                  Depth from water free surface to mudline (tower base)" << endl <<
 					 "-----  Turbine Data  -----------------------------------------------------------" << endl <<
-					 QString("%1").arg(rotor->m_blades, -21) <<
+                     QString("%1").arg(rotor->m_blades, -21) <<
 					 "NumBlade:                  Number of blades." << endl <<
 					 QString("%1").arg(rotor->m_TPos[rotor->m_NPanel], -21, 'f', 4) <<
 					 "RotorRad:                  Rotor radius [length]." << endl <<
@@ -8987,7 +9834,7 @@ void QBEM::OnSaveTurbine()
         pTData->isVariable = m_pctrlVariable->isChecked();
         pTData->isPitch = m_pctrlPitch->isChecked();
         pTData->isStall = m_pctrlStall->isChecked();
-		pTData->FixedLosses = m_pctrlFixedLosses->getValue()/g_mainFrame->m_WtoUnit;
+		pTData->m_fixedLosses = m_pctrlFixedLosses->getValue()/g_mainFrame->m_WtoUnit;
         pTData->VariableLosses = m_pctrlVariableLosses->getValue();
         pTData->FixedPitch = m_pctrlFixedPitch->getValue();
         pTData->isPrescribedPitch = m_pctrlPrescribedPitch->isChecked();
@@ -9013,61 +9860,119 @@ void QBEM::OnSaveTurbine()
 
 }
 
-void QBEM::OnNew360Polar()
-{
-
-	QString strong, num;
-
-	///// JW modification /////////
-	if (m_bStallModel)
-		strong = m_pCurPolar->getName() + " 360 V";
-	else
-		strong = m_pCurPolar->getName() + " 360 M";
-	///// end JW modification /////////
+void QBEM::OnDecompose360Polar() {
 
 
-	C360Polar *pPolar = new C360Polar(strong, m_pCurPolar);
+    C360Polar *pPolar = new C360Polar(m_pCur360Polar->getName(), m_pCurPolar);
 
+    DisableAllButtons();
 
-    QString newname(strong);
-    for (int i=0;i<g_360PolarStore.size();i++){
-        if (newname == g_360PolarStore.at(i)->getName()){
-            newname = makeNameWithHigherNumber(newname);
-            i=0;
-        }
+    pPolar->m_Color= m_pCur360Polar->m_Color;
+    pPolar->m_Style= m_pCur360Polar->m_Style;
+    pPolar->m_Width= m_pCur360Polar->m_Width;
+    pPolar->m_bIsVisible = true;
+    pPolar->m_airfoil = m_pCurFoil;
+    pPolar->reynolds = m_pCurPolar->m_Reynolds;
+    pPolar->CD90 = m_CD90;
+    pPolar->m_bisDecomposed = m_pCur360Polar->m_bisDecomposed;
+    pPolar->alpha_zero = m_pCur360Polar->alpha_zero;
+    pPolar->slope = m_pCur360Polar->slope;
+    pPolar->posalphamax = m_pCur360Polar->posalphamax;
+
+    for (int i=0; i < m_pCur360Polar->m_Alpha.size(); i++)
+    {
+        pPolar->m_Alpha.append(m_pCur360Polar->m_Alpha.at(i));
+        pPolar->m_Cl.append(m_pCur360Polar->m_Cl.at(i));
+        pPolar->m_Cd.append(m_pCur360Polar->m_Cd.at(i));
+        pPolar->m_Cm.append(m_pCur360Polar->m_Cd.at(i));
+        pPolar->m_Cl_att.append(m_pCur360Polar->m_Cd.at(i));
+        pPolar->m_Cl_sep.append(m_pCur360Polar->m_Cd.at(i));
+        pPolar->m_fst.append(m_pCur360Polar->m_Cd.at(i));
     }
-
-    m_360Name->setText(newname);
-
-
-	pPolar->m_airfoil = m_pCurFoil;
-	pPolar->m_Color =  g_mainFrame->GetColor(11);
-
 
     m_pCur360Polar = pPolar;
 
-    ///// new code JW //////////
-    if (!m_bStallModel)
-        Compute360Polar();
-    else
-        ComputeViterna360Polar();
-    ///// end new code JW //////
-
+    ComputeDecomposition();
     CreateSinglePolarCurve();
-
-    m_bNew360Polar = true;
-
-    m_pctrlA->setValue(0);
-
-
     CheckButtons();
     SetCurveParams();
     FillComboBoxes();
+}
+
+
+void QBEM::OnNew360Polar() {
+	/* check first, if all requirements are fullfilled */
+	QString errorMessage ("");
+
+    if (m_pCurPolar->getName().contains("Circular")) errorMessage.append("\n- Polars from circular Foils cannot be extrapolated");
+
+	if (m_pCurPolar->m_Alpha.size() < 10) {
+		errorMessage.append("\n- Polar should have at least 10 points (currently: " +
+							QString("%1").number(m_pCurPolar->m_Alpha.size())+")");
+	}
+	
+	int count = 0;
+	for (int i = 0; i < m_pCurPolar->m_Alpha.size(); ++i) {
+		if (m_pCurPolar->m_Alpha.at(i) >= 0 && m_pCurPolar->m_Alpha.at(i) <= 20) count++;
+	}
+	
+	if (count < 5) errorMessage.append("\n- At least 5 data points in the range 0 < alpha < 20 needed (currently: " +
+									   QString("%1").number(count)+")");
+	
+	if (errorMessage != "") {
+		QMessageBox::critical(this, tr("Create 360Polar"), QString(tr("The following error(s) occured:\n") +
+																   errorMessage), QMessageBox::Ok);
+		return;
+	}
+	
+	QString strong;
+	if (m_bStallModel) {
+		strong = m_pCurPolar->getName() + " 360 V";
+	} else {
+		strong = m_pCurPolar->getName() + " 360 M";
+	}	
+
+    DisableAllButtons();
+	
+	C360Polar *pPolar = new C360Polar(strong, m_pCurPolar);
+	
+    m_bNew360Polar = true;
+
+	QString newname(strong);
+	for (int i=0;i<g_360PolarStore.size();i++){
+        if (newname == g_360PolarStore.at(i)->getName() && g_360PolarStore.at(i)->getParent() == m_pCurPolar){
+			newname = makeNameWithHigherNumber(newname);
+            i = 0;
+		}
+	}
+
+	m_360Name->setText(newname);
+	pPolar->m_airfoil = m_pCurFoil;
+	pPolar->m_Color =  g_mainFrame->GetColor(11);
+	m_pCur360Polar = pPolar;
+
+    ComputePolarVars();
+
+    m_AR = m_pctrlAR->value();
+    m_CD90 = m_pctrlCD90->value();
+    m_Slope->setValue(m_pCur360Polar->slope);
+    m_posAoA->setValue(m_pCurPolar->m_Alpha.at(m_pCurPolar->m_Alpha.size()-1));
+    m_negAoA->setValue(m_pCurPolar->m_Alpha.at(0));
 
 
 
-
-
+	if (!m_bStallModel) {
+		Compute360Polar();
+	} else {
+		ComputeViterna360Polar();
+	}
+	
+	CreateSinglePolarCurve();
+	m_pctrlA->setValue(0);
+	
+	CheckButtons();
+	SetCurveParams();
+	FillComboBoxes();
 }
 
 void QBEM::OnNewBlade()
@@ -9076,79 +9981,81 @@ void QBEM::OnNewBlade()
 
     ObjectIsEdited = true;
 
-	pitch_old = 0;
+	m_PitchOld = 0;
 	pitch_new = 0;
-	m_pctrlPitchBlade->setValue(0);
-	m_pctrlBlades->setValue(3);
-	m_WingEdited = true;
+	m_WingEdited = true;    
 	
 	DisableAllButtons();
 	
     CBlade *pWing = new CBlade ("New Blade");
-	pWing->m_Airfoils.append(" ");  // NM dirty fix. First two entries are needed for the table in the dock
-	pWing->m_Airfoils.append(" ");
 
-    QString newname(pWing->getName());
+    m_pBlade = pWing;
+
+    m_pBlade->m_Airfoils.append("-----");  // NM dirty fix. First two entries are needed for the table in the dock
+    m_pBlade->m_Airfoils.append("-----");
+
+    m_pBlade->m_Polar.append("-----");  // NM dirty fix. First two entries are needed for the table in the dock
+    m_pBlade->m_Polar.append("-----");
+
+    m_pBlade->m_Range.append("-----");  // NM dirty fix. First two entries are needed for the table in the dock
+    m_pBlade->m_Range.append("-----");
+
+    QString newname(m_pBlade->getName());
     for (int i=0;i<g_rotorStore.size();i++){
         if (newname == g_rotorStore.at(i)->getName()){
             newname = makeNameWithHigherNumber(newname);
-            i=0;
+            i = 0;
         }
     }
 
-    pWing->setName(newname);
+    m_pBlade->setName(newname);
+	
+    m_pctrlHubRadius->setValue(m_pBlade->m_HubRadius * g_mainFrame->m_mtoUnit);
 
-	
-	for (int i=0;i<2;i++) {
-		pWing->m_Polar.append("");
-	}
-	
-	m_pctrlHubRadius->setValue(pWing->m_HubRadius * g_mainFrame->m_mtoUnit);
-    m_pBlade=pWing;
-	m_pctrlIsOrtho->setChecked(false);
+    m_SingleMultiGroup->button(0)->setChecked(m_pBlade->m_bisSinglePolar);
+
     OnCenterScene();
-	InitDialog(pWing);
+    InitDialog(m_pBlade);
+
+    m_pctrlPitchBlade->setValue(0);
+    m_pctrlBlades->setValue(3);
+
 	
 	mainWidget->setCurrentIndex(0);
 	bladeWidget->setCurrentIndex(1);
 }
 
-void QBEM::OnEditWing()
+void QBEM::OnEditBlade()
 {
 
-        pitch_old = 0;
+        m_PitchOld = 0;
         pitch_new = 0;
         m_pctrlPitchBlade->setValue(0);
-
-
 
         if (!m_pBlade) return;
 
         ObjectIsEdited = true;
 
-
-        m_pctrlBlades->setValue(m_pBlade->m_blades);
-
-
         DisableAllButtons();
 
-		if (g_mainFrame->m_iView != BLADEVIEW) OnWingView();// new JW, old: m_iView
-
-
+        if (g_mainFrame->m_iView != BLADEVIEW) OnBladeView();// new JW, old: m_iView
 
         m_WingEdited = true;
-
-
 
         CBlade *pWing = new CBlade;
 
         pWing->Duplicate(m_pBlade);
 
+        m_SingleMultiGroup->button(0)->setChecked(pWing->m_bisSinglePolar);
+        m_SingleMultiGroup->button(1)->setChecked(!pWing->m_bisSinglePolar);
+
 		m_pctrlHubRadius->setValue(pWing->m_HubRadius * g_mainFrame->m_mtoUnit);
 
-        m_pctrlIsOrtho->setChecked(m_pBlade->m_bIsOrtho);
-
         InitDialog(pWing);
+
+        m_pctrlBlades->setValue(pWing->m_blades);
+
+        OnSingleMultiPolarChanged();
 
         mainWidget->setCurrentIndex(0);
         bladeWidget->setCurrentIndex(1);
@@ -9192,7 +10099,7 @@ void QBEM::OnDeleteBlade()
         g_rotorStore.remove(pBlade);
 
 
-        UpdateWings();
+        UpdateBlades();
         UpdateTurbines();
         UpdateCharacteristicsSimulation();
         CheckButtons();
@@ -9209,6 +10116,48 @@ void QBEM::OnDeleteBlade()
 
 
 }
+
+void QBEM::OnRename360Polar(){
+
+    if (!m_pCur360Polar) return;
+
+    QString OldName = m_pCur360Polar->getName();
+
+    g_360PolarStore.rename(m_pCur360Polar,m_pCur360Polar->getName());
+
+    QString strong = m_pCur360Polar->getName();
+
+    for (int i=0; i<g_rotorStore.size(); i++)
+    {
+        for (int l=0; l<g_rotorStore.at(i)->m_Polar.size();l++)
+        {
+            if (g_rotorStore.at(i)->m_Polar.at(l) == OldName) g_rotorStore.at(i)->m_Polar[l] = strong;
+        }
+
+        for (int j=0; j<g_rotorStore.at(i)->m_MultiPolars.size();j++)
+        {
+            for (int k=0; k < g_rotorStore.at(i)->m_MultiPolars.at(j).size(); k++){
+            if (g_rotorStore.at(i)->m_MultiPolars.at(j).at(k) == OldName) g_rotorStore.at(i)->m_MultiPolars[j][k] = strong;
+            }
+        }
+    }
+
+    for (int i=0; i<g_verticalRotorStore.size(); i++)
+    {
+        for (int l=0; l<g_verticalRotorStore.at(i)->m_Polar.size();l++)
+        {
+            if (g_verticalRotorStore.at(i)->m_Polar.at(l) == OldName) g_verticalRotorStore.at(i)->m_Polar[l] = strong;
+        }
+        for (int j=0; j<g_verticalRotorStore.at(i)->m_MultiPolars.size();j++)
+        {
+            for (int k=0; k < g_verticalRotorStore.at(i)->m_MultiPolars.at(j).size(); k++){
+            if (g_verticalRotorStore.at(i)->m_MultiPolars.at(j).at(k) == OldName) g_verticalRotorStore.at(i)->m_MultiPolars[j][k] = strong;
+            }
+        }
+    }
+
+}
+
 
 void QBEM::OnDelete360Polar()
 {
@@ -9259,28 +10208,40 @@ void QBEM::OnDelete360Polar()
     }
 }
 
-void QBEM::OnSave360Polar()
-{
-	C360Polar *pPolar = new C360Polar(m_360Name->text(), m_pCurPolar);
+
+void QBEM::CombinePolars(){
+
+    C360Polar *pPolar = new C360Polar(m_360Name->text(), m_pCurPolar);
 
     pPolar->m_Color= m_pCur360Polar->m_Color;
     pPolar->m_Style= m_pCur360Polar->m_Style;
     pPolar->m_Width= m_pCur360Polar->m_Width;
+    pPolar->m_bShowPoints= m_pCur360Polar->m_bShowPoints;
     pPolar->m_bIsVisible = true;
-	pPolar->m_airfoil = m_pCurFoil;
+    pPolar->m_airfoil = m_pCurFoil;
     pPolar->reynolds = m_pCurPolar->m_Reynolds;
     pPolar->CD90 = m_CD90;
+    pPolar->m_bisDecomposed = m_pCur360Polar->m_bisDecomposed;
+    pPolar->alpha_zero = m_pCur360Polar->alpha_zero;
+    pPolar->slope = m_pCur360Polar->slope;
+    pPolar->posalphamax = m_pCur360Polar->posalphamax;
+    pPolar->CLzero=m_pCur360Polar->CLzero;
+
+
 
     for (int i=0; i < m_pCurPolar->m_Alpha.size(); i++)
     {
-        pPolar->m_Alpha.append(m_pCurPolar->m_Alpha.at(i));
-        pPolar->m_Cl.append(m_pCurPolar->m_Cl.at(i));
-        pPolar->m_Cd.append(m_pCurPolar->m_Cd.at(i));
+        if (m_pCurPolar->m_Alpha.at(i) >= m_negAoA->value() && m_pCurPolar->m_Alpha.at(i) <= m_posAoA->value()){
+            pPolar->m_Alpha.append(m_pCurPolar->m_Alpha.at(i));
+            pPolar->m_Cl.append(m_pCurPolar->m_Cl.at(i));
+            pPolar->m_Cd.append(m_pCurPolar->m_Cd.at(i));
+        }
     }
 
     int num=0;
     for (int i=0; i< m_pCur360Polar->m_Alpha.size(); i++)
     {
+
         if (m_pCur360Polar->m_Alpha.at(i) < pPolar->m_Alpha.at(num))
         {
             pPolar->m_Alpha.insert(num,m_pCur360Polar->m_Alpha.at(i));
@@ -9296,41 +10257,62 @@ void QBEM::OnSave360Polar()
         }
     }
 
-    pPolar->slope = m_pCur360Polar->slope; // used to store the slope
-    pPolar->alpha_zero = m_pCur360Polar->alpha_zero; // used to store the zero lift angle
-
     delete m_pCur360Polar;
 
-	g_360PolarStore.add(pPolar);
-
     m_pCur360Polar = pPolar;
+}
+
+void QBEM::OnSave360Polar()
+{
+
+    m_pCur360Polar->setName(m_360Name->text());
+
+    if (!g_360PolarStore.add(m_pCur360Polar)) m_pCur360Polar = m_BEMToolBar->m_polar360ComboBox->currentObject();
+
+    m_BEMToolBar->m_polar360ComboBox->setCurrentObject(m_pCur360Polar);
+
 	m_bNew360Polar = false;
+    m_bDecompose = false;
+
+    EnableAllButtons();
 
     Update360Polars();
 
     CheckButtons();
 }
 
-void QBEM::OnSaveWing()
+void QBEM::OnSaveBlade()
 {
+    SimpleAdvanced->setCurrentIndex(0);
+
     ReadParams();
 
     m_pBlade->m_blades = m_pctrlBlades->value();
 
-    for (int i=0;i<=m_pBlade->m_NPanel;i++)
-    {
-        m_pBlade->addParent(Get360Polar(m_pBlade->m_Airfoils.at(i),m_pBlade->m_Polar.at(i)));
+    if (m_pBlade->m_bisSinglePolar){
+        for (int i=0;i<=m_pBlade->m_NPanel;i++)
+        {
+            m_pBlade->addParent(Get360Polar(m_pBlade->m_Airfoils.at(i),m_pBlade->m_Polar.at(i)));
+        }
+    }
+    else{
+        for (int i=0;i<m_pBlade->m_PolarAssociatedFoils.size();i++)
+        {
+            for (int j=0;j<m_pBlade->m_MultiPolars.at(i).size();j++)
+            {
+            m_pBlade->addParent(Get360Polar(m_pBlade->m_PolarAssociatedFoils.at(i),m_pBlade->m_MultiPolars.at(i).at(j)));
+            }
+        }
     }
 
     if (!g_rotorStore.add(m_pBlade)) m_pBlade = NULL;
 
-    m_bChanged=false;
-
     m_WingEdited = false;
 
-    m_BEMToolBar->m_rotorComboBox->setCurrentObject(m_pBlade);
+    if (m_pBlade) m_BEMToolBar->m_rotorComboBox->setCurrentObject(m_pBlade);
+    else m_BEMToolBar->m_rotorComboBox->setCurrentIndex(0);
 
-    UpdateWings();
+    UpdateBlades();
     UpdateTurbines();
     EnableAllButtons();
     CheckButtons();
@@ -9344,12 +10326,10 @@ void QBEM::OnSelChangeWing(int /*i*/)
 
             OnCenterScene();
 
-            InitWingTable();
+            InitBladeTable();
             SetScale();
-			UpdateWings();
+            UpdateBlades();
             CheckButtons();
-            m_bChanged=false;
-
 }
 
 void QBEM::OnSelChangeFoil(int /*i*/)
@@ -9357,6 +10337,7 @@ void QBEM::OnSelChangeFoil(int /*i*/)
 
     m_bNew360Polar=false;
 	m_pCurFoil = m_BEMToolBar->m_foilComboBox->currentObject();
+    g_mainFrame->SetCurrentFoil(m_pCurFoil);
 
     m_pCur360Polar = NULL;
     m_pCurPolar = NULL;
@@ -9481,15 +10462,12 @@ void QBEM::OnSelChangeTurbineBladeData(int i)
 
 }
 
-void QBEM::OnWingView()
+void QBEM::OnBladeView()
 {
-	g_mainFrame->setIView(BLADEVIEW,BEM);// new JW //m_iView = BLADEVIEW;
-	g_mainFrame->setIApp(BEM);  // NM vorher: g_mainFrame->m_iApp = BEM;
+    g_mainFrame->setIView(BLADEVIEW,BEM);
+    g_mainFrame->setIApp(BEM);
 
-	//g_mainFrame->m_pctrlBEMWidget->setMaximumWidth(700);
-	//g_mainFrame->m_pctrlBEMWidget->setMaximumHeight(4000);
-
-    if (!m_WingEdited) UpdateWings();
+    if (!m_WingEdited) UpdateBlades();
 
     OnCenterScene();
 
@@ -9499,10 +10477,13 @@ void QBEM::OnWingView()
 
     g_mainFrame->SetCentralWidget();
 
+    QRect rec = QApplication::desktop()->screenGeometry();
+    int width = rec.width();
+    g_mainFrame->m_pctrlBEMWidget->setMinimumWidth(width/m_widthfrac*2);
+
 	UpdateView();
 
-    g_mainFrame->setIView(BLADEVIEW,BEM);// new JW, important for size change!
-
+    configureGL();
 }
 
 void QBEM::On360View()
@@ -9510,30 +10491,23 @@ void QBEM::On360View()
 	g_mainFrame->setIView(POLARVIEW,BEM);// new JW //m_iView = POLARVIEW;
 	g_mainFrame->setIApp(BEM);  // NM vorher: g_mainFrame->m_iApp = BEM;
 
-	//g_mainFrame->m_pctrlBEMWidget->setMaximumWidth(300);
-	//g_mainFrame->m_pctrlBEMWidget->setMaximumHeight(500);
-
-    int w  = m_rCltRect.width();
-    int w2  = (int)(w/2);
-    int h  = m_rCltRect.height();
-    int h2  = (int)(h/2);
-
-    m_360LegendOffset.rx() = w2 + 10;
-    m_360LegendOffset.ry() = h2 + 30;
 
     if (!m_bNew360Polar) UpdateFoils();
 
 	g_mainFrame->OnBEM();
 
     CheckButtons();
-	g_mainFrame->SetCentralWidget();	
-	UpdateView();
+    g_mainFrame->SetCentralWidget();
 
-	g_mainFrame->setIView(POLARVIEW,BEM);// new JW, important for size change!
+    QRect rec = QApplication::desktop()->screenGeometry();
+    int width = rec.width();
+    g_mainFrame->m_pctrlBEMWidget->setFixedWidth(width/m_widthfrac);
+
+	UpdateView();
 
 }
 
-void QBEM::OnPowerView()
+void QBEM::OnTurbineView()
 {
 	g_mainFrame->setIView(TURBINEVIEW,BEM);// new JW //m_iView = TURBINEVIEW;
 	g_mainFrame->setIApp(BEM);  // NM vorher: g_mainFrame->m_iApp = BEM;
@@ -9553,9 +10527,12 @@ void QBEM::OnPowerView()
 
     CheckButtons();
 	g_mainFrame->SetCentralWidget();
-	UpdateView();
 
-	g_mainFrame->setIView(TURBINEVIEW,BEM);// new JW, important for size change!
+    QRect rec = QApplication::desktop()->screenGeometry();
+    int width = rec.width();
+    g_mainFrame->m_pctrlBEMWidget->setFixedWidth(width/m_widthfrac);
+
+	UpdateView();
 
 }
 
@@ -9570,16 +10547,13 @@ void QBEM::OnCharView()
     m_CharLegendOffset.rx() = 10;
     m_CharLegendOffset.ry() = h2 + 30;
 
-    if(!m_WingEdited) UpdateWings();
+    if(!m_WingEdited) UpdateBlades();
 
 	g_mainFrame->OnBEM();
 
     CheckButtons();
 	g_mainFrame->SetCentralWidget();
 	UpdateView();
-
-	g_mainFrame->setIView(CHARSIMVIEW,BEM);// new JW, important for size change!
-
 }
 
 
@@ -9598,7 +10572,7 @@ void QBEM::OnRotorsimView()
     m_CharLegendOffset.rx() = 10;
     m_CharLegendOffset.ry() = h2 + 30;
 
-    if(!m_WingEdited) UpdateWings();
+    if(!m_WingEdited) UpdateBlades();
 
     g_mainFrame->OnBEM();
 
@@ -9610,9 +10584,7 @@ void QBEM::OnRotorsimView()
 
 }
 
-void QBEM::OnSelChangeRotorSimulation(int /*i*/)
-{
-
+void QBEM::OnSelChangeRotorSimulation() {
 	m_pBEMData = m_BEMToolBar->m_bemdataComboBox->currentObject();
 
     UpdateRotorSimulation();
@@ -9620,9 +10592,7 @@ void QBEM::OnSelChangeRotorSimulation(int /*i*/)
     CheckButtons();
 }
 
-void QBEM::OnSelChangeCharSimulation(int /*i*/)
-{
-
+void QBEM::OnSelChangeCharSimulation() {
 	m_pCBEMData = m_BEMToolBar->m_cbemdataComboBox->currentObject();
 
     UpdateCharacteristicsSimulation();
@@ -9630,9 +10600,7 @@ void QBEM::OnSelChangeCharSimulation(int /*i*/)
     CheckButtons();
 }
 
-void QBEM::OnSelChangeTurbineSimulation(int /*i*/)
-{
-
+void QBEM::OnSelChangeTurbineSimulation() {
 	m_pTBEMData = m_BEMToolBar->m_tbemdataComboBox->currentObject();
 
     UpdateTurbineSimulation();
@@ -9716,14 +10684,22 @@ void QBEM::OnGraphSettings()
 			SetPowerGraphTitles(&m_PowerGraph3);
 			SetWeibullGraphTitles(&m_PowerGraph3);//new code JW
 		}
-		else if(&m_360CLGraph == pGraph)
+        else if(&m_360Graph1 == pGraph)
 		{
-			SetPolarGraphTitles(&m_360CLGraph);
+            SetPolarGraphTitles(&m_360Graph1);
 		}
-		else if(&m_360CDGraph == pGraph)
+        else if(&m_360Graph2 == pGraph)
 		{
-			SetPolarGraphTitles(&m_360CDGraph);
+            SetPolarGraphTitles(&m_360Graph2);
 		}
+        else if(&m_360Graph3 == pGraph)
+        {
+            SetPolarGraphTitles(&m_360Graph3);
+        }
+        else if(&m_360Graph4 == pGraph)
+        {
+            SetPolarGraphTitles(&m_360Graph4);
+        }
 		else if(&m_CharGraph1 == pGraph)
 		{
 			SetCharGraphTitles(&m_CharGraph1);
@@ -9749,7 +10725,8 @@ void QBEM::OnGraphSettings()
 		}
 		CreateRotorCurves();
 		CreatePowerCurves();
-		CreatePolarCurve();
+        if (!m_bNew360Polar && !m_bDecompose) CreatePolarCurve();
+        else CreateSinglePolarCurve();
 		CreateCharacteristicsCurves();
 	}
 	else
@@ -9847,12 +10824,12 @@ void QBEM::OnCenterScene()
 	if (m_pctrlShowTurbine->isChecked())
 	{
 		m_pGLWidget->setSceneCenter(qglviewer::Vec(0,0,0));
-		m_pGLWidget->setSceneRadius(float(m_pBlade->getRotorRadius()*1.1));
+        m_pGLWidget->setSceneRadius(float(m_pBlade->getRotorRadius()*1.4));
 	}
 	else
 	{
 		m_pGLWidget->setSceneCenter(qglviewer::Vec(0,m_pBlade->getRotorRadius()/2.0,0));
-		m_pGLWidget->setSceneRadius(float(m_pBlade->getRotorRadius()/2.0)*1.1);
+        m_pGLWidget->setSceneRadius(float(m_pBlade->getRotorRadius()/2.0)*1.4);
 	}
 	m_pGLWidget->showEntireScene();
 	m_pGLWidget->updateGL();
@@ -9864,14 +10841,16 @@ void QBEM::PitchBlade()
 
         pitch_new = m_pctrlPitchBlade->value();
 
-        delta = pitch_new - pitch_old;
+        delta = pitch_new - m_PitchOld;
 
         for (int i=0;i<=m_pBlade->m_NPanel;i++)
         {
-            m_pBlade->m_TTwist[i] = m_pBlade->m_TTwist[i]+delta;
+            m_pBlade->m_TTwist[i] = m_pBlade->m_TTwist[i]-delta;
         }
 
-        pitch_old = pitch_new;
+        m_PitchOld = pitch_new;
+
+        m_pBlade->setName(m_pctrlWingName->text());
 
         InitDialog(m_pBlade);
 }
@@ -10087,7 +11066,7 @@ void QBEM::Paint360Legend(QPoint place, int bottom, QPainter &painter)
 
         int x = place.x();
         int y = place.y();
-        painter.setFont(QFont("Arial",20));
+        painter.setFont(QFont(g_mainFrame->m_TextFont.family(),20));
 
         if (!g_360PolarStore.size() && m_pCurPolar->m_Alpha.size()<4){
             painter.drawText(x+30,y+30,"Analyse the defined Polar in the ");
@@ -10199,34 +11178,32 @@ void QBEM::Paint360Graphs(QPainter &painter)
 
         if(!m_pCurGraph)
         {
-                m_pCurGraph = &m_360CLGraph;
-//		return;
+                m_pCurGraph = &m_360Graph1;
         }
 
         int h  = m_rCltRect.height();
         int w  = m_rCltRect.width();
-        int h2 = (int)(h/2);
-        int w2 = (int)(w/2);
+        int h3 = (int)(h/3);
 
+        QRect Rect1(0,0,w,h3);
+        QRect Rect2(0,h3,w,h3);
+        QRect Rect3(0,2*h3,w,h3);
 
-
-
-        QRect Rect1(0,0,w,h2);
-        QRect Rect2(0,h2,w2,h2);
         QRect Single(0,0,w,h);
 
         if (m_bSingleGraphs)
         {
-                m_360CLGraph.DrawGraph(Single,painter);
+                m_360Graph1.DrawGraph(Single,painter);
 
         }
-        else if(w>150 && h2>150)
+        else if(w>150 && h3>150)
         {
-                m_360CLGraph.DrawGraph(Rect1,painter);
-                m_360CDGraph.DrawGraph(Rect2,painter);
+                m_360Graph1.DrawGraph(Rect1,painter);
+                m_360Graph2.DrawGraph(Rect2,painter);
+                m_360Graph3.DrawGraph(Rect3,painter);
         }
 
-        Paint360Legend(m_360LegendOffset, h, painter);
+//        Paint360Legend(m_360LegendOffset, h, painter);
 
 }
 
@@ -10337,10 +11314,6 @@ void QBEM::PaintPowerGraphs(QPainter &painter)
 void QBEM::PaintView(QPainter &painter)
 {
         //Refresh the active view
-        painter.fillRect(m_rCltRect, g_mainFrame->m_BackgroundColor);
-
-        if (TwoDscreenMessage(BEM,g_mainFrame->m_iView,painter,m_p2DWidget)) return;
-
         if (g_mainFrame->m_iView==POLARVIEW)// new JW, old: m_iView
         {
                 Paint360Graphs(painter);
@@ -10362,8 +11335,7 @@ void QBEM::PaintView(QPainter &painter)
 
 double QBEM::PlateFlow(double alphazero,double CLzero, double alpha)
 {
-    double res;
-    res = (1+CLzero/sin(PI/4)*sin(alpha/360*2*PI))* CD90(m_pCurFoil, alpha) * sin((alpha-57.6*0.08*sin(alpha/360*2*PI) - alphazero*cos(alpha/360*2*PI))/360*2*PI) * cos((alpha-57.6*0.08*sin(alpha/360*2*PI) - alphazero*cos(alpha/360*2*PI))/360*2*PI);
+    double res = (1+CLzero/sin(PI/4)*sin(alpha/360*2*PI))* CD90(m_pCurFoil, alpha) * sin((alpha-57.6*0.08*sin(alpha/360*2*PI) - alphazero*cos(alpha/360*2*PI))/360*2*PI) * cos((alpha-57.6*0.08*sin(alpha/360*2*PI) - alphazero*cos(alpha/360*2*PI))/360*2*PI);
     return res;
 }
 
@@ -10408,7 +11380,7 @@ void QBEM::ReadParams(bool isVawt)
 			ReadAdvancedSectionData(i);
 		}
 	}
-	
+
 	m_bResetglGeom = true;
 	m_bResetglSectionHighlight = true;
     m_pGLWidget->setSceneRadius(float(m_pBlade->getRotorRadius()*1.1)); //TEST DM scene needs to be captured if wind is made longer during construction
@@ -10449,7 +11421,19 @@ void QBEM::ReadAdvancedSectionData(int sel)
     strong =pItem->text();
     strong.replace(" ","");
     d =strong.toDouble(&bOK);
-    if(bOK) m_pBlade->m_TOffset[sel] =d / g_mainFrame->m_mtoUnit;
+    if(bOK) m_pBlade->m_TOffsetX[sel] =d / g_mainFrame->m_mtoUnit;
+
+    pItem = m_pBladeAxisModel->item(sel,2);
+    strong =pItem->text();
+    strong.replace(" ","");
+    d =strong.toDouble(&bOK);
+    if(bOK) m_pBlade->m_TOffsetZ[sel] =d / g_mainFrame->m_mtoUnit;
+
+//    pItem = m_pBladeAxisModel->item(sel,1);
+//    strong =pItem->text();
+//    strong.replace(" ","");
+//    d =strong.toDouble(&bOK);
+//    if(bOK) m_pBlade->m_TFoilPAxisX[sel] = d;
 
 //    pItem = m_pBladeAxisModel->item(sel,2);
 //    strong =pItem->text();
@@ -10457,7 +11441,7 @@ void QBEM::ReadAdvancedSectionData(int sel)
 //    d =strong.toDouble(&bOK);
 //    if(bOK) m_pBlade->m_TDihedral[sel] =d;
 
-    pItem = m_pBladeAxisModel->item(sel,2);
+    pItem = m_pBladeAxisModel->item(sel,3);
     strong =pItem->text();
     strong.replace(" ","");
     d =strong.toDouble(&bOK);
@@ -10525,32 +11509,62 @@ void QBEM::ReadSectionData(int sel)
 
         pItem = m_pWingModel->item(sel,4);
         strong =pItem->text();
-        if (Get360Polar(m_pBlade->m_Airfoils[sel],strong))
-        {
-            if (Get360Polar(m_pBlade->m_Airfoils[sel],strong)->m_airfoil->getName() == m_pBlade->m_Airfoils[sel])
-			{
-                m_pBlade->m_Polar.replace(sel,strong);
-			}
-			else
+
+            if (Get360Polar(m_pBlade->m_Airfoils[sel],strong))
             {
-                QModelIndex ind;
-                ind = m_pWingModel->index(sel, 4, QModelIndex());
-                m_pWingModel->setData(ind,"");
-                m_pBlade->m_Polar.replace(sel,"");
+                if (Get360Polar(m_pBlade->m_Airfoils[sel],strong)->m_airfoil->getName() == m_pBlade->m_Airfoils[sel])
+                {
+                    m_pBlade->m_Polar.replace(sel,strong);
+                }
+                else
+                {
+                    m_pWingModel->setData(ind,"-----");
+                    m_pBlade->m_Polar.replace(sel,"-----");
+                    m_pBlade->m_Range.replace(sel,"-----");
+
+                    for(int i=0; i< g_360PolarStore.size(); i++)
+                    {
+                            if (g_360PolarStore.at(i)->m_airfoil->getName() == m_pBlade->m_Airfoils[sel]){
+                                m_pBlade->m_Polar.replace(sel, g_360PolarStore.at(i)->getName());
+                                break;
+                            }
+                    }
+
+                    for (int k=0;k<m_pBlade->m_PolarAssociatedFoils.size();k++){
+                        if (m_pBlade->m_PolarAssociatedFoils.at(k) == m_pBlade->m_Airfoils.at(sel)) m_pBlade->m_Range.replace(sel,m_pBlade->m_MinMaxReynolds.at(k));
+                    }
+
+                    if (m_pBlade->m_bisSinglePolar) m_pWingModel->setData(ind, m_pBlade->m_Polar.at(sel));
+                    else m_pWingModel->setData(ind, m_pBlade->m_Range.at(sel));
+                }
             }
-        }
-        else
-        {
-            QModelIndex ind;
-            ind = m_pWingModel->index(sel, 4, QModelIndex());
-            m_pWingModel->setData(ind,"");
-            m_pBlade->m_Polar.replace(sel,"");
-        }
+            else
+            {
+                m_pWingModel->setData(ind,"-----");
+                m_pBlade->m_Polar.replace(sel,"-----");
+                m_pBlade->m_Range.replace(sel,"-----");
+
+                for(int i=0; i< g_360PolarStore.size(); i++)
+                {
+                        if (g_360PolarStore.at(i)->m_airfoil->getName() == m_pBlade->m_Airfoils[sel]){
+                            m_pBlade->m_Polar.replace(sel, g_360PolarStore.at(i)->getName());
+                            break;
+                        }
+                }
+
+                for (int k=0;k<m_pBlade->m_PolarAssociatedFoils.size();k++){
+                    if (m_pBlade->m_PolarAssociatedFoils.at(k) == m_pBlade->m_Airfoils.at(sel)) m_pBlade->m_Range.replace(sel,m_pBlade->m_MinMaxReynolds.at(k));
+                }
+
+                if (m_pBlade->m_bisSinglePolar) m_pWingModel->setData(ind, m_pBlade->m_Polar.at(sel));
+                else m_pWingModel->setData(ind, m_pBlade->m_Range.at(sel));
+
+            }
+
 
         m_pBlade->m_blades = m_pctrlBlades->value();
 
         CheckWing();
-
 }
 
 void QBEM::SnapClient(QString const &FileName)
@@ -10721,53 +11735,58 @@ void QBEM::SetCurveParams()
 
 void QBEM::SaveSettings(QSettings *pSettings)
 {
-        pSettings->beginGroup("XBEM");
-        {
-                pSettings->setValue("Lambda", dlg_lambda);
-                pSettings->setValue("Epsilon", dlg_epsilon);
-                pSettings->setValue("Interations", dlg_iterations);
-                pSettings->setValue("Elements", dlg_elements);
-                pSettings->setValue("Rho", dlg_rho);
-                pSettings->setValue("Relax", dlg_relax);
-                pSettings->setValue("TipLoss", dlg_tiploss);
-                pSettings->setValue("RootLoss", dlg_rootloss);
-                pSettings->setValue("3DCorrection", dlg_3dcorrection);
-                pSettings->setValue("Interpolation", dlg_interpolation);
-                pSettings->setValue("lambdastart", dlg_lambdastart);
-                pSettings->setValue("lambdaend", dlg_lambdaend);
-                pSettings->setValue("lambdadelta", dlg_lambdadelta);
-                pSettings->setValue("windstart", dlg_windstart);
-                pSettings->setValue("windend", dlg_windend);
-                pSettings->setValue("winddelta", dlg_winddelta);
-                pSettings->setValue("newtiploss", dlg_newtiploss);
-                pSettings->setValue("newrootloss", dlg_newrootloss);
-                pSettings->setValue("visc", dlg_visc);
-                pSettings->setValue("pitchstart", dlg_pitchstart);
-                pSettings->setValue("pitchend", dlg_pitchend);
-                pSettings->setValue("pitchdelta", dlg_pitchdelta);
-                pSettings->setValue("rotstart", dlg_rotstart);
-                pSettings->setValue("rotend", dlg_rotend);
-                pSettings->setValue("rotdelta", dlg_rotdelta);
-                pSettings->setValue("windstartt", dlg_windstart2);
-                pSettings->setValue("windendt", dlg_windend2);
-                pSettings->setValue("winddeltat", dlg_winddelta2);
-                pSettings->setValue("reynolds", dlg_reynolds);
-        }
-        pSettings->endGroup();
+	pSettings->beginGroup("XBEM");
+	{
+		pSettings->setValue("Lambda", dlg_lambda);
+		pSettings->setValue("Epsilon", dlg_epsilon);
+		pSettings->setValue("Interations", dlg_iterations);
+		pSettings->setValue("Elements", dlg_elements);
+		pSettings->setValue("Rho", dlg_rho);
+		pSettings->setValue("Relax", dlg_relax);
+		pSettings->setValue("TipLoss", dlg_tiploss);
+		pSettings->setValue("RootLoss", dlg_rootloss);
+		pSettings->setValue("3DCorrection", dlg_3dcorrection);
+		pSettings->setValue("Interpolation", dlg_interpolation);
+		pSettings->setValue("lambdastart", dlg_lambdastart);
+		pSettings->setValue("lambdaend", dlg_lambdaend);
+		pSettings->setValue("lambdadelta", dlg_lambdadelta);
+        pSettings->setValue("tsrwindspeed", dlg_windspeed);
 
-        m_RotorGraph1.SaveSettings(pSettings);
-        m_RotorGraph2.SaveSettings(pSettings);
-        m_RotorGraph3.SaveSettings(pSettings);
-        m_PowerGraph1.SaveSettings(pSettings);
-        m_PowerGraph2.SaveSettings(pSettings);
-        m_PowerGraph3.SaveSettings(pSettings);
-        m_CharGraph1.SaveSettings(pSettings);
-        m_CharGraph2.SaveSettings(pSettings);
-        m_CharGraph3.SaveSettings(pSettings);
-        m_CharGraph4.SaveSettings(pSettings);
-        m_360CLGraph.SaveSettings(pSettings);
-        m_360CDGraph.SaveSettings(pSettings);
-
+		pSettings->setValue("windstart", dlg_windstart);
+		pSettings->setValue("windend", dlg_windend);
+		pSettings->setValue("winddelta", dlg_winddelta);
+		pSettings->setValue("newtiploss", dlg_newtiploss);
+		pSettings->setValue("newrootloss", dlg_newrootloss);
+		pSettings->setValue("visc", dlg_visc);
+		pSettings->setValue("pitchstart", dlg_pitchstart);
+		pSettings->setValue("pitchend", dlg_pitchend);
+		pSettings->setValue("pitchdelta", dlg_pitchdelta);
+		pSettings->setValue("rotstart", dlg_rotstart);
+		pSettings->setValue("rotend", dlg_rotend);
+		pSettings->setValue("rotdelta", dlg_rotdelta);
+		pSettings->setValue("windstartt", dlg_windstart2);
+		pSettings->setValue("windendt", dlg_windend2);
+		pSettings->setValue("winddeltat", dlg_winddelta2);
+		pSettings->setValue("reynolds", dlg_reynolds);
+	}
+	pSettings->endGroup();
+	
+	m_GLLightDlg.SaveSettings(pSettings);
+	
+	m_RotorGraph1.SaveSettings(pSettings);
+	m_RotorGraph2.SaveSettings(pSettings);
+	m_RotorGraph3.SaveSettings(pSettings);
+	m_PowerGraph1.SaveSettings(pSettings);
+	m_PowerGraph2.SaveSettings(pSettings);
+	m_PowerGraph3.SaveSettings(pSettings);
+	m_CharGraph1.SaveSettings(pSettings);
+	m_CharGraph2.SaveSettings(pSettings);
+	m_CharGraph3.SaveSettings(pSettings);
+	m_CharGraph4.SaveSettings(pSettings);
+    m_360Graph1.SaveSettings(pSettings);
+    m_360Graph2.SaveSettings(pSettings);
+    m_360Graph3.SaveSettings(pSettings);
+    m_360Graph4.SaveSettings(pSettings);
 }
 
 void QBEM::BladeCoordsChanged(){
@@ -10805,22 +11824,29 @@ void QBEM::SetupLayout()
 
     m_pctrlBladesAndHubLabel = new QLabel;
     m_pctrlBladeTableView = new QTableView;
+    m_pctrlWingNameLabel = new QLabel;
+    m_pctrlSingleMultiLabel = new QLabel;
 
     m_pctrlBladeCoordinates2 = new QCheckBox(tr("Blade Root Coordinates"));
 
 
     m_pctrlBladeTableView->setSelectionMode(QAbstractItemView::NoSelection);
 	m_pctrlBladeTableView->setEditTriggers(QAbstractItemView::NoEditTriggers);
-	m_pctrlBladeTableView->setMinimumWidth(450);
-	m_pctrlBladeTableView->setFixedHeight(550);
-    m_pctrlBladeTableView->setFixedWidth(480);
+//	m_pctrlBladeTableView->setFixedHeight(550);
+//    m_pctrlBladeTableView->setFixedWidth(505);
 
     m_pctrlEditWing = new QPushButton(tr("Edit"));
     m_pctrlNewWing = new QPushButton(tr("New"));
     m_pctrlDeleteWing = new QPushButton(tr("Delete"));
 
+    QHBoxLayout *SingleMultiLayout = new QHBoxLayout;
+
+    SingleMultiLayout->addWidget(m_pctrlWingNameLabel);
+    SingleMultiLayout->addWidget(m_pctrlSingleMultiLabel);
+
     BottomTopLayout->addWidget(m_pctrlBladesAndHubLabel);
     BottomTopLayout->addWidget(m_pctrlBladeCoordinates2);
+    BottomLayout->addLayout(SingleMultiLayout);
     BottomLayout->addLayout(BottomTopLayout);
     BottomLayout->addWidget(m_pctrlBladeTableView);
 
@@ -10855,12 +11881,19 @@ void QBEM::SetupLayout()
     m_pctrlWingName     = new QLineEdit(tr("Blade Name"));
     m_pctrlWingColor    = new ColorButton;
     m_pctrlSectionColor    = new ColorButton;
-    m_pctrlSectionColor->SetColor(QColor(0,0,0));
+    m_pctrlSectionColor->SetColor(QColor(0,0,0));        
 
     NameLayout->addWidget(m_pctrlWingColor);
     NameLayout->addWidget(m_pctrlWingName);
     NameLayout->addWidget(m_pctrlSectionColor);
 
+    m_SingleMultiGroup = new QButtonGroup(NameLayout);
+    QRadioButton *radioButton = new QRadioButton ("Single Polar");
+    NameLayout->addWidget(radioButton);
+    m_SingleMultiGroup->addButton(radioButton,0);
+    radioButton = new QRadioButton ("Multi Polar");
+    NameLayout->addWidget(radioButton);
+    m_SingleMultiGroup->addButton(radioButton,1);
 
     QHBoxLayout *ParamLayout = new QHBoxLayout;
     m_pctrlBlades = new QSpinBox;
@@ -10904,14 +11937,15 @@ void QBEM::SetupLayout()
     m_pctrlPitchBlade     = new QDoubleSpinBox;
     m_pctrlPitchBlade->setMaximum(180);
     m_pctrlPitchBlade->setMinimum(-180);
-    m_pctrlPitchBlade->setSingleStep(0.1);
-    m_pctrlPitchBladeButton= new QPushButton(tr("Pitch Blade"));
+    m_pctrlPitchBlade->setSingleStep(0.5);
 
     QHBoxLayout *OptScale = new QHBoxLayout;
     QHBoxLayout *BackSave = new QHBoxLayout;
     QHBoxLayout *PitchBlade = new QHBoxLayout;
 
-    PitchBlade->addWidget(m_pctrlPitchBladeButton);
+    QLabel *pitchLabel = new QLabel(tr("Blade Pitch"));
+
+    PitchBlade->addWidget(pitchLabel);
     PitchBlade->addWidget(m_pctrlPitchBlade);
 
     OptScale->addWidget(m_pctrlScale);
@@ -10934,11 +11968,9 @@ void QBEM::SetupLayout()
     //---------------------Advanced Blade Design--------------------//
 
 
-    m_pctrlIsOrtho             = new QCheckBox(tr("Orthogonal Sections"));
-
     m_pctrlBladeAxisTable = new QTableView(this);
     m_pctrlBladeAxisTable->setWindowTitle(QObject::tr("Advanced Blade definition"));
-    m_pctrlBladeAxisTable->setFixedWidth(450);
+//    m_pctrlBladeAxisTable->setFixedWidth(450);
     m_pctrlBladeAxisTable->setSelectionMode(QAbstractItemView::SingleSelection);
     m_pctrlBladeAxisTable->setSelectionBehavior(QAbstractItemView::SelectRows);
     m_pctrlBladeAxisTable->setEditTriggers(QAbstractItemView::CurrentChanged |
@@ -10960,16 +11992,45 @@ void QBEM::SetupLayout()
 
     QGridLayout *ThreeDView = new QGridLayout;
 
-    m_pctrlPerspective = new QCheckBox(tr("Perspective View"));
-    m_pctrlShowTurbine = new QCheckBox(tr("Show Rotor"));
-    m_pctrlSurfaces = new QCheckBox(tr("Surfaces"));
-    m_pctrlOutline = new QCheckBox(tr("Foil Out"));
-    m_pctrlOutlineEdge = new QCheckBox(tr("TE/LE Out"));
+//    int checkButtonWidth = 75;
 
-    m_pctrlAirfoils = new QCheckBox(tr("Fill Foils"));
-    m_pctrlAxes = new QCheckBox(tr("Coordinates"));
-    m_pctrlPositions = new QCheckBox(tr("Foil Positions"));
-    m_pctrlFoilNames = new QCheckBox(tr("Foil Names"));
+    m_pctrlPerspective = new QPushButton(tr("Perspective"));
+    m_pctrlPerspective->setCheckable(true);
+//    m_pctrlPerspective->setFixedWidth(checkButtonWidth);
+    m_pctrlPerspective->setFlat(true);
+    m_pctrlShowTurbine = new QPushButton(tr("Show Rotor"));
+    m_pctrlShowTurbine->setCheckable(true);
+//    m_pctrlShowTurbine->setFixedWidth(checkButtonWidth);
+    m_pctrlShowTurbine->setFlat(true);
+    m_pctrlSurfaces = new QPushButton(tr("Surfaces"));
+    m_pctrlSurfaces->setCheckable(true);
+//    m_pctrlSurfaces->setFixedWidth(checkButtonWidth);
+    m_pctrlSurfaces->setFlat(true);
+    m_pctrlOutline = new QPushButton(tr("Foil Out"));
+    m_pctrlOutline->setCheckable(true);
+//    m_pctrlOutline->setFixedWidth(checkButtonWidth);
+    m_pctrlOutline->setFlat(true);
+    m_pctrlOutlineEdge = new QPushButton(tr("TE/LE Out"));
+    m_pctrlOutlineEdge->setCheckable(true);
+//    m_pctrlOutlineEdge->setFixedWidth(checkButtonWidth);
+    m_pctrlOutlineEdge->setFlat(true);
+    m_pctrlAirfoils = new QPushButton(tr("Fill Foils"));
+    m_pctrlAirfoils->setCheckable(true);
+//    m_pctrlAirfoils->setFixedWidth(checkButtonWidth);
+    m_pctrlAirfoils->setFlat(true);
+    m_pctrlAxes = new QPushButton(tr("Coordinates"));
+    m_pctrlAxes->setCheckable(true);
+//    m_pctrlAxes->setFixedWidth(checkButtonWidth);
+    m_pctrlAxes->setFlat(true);
+    m_pctrlPositions = new QPushButton(tr("Foil Positions"));
+    m_pctrlPositions->setCheckable(true);
+//    m_pctrlPositions->setFixedWidth(checkButtonWidth);
+    m_pctrlPositions->setFlat(true);
+    m_pctrlFoilNames = new QPushButton(tr("Foil Names"));
+    m_pctrlFoilNames->setCheckable(true);
+//    m_pctrlFoilNames->setFixedWidth(checkButtonWidth);
+    m_pctrlFoilNames->setFlat(true);
+
     m_pctrlLightDlg = new QPushButton(tr("GL settings"));
     m_pctrlResetView = new QPushButton(tr("Fit to Screen"));
 
@@ -11016,6 +12077,14 @@ void QBEM::SetupLayout()
             QVBoxLayout *SaveDelete = new QVBoxLayout;
             QGridLayout *Sliders = new QGridLayout;
             QVBoxLayout *Layout360 = new QVBoxLayout;
+            QVBoxLayout *DecompBox = new QVBoxLayout;
+            QGridLayout *Decomposers = new QGridLayout;
+
+            QGridLayout *ARViterna = new QGridLayout;
+            QGridLayout *MaxMinRange = new QGridLayout;
+
+
+
 
             ////////////////// new code JW /////////////////////////////
             QHBoxLayout *StallModel = new QHBoxLayout;
@@ -11026,14 +12095,18 @@ void QBEM::SetupLayout()
             ////////////////// end new code JW /////////////////////////
 
             m_pctrlSave360 = new QPushButton(tr("Save"));
-            m_pctrlNew360 = new QPushButton(tr("New"));
+            m_pctrlNew360 = new QPushButton(tr("Extrapolate"));
 			m_pctrlCancel360 = new QPushButton(tr("Cancel"));
             m_pctrlDelete360Polar = new QPushButton(tr("Delete"));
+            m_pctrlDecompose360 = new QPushButton(tr("Decompose"));
+            m_pctrlRename360Polar = new QPushButton(tr("Rename"));
 
 
+            DecompBox->addLayout(Decomposers);
 
 
             m_360Name = new QLineEdit;
+            IsDecomposed = new QLabel("");
 
             m_LabelA = new QLabel(tr("A+"));
 
@@ -11063,16 +12136,80 @@ void QBEM::SetupLayout()
             m_pctrlBm->setMaximum(70);
             m_pctrlBm->setValue(5);
 
+            m_pos180Sep = new QDoubleSpinBox;
+            m_pos180Sep->setMinimum(160);
+            m_pos180Sep->setMaximum(175);
+            m_pos180Sep->setSingleStep(1);
+            m_pos180Sep->setValue(173);
+            m_pos180Sep->setDecimals(0);
+
+            m_pos180Stall = new QDoubleSpinBox;
+            m_pos180Stall->setMinimum(100);
+            m_pos180Stall->setMaximum(170);
+            m_pos180Stall->setSingleStep(1);
+            m_pos180Stall->setValue(160);
+            m_pos180Stall->setDecimals(0);
+
+            m_neg180Sep = new QDoubleSpinBox;
+            m_neg180Sep->setMinimum(-175);
+            m_neg180Sep->setMaximum(-160);
+            m_neg180Sep->setSingleStep(1);
+            m_neg180Sep->setValue(-173);
+            m_neg180Sep->setDecimals(0);
+
+            m_neg180Stall = new QDoubleSpinBox;
+            m_neg180Stall->setMinimum(-170);
+            m_neg180Stall->setMaximum(-100);
+            m_neg180Stall->setSingleStep(1);
+            m_neg180Stall->setValue(-160);
+            m_neg180Stall->setDecimals(0);
+
+            m_posStall = new QDoubleSpinBox;
+            m_posStall->setMinimum(2);
+            m_posStall->setMaximum(80);
+            m_posStall->setSingleStep(1);
+            m_posStall->setValue(20);
+            m_posStall->setDecimals(0);
+
+            m_posSep = new QDoubleSpinBox;
+            m_posSep->setMinimum(1);
+            m_posSep->setMaximum(20);
+            m_posSep->setSingleStep(1);
+            m_posSep->setValue(7);
+            m_posSep->setDecimals(0);
+
+            m_negStall = new QDoubleSpinBox;
+            m_negStall->setMinimum(-80);
+            m_negStall->setMaximum(-2);
+            m_negStall->setSingleStep(1);
+            m_negStall->setValue(-20);
+            m_negStall->setDecimals(0);
+
+            m_negSep = new QDoubleSpinBox;
+            m_negSep->setMinimum(-20);
+            m_negSep->setMaximum(-1);
+            m_negSep->setSingleStep(1);
+            m_negSep->setValue(-7);
+            m_negSep->setDecimals(0);
+
+            QHBoxLayout *savecancellayout = new QHBoxLayout;
+            savecancellayout->addWidget(m_pctrlSave360);
+            savecancellayout->addWidget(m_pctrlCancel360);
+
+            QGridLayout *NewDeleteRenameLayout = new QGridLayout;
+            NewDeleteRenameLayout->addWidget(m_pctrlRename360Polar,0,0);
+            NewDeleteRenameLayout->addWidget(m_pctrlDecompose360,0,1);
+            NewDeleteRenameLayout->addWidget(m_pctrlDelete360Polar,1,0);
+            NewDeleteRenameLayout->addWidget(m_pctrlNew360,1,1);
+
+
             /////// new code JW //////////
             StallModel->addWidget(m_pctrlStallModelMontg);
             StallModel->addWidget(m_pctrlStallModelVit);
             SaveDelete->addLayout(StallModel);
             /////// end new code JW //////
-
-            SaveDelete->addWidget(m_pctrlNew360);
-            SaveDelete->addWidget(m_pctrlDelete360Polar);
-            SaveDelete->addWidget(m_pctrlSave360);
-			SaveDelete->addWidget(m_pctrlCancel360);
+            SaveDelete->addLayout(NewDeleteRenameLayout);
+            SaveDelete->addLayout(savecancellayout);
 
 
             m_pctrlCD90 = new QDoubleSpinBox;
@@ -11082,15 +12219,33 @@ void QBEM::SetupLayout()
             m_pctrlCD90->setSingleStep(0.01);
             m_pctrlCD90->setValue(m_CD90);
 
-            ////// new code JW ////////////////////////////////
-            m_pctrlARLabel = new QLabel(tr("AR"));
+            m_pctrlARLabel = new QLabel(tr("CD 90"));
             m_pctrlAR = new QDoubleSpinBox;
-            m_pctrlARLabel = new QLabel(tr("AR"));
-            m_pctrlAR->setMinimum(1.0);
-            m_pctrlAR->setMaximum(50.0);
-            m_pctrlAR->setSingleStep(1.0);
+            m_pctrlAR->setMinimum(0.2);
+            m_pctrlAR->setSingleStep(0.01);
             m_pctrlAR->setValue(m_AR);
-            ////////////////// end new code JW ////////////////
+
+            QLabel *slop = new QLabel(tr("Slope"));
+            m_Slope = new QDoubleSpinBox;
+            m_Slope->setDecimals(3);
+            m_Slope->setSingleStep(0.001);
+
+
+            QLabel *posA = new QLabel(tr("max"));
+            m_posAoA = new QDoubleSpinBox;
+            m_posAoA->setSingleStep(0.5);
+            m_posAoA->setRange(0,180);
+            QLabel *negA = new QLabel(tr("min"));
+            m_negAoA = new QDoubleSpinBox;
+            m_negAoA->setRange(-180,0);
+            m_negAoA->setSingleStep(0.5);
+
+            MaxMinRange->addWidget(negA,1,1);
+            MaxMinRange->addWidget(m_negAoA,1,2);
+            MaxMinRange->addWidget(posA,1,3);
+            MaxMinRange->addWidget(m_posAoA,1,4);
+
+
 
             Sliders->addWidget(m_LabelA,1,1);
             Sliders->addWidget(m_pctrlA,1,2);
@@ -11100,15 +12255,57 @@ void QBEM::SetupLayout()
             Sliders->addWidget(m_pctrlAm,3,2);
             Sliders->addWidget(m_LabelBm,4,1);
             Sliders->addWidget(m_pctrlBm,4,2);
-            Sliders->addWidget(m_pctrlCD90Label,5,1);
-            Sliders->addWidget(m_pctrlCD90,5,2);
-            //////////////////new code JW ////////////////
-            Sliders->addWidget(m_pctrlARLabel,6,1);
-            Sliders->addWidget(m_pctrlAR,6,2);
-            ////////////////// end new code JW ////////////////
+            Sliders->addWidget(slop,5,1);
+            Sliders->addWidget(m_Slope,5,2);
+            Sliders->addWidget(m_pctrlCD90Label,6,1);
+            Sliders->addWidget(m_pctrlCD90,6,2);
+
+
+            ARViterna->addWidget(m_pctrlARLabel,1,1);
+            ARViterna->addWidget(m_pctrlAR,1,2);
+
+            QLabel *lab;
+
+            int gridrow = 1;
+            lab = new QLabel(tr("Se+"));
+            Decomposers->addWidget(lab,gridrow,1);
+            Decomposers->addWidget(m_posSep,gridrow,2);
+            lab = new QLabel(tr("St+"));
+            Decomposers->addWidget(lab,gridrow,3);
+            Decomposers->addWidget(m_posStall,gridrow,4);
+            gridrow++;
+            lab = new QLabel(tr("Se-"));
+            Decomposers->addWidget(lab,gridrow,1);
+            Decomposers->addWidget(m_negSep,gridrow,2);
+            lab = new QLabel(tr("St-"));
+            Decomposers->addWidget(lab,gridrow,3);
+            Decomposers->addWidget(m_negStall,gridrow,4);
+            gridrow++;
+            lab = new QLabel(tr("BSe+"));
+            Decomposers->addWidget(lab,gridrow,1);
+            Decomposers->addWidget(m_pos180Sep,gridrow,2);
+            lab = new QLabel(tr("BSt+"));
+            Decomposers->addWidget(lab,gridrow,3);
+            Decomposers->addWidget(m_pos180Stall,gridrow,4);
+            gridrow++;
+            lab = new QLabel(tr("BSe-"));
+            Decomposers->addWidget(lab,gridrow,1);
+            Decomposers->addWidget(m_neg180Sep,gridrow,2);
+            lab = new QLabel(tr("BSt-"));
+            Decomposers->addWidget(lab,gridrow,3);
+            Decomposers->addWidget(m_neg180Stall,gridrow,4);
+            gridrow++;
+
+            /// \brief SaveDeleteGroup
+            ///
 
             QGroupBox *SaveDeleteGroup = new QGroupBox(tr("Create 360 Polar"));
-            QGroupBox *SliderGroup = new QGroupBox(tr("Finetuning of Polar"));
+            SliderGroup = new QGroupBox(tr("Finetuning of Polar"));
+            RangeGroup = new QGroupBox(tr("Range of original polar"));
+
+            ViternaGroup = new QGroupBox(tr("Finetuning of Polar"));
+
+            DecomposeGroup = new QGroupBox(tr("Finetuning of Decomposition"));
 
             ///////////////////curve style
 
@@ -11152,14 +12349,22 @@ void QBEM::SetupLayout()
 
             SaveDeleteGroup->setLayout(SaveDelete);
             SliderGroup->setLayout(Sliders);
+            ViternaGroup->setLayout(ARViterna);
+            RangeGroup->setLayout(MaxMinRange);
+
+            DecomposeGroup->setLayout(DecompBox);
 
             PolarDisplay->addLayout(CurveDisplay);
             PolarDisplay->addLayout(CurveStyleLayout);
 
 
             Layout360->addWidget(m_360Name);
+            Layout360->addWidget(IsDecomposed);
             Layout360->addWidget(SaveDeleteGroup);
+            Layout360->addWidget(RangeGroup);
             Layout360->addWidget(SliderGroup);
+            Layout360->addWidget(ViternaGroup);
+            Layout360->addWidget(DecomposeGroup);
             Layout360->addLayout(PolarDisplay);
 			Layout360->addStretch(0);
 
@@ -11527,13 +12732,13 @@ void QBEM::SetupLayout()
     EditWidget = new QWidget;
     EditWidget->setLayout(EditLayout);
     PolarWidget = new QWidget;
-	PolarWidget->setMaximumWidth(200);
+//	PolarWidget->setMaximumWidth(200);
     PolarWidget->setLayout(Layout360);
 	PowerEditWidget = new QWidget;
-	PowerEditWidget->setMaximumWidth(300);
+//	PowerEditWidget->setMaximumWidth(300);
     PowerEditWidget->setLayout(PowerEditLayout);
     PowerWidget = new QWidget;
-	PowerWidget->setMaximumWidth(300);
+//	PowerWidget->setMaximumWidth(300);
 	PowerWidget->setLayout(PowerLayout);
     AdvancedEditWidget = new QWidget;
     AdvancedEditWidget->setLayout(AdvancedEditLayout);
@@ -11557,6 +12762,9 @@ void QBEM::SetupLayout()
 
     bladeWidget->addWidget(WingDataBox);
     bladeWidget->addWidget(tabwidget);
+
+
+
 //    bladeWidget->addWidget(AdvancedEditWidget);
 
     SimLayout->addLayout(ViewLayout2);
@@ -11571,9 +12779,14 @@ void QBEM::SetupLayout()
     mainWidget->addWidget(PowerWidget);
     mainWidget->addWidget(PowerEditWidget);
 
+//    QRect rec = QApplication::desktop()->screenGeometry();
+//    int width = rec.width();
+    mainWidget->setMinimumWidth(100);
+
 //	QVBoxLayout *mainLayout = new QVBoxLayout;
 //  mainLayout->addWidget(mainWidget);
 //  setLayout(mainLayout);
+
 
 }
 
@@ -11735,6 +12948,24 @@ void QBEM::SetRotorGraphTitles(Graph* pGraph)
 		case 5:
 			pGraph->SetXTitle(tr("1/TSR"));
 			break;
+        case 6:
+            pGraph->SetXTitle(tr("Power [W]"));
+            break;
+        case 7:
+            pGraph->SetXTitle(tr("Thrust [N]"));
+            break;
+        case 8:
+            pGraph->SetXTitle(tr("Torque [Nm]"));
+            break;
+        case 9:
+            pGraph->SetXTitle(tr("Rot [rpm]"));
+            break;
+        case 10:
+            pGraph->SetXTitle(tr("Inflow [m/s]"));
+            break;
+        case 11:
+            pGraph->SetXTitle(tr("Bending [Nm]"));
+            break;
 			
 		default:
 			pGraph->SetXTitle(tr("TSR"));
@@ -11787,13 +13018,31 @@ void QBEM::SetRotorGraphTitles(Graph* pGraph)
 		case 13:
 			pGraph->SetXTitle(tr("F"));
 			break;
-		case 14:
+        case 14:
+            pGraph->SetXTitle(tr("Re [-]"));
+            break;
+        case 15:
+            pGraph->SetXTitle(tr("Delta Re [-]"));
+            break;
+        case 16:
+            pGraph->SetXTitle(tr("F_t [N/m]"));
+            break;
+        case 17:
+            pGraph->SetXTitle(tr("F_n [N/m]"));
+            break;
+        case 18:
+            pGraph->SetXTitle(tr("Circ"));
+            break;
+        case 19:
+            pGraph->SetXTitle(tr("V_loc [m/s]"));
+            break;
+        case 20:
 			pGraph->SetXTitle(tr("It"));
 			break;
-		case 15:
+        case 21:
 			pGraph->SetXTitle(tr("Fa_a"));
 			break;
-		case 16:
+        case 22:
 			pGraph->SetXTitle(tr("Fa_t"));
 			break;
 		default:
@@ -11823,6 +13072,24 @@ void QBEM::SetRotorGraphTitles(Graph* pGraph)
 		case 5:
 			pGraph->SetYTitle(tr("1/TSR"));
 			break;
+        case 6:
+            pGraph->SetYTitle(tr("Power [W]"));
+            break;
+        case 7:
+            pGraph->SetYTitle(tr("Thrust [N]"));
+            break;
+        case 8:
+            pGraph->SetYTitle(tr("Torque [Nm]"));
+            break;
+        case 9:
+            pGraph->SetYTitle(tr("Rot [rpm]"));
+            break;
+        case 10:
+            pGraph->SetYTitle(tr("Inflow [m/s]"));
+            break;
+        case 11:
+            pGraph->SetYTitle(tr("Bending [Nm]"));
+            break;
 		default:
 			pGraph->SetYTitle(tr("TSR"));
 			break;
@@ -11871,18 +13138,34 @@ void QBEM::SetRotorGraphTitles(Graph* pGraph)
 		case 12:
 			pGraph->SetYTitle(tr("L/D Ratio"));
 			break;
-			
 		case 13:
 			pGraph->SetYTitle(tr("F"));
 			break;
-		case 14:
+        case 14:
+            pGraph->SetYTitle(tr("Re [-]"));
+            break;
+        case 15:
+            pGraph->SetYTitle(tr("Delta Re [-]"));
+            break;
+        case 16:
+            pGraph->SetYTitle(tr("F_t [N/m]"));
+            break;
+        case 17:
+            pGraph->SetYTitle(tr("F_n [N/m]"));
+            break;
+        case 18:
+            pGraph->SetYTitle(tr("Circ"));
+            break;
+        case 19:
+            pGraph->SetYTitle(tr("V_loc [m/s]"));
+            break;
+        case 20:
 			pGraph->SetYTitle(tr("It"));
 			break;
-		case 15:
+        case 21:
 			pGraph->SetYTitle(tr("Fa_a"));
-			
 			break;
-		case 16:
+        case 22:
 			pGraph->SetYTitle(tr("Fa_t"));
 			break;
 		default:
@@ -12223,6 +13506,15 @@ void QBEM::SetPolarGraphTitles(Graph* pGraph)
                         break;
                 case 3:
                         pGraph->SetXTitle(tr("Cl / Cd"));
+                        break; 
+                case 4:
+                        pGraph->SetXTitle(tr("Cl attached"));
+                        break;
+                case 5:
+                        pGraph->SetXTitle(tr("Cl separated"));
+                        break;
+                case 6:
+                        pGraph->SetXTitle(tr("f function"));
                         break;
                 default:
                         pGraph->SetXTitle(tr("Alpha [deg]"));
@@ -12242,6 +13534,15 @@ void QBEM::SetPolarGraphTitles(Graph* pGraph)
                  case 3:
                          pGraph->SetYTitle(tr("Cl / Cd"));
                          break;
+                 case 4:
+                         pGraph->SetYTitle(tr("Cl attached"));
+                         break;
+                 case 5:
+                         pGraph->SetYTitle(tr("Cl separated"));
+                         break;
+                 case 6:
+                         pGraph->SetYTitle(tr("f function"));
+                         break;
                  default:
                          pGraph->SetYTitle(tr("Alpha [deg]"));
                          break;
@@ -12251,13 +13552,7 @@ void QBEM::SetPolarGraphTitles(Graph* pGraph)
 void QBEM::SetLegendPos()
 {
     int h   = m_rCltRect.height();
-    int w   = m_rCltRect.width();
     int h2  = (int)(h/2);
-    int w2  = (int)(w/2);
-
-
-    m_360LegendOffset.rx() = w2 + 10;
-    m_360LegendOffset.ry() = h2 + 30;
 
     m_CharLegendOffset.rx() = 10;
     m_CharLegendOffset.ry() = h2 + 30;
@@ -12299,15 +13594,15 @@ void QBEM::Set2DScale()
         QRect Rect1(0,0,w2,m_rCltRect.bottom()-00);
         QRect Rect2(w2,0,w2,m_rCltRect.bottom()-00);
 
-        m_360CLGraph.SetDrawRect(Rect1);
-        m_360CLGraph.SetDrawRect(Rect2);
+        m_360Graph1.SetDrawRect(Rect1);
+        m_360Graph1.SetDrawRect(Rect2);
 
-        m_360CLGraph.Init();
-        m_360CLGraph.Init();
+        m_360Graph1.Init();
+        m_360Graph1.Init();
 
 
-        m_360CLGraph.SetAutoXUnit();
-        m_360CLGraph.SetAutoXUnit();
+        m_360Graph1.SetAutoXUnit();
+        m_360Graph1.SetAutoXUnit();
 
 }
 
@@ -12421,7 +13716,8 @@ void QBEM::UpdateCurve()
                 m_pCur360Polar->m_Color = m_CurveColor;
                 m_pCur360Polar->m_Style = m_CurveStyle;
                 m_pCur360Polar->m_Width = (int)m_CurveWidth;
-                CreatePolarCurve();
+                if (!m_bNew360Polar && !m_bDecompose) CreatePolarCurve();
+                else CreateSinglePolarCurve();
         }
 		else if (g_mainFrame->m_iView == CHARSIMVIEW && m_pCBEMData)// new JW, old: m_iView
         {
@@ -12547,7 +13843,13 @@ void QBEM::Update360Polars()
 
 void QBEM::UpdateFoils()
 {
+    if (g_pCurFoil){
+        m_pCurFoil = g_pCurFoil;
+        m_BEMToolBar->m_foilComboBox->setCurrentObject(m_pCurFoil);
+    }
+    else{
         m_pCurFoil =  m_BEMToolBar->m_foilComboBox->currentObject();
+    }
         UpdatePolars();
 }
 
@@ -12593,10 +13895,6 @@ void QBEM::UpdateRotorSimulation()
 
         if (m_pBEMData) SetCurveParams();
         else FillComboBoxes(false);
-
-
-
-
 
 }
 
@@ -12738,21 +14036,15 @@ void QBEM::UpdateGeom()
     UpdateView();
 }
 
-void QBEM::UpdateView()
-{
-	if (g_mainFrame->m_iView==BLADEVIEW)// new JW, old: m_iView
-    {
-      m_pGLWidget->m_iView=BLADEVIEW;
-      m_pGLWidget->draw();
-      m_pGLWidget->updateGL();
-    }
-    else
-    {
-       m_p2DWidget->update();
-    }
+void QBEM::UpdateView() {
+	if (g_mainFrame->m_iView==BLADEVIEW) {
+		m_pGLWidget->update();
+	} else {
+		m_p2DWidget->update();
+	}
 }
 
-void QBEM::UpdateWings()
+void QBEM::UpdateBlades()
 {
    m_pBlade = m_BEMToolBar->m_rotorComboBox->currentObject();
 
@@ -12761,7 +14053,7 @@ void QBEM::UpdateWings()
    else if (g_mainFrame->m_iView==CHARSIMVIEW)
 	   UpdateCharacteristicsSimulation();
 
-   InitWingTable();
+   InitBladeTable();
 }
 
 void QBEM::UpdateTurbineSimulation()
@@ -12870,7 +14162,9 @@ void QBEM::onModuleChanged() {
 		g_mainFrame->OnTurbineViewAct->setChecked(false);
 		g_mainFrame->On360ViewAct->setChecked(false);
 		g_mainFrame->OnBladeViewAct->setChecked(false);
-        g_mainFrame->OnCharacteristicViewAct->setChecked(false);
+		g_mainFrame->OnCharacteristicViewAct->setChecked(false);
+		
+		glPopAttrib();  // restores the saved GL settings		
 	}
 }
 

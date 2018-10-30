@@ -26,9 +26,6 @@
 #include "BladeScaleDlgVAWT.h"
 #include "../MainFrame.h"
 #include "../Globals.h"
-#include "../XGlobals.h"
-
-
 
 
 BladeScaleDlgVAWT::BladeScaleDlgVAWT(void */*pParent*/)
@@ -94,33 +91,32 @@ void BladeScaleDlgVAWT::SetupLayout()
         ScaleLayout->addWidget(m_pctrlNewSpan,   2,3);
         ScaleLayout->addWidget(m_pctrlSpanRatio, 2,5);
 
-        ScaleLayout->addWidget(m_pctrlShift,     3,1);
-        ScaleLayout->addWidget(m_pctrlRefShift,  3,2);
-        ScaleLayout->addWidget(m_pctrlNewShift,  3,3);
-        ScaleLayout->addWidget(m_pctrlShiftRatio,3,5);
+//        ScaleLayout->addWidget(m_pctrlShift,     3,1);
+//        ScaleLayout->addWidget(m_pctrlRefShift,  3,2);
+//        ScaleLayout->addWidget(m_pctrlNewShift,  3,3);
+//        ScaleLayout->addWidget(m_pctrlShiftRatio,3,5);
 
-        ScaleLayout->addWidget(m_pctrlChord,     4,1);
-        ScaleLayout->addWidget(m_pctrlRefChord,  4,2);
-        ScaleLayout->addWidget(m_pctrlNewChord,  4,3);
-        ScaleLayout->addWidget(m_pctrlChordRatio,4,5);
+        ScaleLayout->addWidget(m_pctrlChord,     3,1);
+        ScaleLayout->addWidget(m_pctrlRefChord,  3,2);
+        ScaleLayout->addWidget(m_pctrlNewChord,  3,3);
+        ScaleLayout->addWidget(m_pctrlChordRatio,3,5);
 
-        ScaleLayout->addWidget(m_pctrlOffset,     5,1);
-        ScaleLayout->addWidget(m_pctrlRefOffset,  5,2);
-        ScaleLayout->addWidget(m_pctrlNewOffset,  5,3);
-        ScaleLayout->addWidget(m_pctrlOffsetRatio,5,5);
+        ScaleLayout->addWidget(m_pctrlOffset,     4,1);
+        ScaleLayout->addWidget(m_pctrlRefOffset,  4,2);
+        ScaleLayout->addWidget(m_pctrlNewOffset,  4,3);
+        ScaleLayout->addWidget(m_pctrlOffsetRatio,4,5);
 
-        ScaleLayout->addWidget(m_pctrlTwist,     6,1);
-        ScaleLayout->addWidget(m_pctrlRefTwist,  6,2);
-        ScaleLayout->addWidget(m_pctrlNewTwist,  6,3);
+        ScaleLayout->addWidget(m_pctrlTwist,     5,1);
+        ScaleLayout->addWidget(m_pctrlRefTwist,  5,2);
+        ScaleLayout->addWidget(m_pctrlNewTwist,  5,3);
 
         m_pctrlUnit20 = new QLabel;
         m_pctrlUnit21 = new QLabel;
         m_pctrlUnit22 = new QLabel;
         m_pctrlUnit23 = new QLabel;
         ScaleLayout->addWidget(m_pctrlUnit20, 2,4);
-        ScaleLayout->addWidget(m_pctrlUnit21, 3,4);
-        ScaleLayout->addWidget(m_pctrlUnit22, 4,4);
-        ScaleLayout->addWidget(m_pctrlUnit23, 5,4);
+        ScaleLayout->addWidget(m_pctrlUnit22, 3,4);
+        ScaleLayout->addWidget(m_pctrlUnit23, 4,4);
 
         QHBoxLayout *CommandButtons = new QHBoxLayout;
         QPushButton *OKButton = new QPushButton(tr("OK"));

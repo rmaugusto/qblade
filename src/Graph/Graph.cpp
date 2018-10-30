@@ -75,7 +75,9 @@ Graph::Graph()
 	m_CurveColors[6] = QColor(255, 125,  70);
 	m_CurveColors[7] = QColor( 70, 125, 255);
 	m_CurveColors[8] = QColor(125, 255,  70);
-	m_CurveColors[9] = QColor(255, 70,  200);
+    m_CurveColors[9] = QColor(255, 70,  200);
+
+    m_autoReset = true;
 
 	m_iMargin= 44;
 
@@ -647,7 +649,13 @@ void Graph::Scaley(double zoom)
 }
 
 //___________________Start Sets______________________________________________________________
-
+void Graph::ResetIfAuto()
+{
+    m_bAutoX = m_autoReset;
+    m_bAutoY = m_autoReset;
+    ResetXLimits();
+    ResetYLimits();
+}
 
 void Graph::SetAuto(bool bAuto)
 {

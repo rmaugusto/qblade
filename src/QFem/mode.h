@@ -3,6 +3,7 @@
 #ifndef MODE_H
 #define MODE_H
 
+
 #include <Eigen/Dense>
 #include "taperedelem.h"
 #include "node.h"

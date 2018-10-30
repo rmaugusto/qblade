@@ -25,7 +25,6 @@
 #include <QStringList>
 
 #include "../XDirect/XDirect.h"
-#include "../Miarex/Miarex.h"
 #include "../MainFrame.h"
 #include "../Globals.h"
 
@@ -33,11 +32,8 @@ void * ObjectPropsDlg::s_pMainFrame;
 
 ObjectPropsDlg::ObjectPropsDlg()
 {
-	m_pMiarex     = NULL;
 	m_pXDirect    = NULL;
 	m_pPolar      = NULL;
-	m_pWPolar     = NULL;
-	m_pWOpp       = NULL;
 	m_pOpp        = NULL;
 
 	SetupLayout();
@@ -92,19 +88,6 @@ void ObjectPropsDlg::InitDialog()
 		else if(m_pOpp)
 		{
 			m_pOpp->GetOppProperties(strange, true);
-			setWindowTitle(tr("Operating Point Properties"));
-		}
-	}
-	else if(m_pMiarex)
-	{
-		if(m_pWPolar)
-		{
-			m_pWPolar->GetPolarProperties(strange, true);
-			setWindowTitle(tr("Polar Properties"));
-		}
-		else if(m_pWOpp)
-		{
-			m_pWOpp->GetWOppProperties(strange, true);
 			setWindowTitle(tr("Operating Point Properties"));
 		}
 	}

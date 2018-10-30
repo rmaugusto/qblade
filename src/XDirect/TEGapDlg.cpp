@@ -62,7 +62,7 @@ void TEGapDlg::SetupLayout()
 	GapValue->addWidget(lab2);
 
 	QHBoxLayout *BlendValue = new QHBoxLayout;
-	QLabel *lab3 = new QLabel(tr("Blending Distance from L.E."));
+    QLabel *lab3 = new QLabel(tr("Blending Distance from T.E."));
 	lab3->setAlignment(Qt::AlignRight);
 	lab3->setMinimumWidth(150);
 	QLabel *lab4 = new QLabel(tr("% chord"));

@@ -4,14 +4,13 @@
 #include "../Objects/CVector.h"
 #include "QObject"
 
-
 class VortexNode : public CVector
 {
 public:
     VortexNode(const double &xi, const double &yi, const double &zi);
     VortexNode();
 
-    std::vector<void*> attachedLines;
+    QList <void*> attachedLines;
 
     void attachLine(void *line);
     void detachLine(void *line);
@@ -19,8 +18,9 @@ public:
 
     int     fromTimestep;
     int     fromStation;
+    int     fromBlade;
     bool    wasConvected;
-    CVector V_induced;
+    QList<CVector> oldPositions;
 
     //inline operators
 

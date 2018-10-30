@@ -64,7 +64,6 @@ XFoilAnalysisDlg::XFoilAnalysisDlg()
 
 	m_Iterations =  0;
 	m_IterLim    = 20;
-	m_bType4     = false;
 	m_bSequence  = false;
 	m_bAlpha     = true;
 
@@ -356,7 +355,7 @@ bool XFoilAnalysisDlg::Iterate()
 
 	if(m_Iterations>=m_IterLim && !m_pXFoil->lvconv)
 	{
-		strange = QString(tr("unconverged after %1 iterations\n")).arg(m_Iterations);
+        strange = QString(tr("unconverged after %1 iterations\n")).arg(m_Iterations);
 		UpdateOutput(strange);
 		str = tr("--------- Unconverged -----------\n");
 		WriteString(str);
@@ -399,79 +398,6 @@ void XFoilAnalysisDlg::OnSkipPoint()
 {
 	m_bSkip = true;
 }
-
-
-bool XFoilAnalysisDlg::ReLoop()
-{
-//	double alphadeg;
-//	QMutexLocker locker(&mutex);
-	QString str;
-	int ia;
-	double Re;
-
-	if(m_ReMax< m_ReMin) m_DeltaRe = -fabs(m_DeltaRe);
-
-	int total=int((m_ReMax*1.0001-m_ReMin)/m_DeltaRe);//*1.0001 to make sure upper limit is included
-
-	total = abs(total);
-
-	if(!m_bSequence) total = 0;
-
-	QString strange;
-
-	for (ia=0; ia<=total; ia++)
-	{
-		if(!m_bExit)
-		{
-			Re = m_ReMin+ia*m_DeltaRe;
-			strange =QString("Re = %1 ........ ").arg(Re,0,'f',0);
-			UpdateOutput(strange);
-			m_pXFoil->reinf1 = Re;
-			m_pXFoil->lalfa = true;
-			m_pXFoil->qinf = 1.0;
-			str = QString("\n\nRe = %1\n").arg(Re,8,'f',0);
-			WriteString(str);
-
-			// here we go !
-			if (!m_pXFoil->specal())
-			{
-				QString str;
-				str = tr("Invalid Analysis Settings\nCpCalc: local speed too large\n Compressibility corrections invalid ");
-				WriteString(str);
-				m_bExit = true;
-				return false;
-			}
-
-			if (fabs(m_pXFoil->alfa-m_pXFoil->awake) > 0.00001)
-				m_pXFoil->lwake  = false;
-			if (fabs(m_pXFoil->alfa-m_pXFoil->avisc) > 0.00001)
-				m_pXFoil->lvconv = false;
-			if (fabs(m_pXFoil->minf-m_pXFoil->mvisc) > 0.00001)
-				m_pXFoil->lvconv = false;
-
-			m_pXFoil->lwake = false;
-			m_pXFoil->lvconv = false;
-
-			m_bSkip = false;
-
-			while(!Iterate()){}
-
-			qApp->processEvents();
-
-			ResetCurves();
-			m_Iterations = 0;
-
-			AddOpPoint();// only if converged ???
-		}
-		else
-		{
-			break;
-		}
-	}
-	return true;
-}
-
-
 
 
 void XFoilAnalysisDlg::ResetCurves()
@@ -544,14 +470,8 @@ void XFoilAnalysisDlg::StartAnalysis()
 	XFoil::s_bCancel = false;
 
 	//all set to launch the analysis
-	if (!m_bType4)
-	{
-		AlphaLoop() ;
-	}
-	else
-	{
-		ReLoop();
-	}
+
+    AlphaLoop() ;
 
 	m_bFinished = true;
 	m_pctrlCancel->setText(tr("Close"));

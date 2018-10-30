@@ -21,7 +21,6 @@
 
 #include "BEMDock.h"
 #include "../Globals.h"
-#include "../XGlobals.h"
 #include "BEM.h"
 
 
@@ -38,12 +37,12 @@ BEMDock::BEMDock (const QString & title, QMainWindow * parent, Qt::WindowFlags f
 	pBEM->setAttribute(Qt::WA_DeleteOnClose, false);
 
 	m_contentVBox->addWidget(pBEM->mainWidget);
-	//setWidget(pBEM);
 	setVisible(false);
 
 	addScrolledDock(Qt::LeftDockWidgetArea , parent);
+
+    connect(this,SIGNAL(resized()),pBEM,SLOT(OnResize()));
+
 }
 
-void BEMDock::initView()
-{
-}
+

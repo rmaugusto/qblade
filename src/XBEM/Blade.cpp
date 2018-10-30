@@ -34,12 +34,16 @@
 #include "../Globals.h"
 #include "../Serializer.h"
 #include "BEM.h"
+#include "../XDMS/DMS.h"
+#include "../GLWidget.h"
+
+
 
 
 CBlade* CBlade::newBySerialize() {
-	CBlade* rotor = new CBlade ();
-	rotor->serialize();
-	return rotor;
+    CBlade* blade = new CBlade ();
+    blade->serialize();
+    return blade;
 }
 
 CBlade::CBlade (QString name, StorableObject *parent)
@@ -49,14 +53,25 @@ CBlade::CBlade (QString name, StorableObject *parent)
 	memset(m_TCircAngle, 0, sizeof(m_TCircAngle));
 	memset(m_TChord, 0, sizeof(m_TChord));
 	memset(m_TLength, 0, sizeof(m_TLength));
-	memset(m_TOffset, 0, sizeof(m_TOffset));
+    memset(m_TOffsetX, 0, sizeof(m_TOffsetX));
 	memset(m_TDihedral, 0, sizeof(m_TDihedral));
 	memset(m_TTwist, 0, sizeof(m_TTwist));
 	memset(m_NXPanels, 0, sizeof(m_NXPanels));
 	memset(m_NYPanels, 0, sizeof(m_NYPanels));
+
+    m_Range.clear();
+    m_MultiPolars.clear();
+    m_PolarAssociatedFoils.clear();
+    m_MinMaxReynolds.clear();
+    m_StrutList.clear();
+
+
+    m_bisSinglePolar = true;
+
+    m_Surface.clear();
 	
-	m_bIsOrtho = false;
-	
+    m_bIsInverted = false;
+
     m_WingColor =  QColor(222,222,222);
 	
 	m_HubRadius = 0.2;
@@ -70,14 +85,14 @@ CBlade::CBlade (QString name, StorableObject *parent)
 	m_TChord[1]  =  0.12;
 	m_TLength[0] =  0;
 	m_TLength[1] = 1;
-	m_TOffset[0] = 0.0;
-	m_TOffset[1] = 0.0;
+    m_TOffsetX[0] = 0.0;
+    m_TOffsetX[1] = 0.0;
 	m_TRelPos[0] = 0.0;
 	m_TRelPos[1] = 1;
 	m_TPAxisX[0] = 0;
 	m_TPAxisX[1] = 0;
-	m_TPAxisZ[0] = 0;
-	m_TPAxisZ[1] = 0;
+    m_TOffsetZ[0] = 0;
+    m_TOffsetZ[1] = 0;
 	m_TFoilPAxisX[0]=0.25;
 	m_TFoilPAxisX[1]=0.25;
 	m_TFoilPAxisZ[0]=0;
@@ -89,20 +104,59 @@ CBlade::CBlade (QString name, StorableObject *parent)
 		m_TPos[i]     = length;
     }
 	
-	m_blades = 1;
+    m_blades = 1;
 	m_sweptArea = 0;
+}
+
+void CBlade::restorePointers() {
+    StorableObject::restorePointers();
+
+    for (int i = 0; i < m_StrutList.size(); ++i) {
+        g_serializer.restorePointer(reinterpret_cast<StorableObject**> (&(m_StrutList[i])));
+    }
 }
 
 void CBlade::serialize() {
 	StorableObject::serialize();
+
+    if (g_serializer.getArchiveFormat() >= 100027){
+
+        if (g_serializer.isReadMode()) {
+            int n = g_serializer.readInt();
+            for (int i = 0; i < n; ++i) {
+                QStringList list;
+                g_serializer.readOrWriteStringList(&list);
+                m_MultiPolars.append(list);
+            }
+        } else {
+            g_serializer.writeInt(m_MultiPolars.size());
+            for (int i = 0; i < m_MultiPolars.size(); ++i) {
+                g_serializer.readOrWriteStringList(&m_MultiPolars[i]);
+            }
+        }
+
+        g_serializer.readOrWriteStringList (&m_PolarAssociatedFoils);
+        g_serializer.readOrWriteStringList (&m_Range);
+        g_serializer.readOrWriteBool(&m_bisSinglePolar);
+        g_serializer.readOrWriteStringList(&m_MinMaxReynolds);
+    }
+
+    if (g_serializer.getArchiveFormat() >= 100026) 	g_serializer.readOrWriteBool (&m_bIsInverted);
 	
 	g_serializer.readOrWriteStringList (&m_Airfoils);
 	g_serializer.readOrWriteStringList (&m_Polar);
+
+    if (g_serializer.m_isReadMode){
+        // refill range array for old project files in case its empty
+        if (!m_Range.size()) for (int i=0; i<m_Airfoils.size();i++) m_Range.append("-----");
+    }
 	
-	g_serializer.readOrWriteInt (&m_blades);
+    g_serializer.readOrWriteInt (&m_blades);
 	g_serializer.readOrWriteInt (&m_NSurfaces);
 	g_serializer.readOrWriteInt (&m_NPanel);
-	g_serializer.readOrWriteBool (&m_bIsOrtho);
+
+    g_serializer.readOrWriteBool (&m_bPlaceholder);
+
 	g_serializer.readOrWriteDouble (&m_PlanformSpan);
 	g_serializer.readOrWriteDouble (&m_HubRadius);
 	g_serializer.readOrWriteDouble (&m_sweptArea);
@@ -112,20 +166,31 @@ void CBlade::serialize() {
 	
 	g_serializer.readOrWriteIntArray1D (m_NXPanels, MAXSPANSECTIONS+1);
 	g_serializer.readOrWriteIntArray1D (m_NYPanels, MAXSPANSECTIONS+1);
-	
+
 	g_serializer.readOrWriteDoubleArray1D (m_TChord, MAXSPANSECTIONS+1);
 	g_serializer.readOrWriteDoubleArray1D (m_TLength, MAXSPANSECTIONS+1);
 	g_serializer.readOrWriteDoubleArray1D (m_TPos, MAXSPANSECTIONS+1);
 	g_serializer.readOrWriteDoubleArray1D (m_TCircAngle, MAXSPANSECTIONS+1);
-	g_serializer.readOrWriteDoubleArray1D (m_TOffset, MAXSPANSECTIONS+1);
+    g_serializer.readOrWriteDoubleArray1D (m_TOffsetX, MAXSPANSECTIONS+1);
 	g_serializer.readOrWriteDoubleArray1D (m_TDihedral, MAXSPANSECTIONS+1);
 	g_serializer.readOrWriteDoubleArray1D (m_TTwist, MAXSPANSECTIONS+1);
 	g_serializer.readOrWriteDoubleArray1D (m_TPAxisX, MAXSPANSECTIONS+1);
-	g_serializer.readOrWriteDoubleArray1D (m_TPAxisZ, MAXSPANSECTIONS+1);
+    g_serializer.readOrWriteDoubleArray1D (m_TOffsetZ, MAXSPANSECTIONS+1);
 	g_serializer.readOrWriteDoubleArray1D (m_TPAxisY, MAXSPANSECTIONS+1);
 	g_serializer.readOrWriteDoubleArray1D (m_TFoilPAxisX, MAXSPANSECTIONS+1);
 	g_serializer.readOrWriteDoubleArray1D (m_TFoilPAxisZ, MAXSPANSECTIONS+1);
-	g_serializer.readOrWriteDoubleArray1D (m_TRelPos, MAXSPANSECTIONS+1);	
+    g_serializer.readOrWriteDoubleArray1D (m_TRelPos, MAXSPANSECTIONS+1);
+
+    if (g_serializer.getArchiveFormat() >= 100047){
+        g_serializer.readOrWriteStorableObjectVector(&m_StrutList);
+    }
+
+    if (g_serializer.isReadMode()){
+        for (int i=0;i<=m_NPanel;i++){
+            m_TFoilPAxisZ[i] = 0;
+        }
+    }
+
 }
 
 double CBlade::getRotorRadius() {
@@ -143,12 +208,499 @@ C360Polar *CBlade::get360PolarAt(int position) {
         }
     }
 	return NULL;
-	/* TODO Attention: this is ambiguous! 360Polar can have same names. Waiting for pointer solution in StorableObject */
-//    return g_360PolarStore.getObjectByNameOnly(m_Polar[position]);
+}
+
+
+//TODO needs fix eventually, replacing strings with pointers in blade class
+C360Polar* CBlade::Get360Polar(QString PolarName, QString AirfoilName) {
+    for (int i=0; i < g_360PolarStore.size() ; i++) {
+        if (g_360PolarStore.at(i)->m_airfoil->getName() == AirfoilName && g_360PolarStore.at(i)->getName() == PolarName) {
+            return g_360PolarStore.at(i);
+        }
+    }
+    return NULL;
+}
+QList<double> CBlade::getStrutParameters(int numStrut, double AoA, double Re){
+
+    QList<double> params, result;
+
+    if (m_StrutList.at(numStrut)->isMulti){
+        QVector<C360Polar*> pVec= m_StrutList.at(numStrut)->m_MultiPolars;
+        for (int j=0;j<pVec.size()-1;j++){
+            if (Re < pVec.at(0)->reynolds){
+                params = pVec.at(0)->GetPropertiesAt(AoA);
+                result.append(params[0]);
+                result.append(params[1]);
+                result.append(Re);
+                result.append(params[2]);
+                result.append(params[3]);
+                result.append(params[4]);
+                result.append(m_StrutList.at(numStrut)->getChord());
+                result.append(pVec.at(0)->alpha_zero);
+                result.append(pVec.at(0)->slope);
+                result.append(pVec.at(0)->m_bisDecomposed);
+                result.append(params[5]);
+                result.append(params[6]);
+                result.append(params[7]);
+                break;
+            }
+            else if (Re > pVec.at(pVec.size()-1)->reynolds){
+                params = pVec.at(pVec.size()-1)->GetPropertiesAt(AoA);
+                result.append(params[0]);
+                result.append(params[1]);
+                result.append(Re);
+                result.append(params[2]);
+                result.append(params[3]);
+                result.append(params[4]);
+                result.append(m_StrutList.at(numStrut)->getChord());
+                result.append(pVec.at(pVec.size()-1)->alpha_zero);
+                result.append(pVec.at(pVec.size()-1)->slope);
+                result.append(pVec.at(pVec.size()-1)->m_bisDecomposed);
+                result.append(params[5]);
+                result.append(params[6]);
+                result.append(params[7]);
+                break;
+            }
+            else if(pVec.at(j)->reynolds < Re && Re < pVec.at(j+1)->reynolds){
+                QList<double> par1, par2;
+                par1 = pVec.at(j)->GetPropertiesAt(AoA);
+                par2 = pVec.at(j+1)->GetPropertiesAt(AoA);
+                params.clear();
+                for (int m=0;m<par1.size();m++) params.append(par1.at(m)+(par2.at(m)-par1.at(m))*(Re-pVec.at(j)->reynolds)/(pVec.at(j+1)->reynolds-pVec.at(j)->reynolds));
+                result.append(params[0]);
+                result.append(params[1]);
+                result.append(Re);
+                result.append(params[2]);
+                result.append(params[3]);
+                result.append(params[4]);
+                result.append(m_StrutList.at(numStrut)->getChord());
+                result.append(pVec.at(j)->alpha_zero+(pVec.at(j+1)->alpha_zero-pVec.at(j)->alpha_zero)*(Re-pVec.at(j)->reynolds)/(pVec.at(j+1)->reynolds-pVec.at(j)->reynolds));
+                result.append(pVec.at(j)->slope+(pVec.at(j+1)->slope-pVec.at(j)->slope)*(Re-pVec.at(j)->reynolds)/(pVec.at(j+1)->reynolds-pVec.at(j)->reynolds));
+                result.append(pVec.at(j)->m_bisDecomposed && pVec.at(j+1)->m_bisDecomposed);
+                result.append(params[5]);
+                result.append(params[6]);
+                result.append(params[7]);
+                break;
+            }
+        }
+    }
+    else{
+    C360Polar *polar = m_StrutList.at(numStrut)->getPolar();
+    params = polar->GetPropertiesAt(AoA);
+    result.append(params[0]);
+    result.append(params[1]);
+    result.append(Re);
+    result.append(params[2]);
+    result.append(params[3]);
+    result.append(params[4]);
+    result.append(m_StrutList.at(numStrut)->getChord());
+    result.append(polar->alpha_zero);
+    result.append(polar->slope);
+    result.append(polar->m_bisDecomposed);
+    result.append(params[5]);
+    result.append(params[6]);
+    result.append(params[7]);
+    }
+
+
+    return result;
+
+}
+
+QList<double> CBlade::getBladeParameters(double radius, double AoA, bool interpolate, double Re, bool himmelskamp, double TSR, bool singlePolar){
+
+    C360Polar *polar1L = NULL, *polar1H = NULL, *polar2L = NULL, *polar2H = NULL;
+    double chord1=0, chord2=0, slope1L=0, slope2L=0, alpha_zero1L=0, alpha_zero2L=0, usedReynolds1=0, usedReynolds2=0;
+    QList<double> prop1L, prop1H, prop2L, prop2H;
+
+
+
+    int pos = -1;
+
+    QList<double> result;
+
+
+    if (singlePolar){
+        //find polars for interpolation with respect to blade position
+        if (radius <= m_TPos[0]){
+                    polar1L =  Get360Polar(m_Polar[0], m_Airfoils[0]);
+                    chord1 = m_TChord[0];
+        }
+        else if (radius >= m_TPos[m_NPanel]){
+                    polar1L =  Get360Polar(m_Polar[m_NPanel], m_Airfoils[m_NPanel]);
+                    chord1 = m_TChord[m_NPanel];
+        }
+        else{
+            for (int i=0;i<m_NPanel;i++){
+                if (radius >= m_TPos[i] && radius <= m_TPos[i+1]){
+                    pos = i;
+                    polar1L =  Get360Polar(m_Polar[i], m_Airfoils[i]);
+                    polar2L =  Get360Polar(m_Polar[i+1], m_Airfoils[i+1]);
+                    chord1 = m_TChord[i];
+                    chord2 = m_TChord[i+1];
+                }
+            }
+        }
+        if (polar1L) prop1L = polar1L->GetPropertiesAt(AoA);
+
+        if (!interpolate || polar1L == polar2L) polar2L = NULL; //deactivate interpolation in case no interpolation needed or desired
+
+        if (polar2L) prop2L = polar2L->GetPropertiesAt(AoA);
+
+        if (polar1L && polar2L){
+            double slope, alpha_zero;
+
+            for (int i=0; i<prop1L.size()-1;i++) prop1L[i] =  prop1L[i]+(radius-m_TPos[pos])/(m_TPos[pos+1]-m_TPos[pos])*(prop2L[i]-prop1L[i]);
+
+            usedReynolds1 = polar1L->reynolds+(radius-m_TPos[pos])/(m_TPos[pos+1]-m_TPos[pos])*(polar2L->reynolds-polar1L->reynolds);
+
+
+                slope = polar1L->slope + (radius-m_TPos[pos])/(m_TPos[pos+1]-m_TPos[pos])*(polar2L->slope-polar1L->slope);
+                alpha_zero = polar1L->alpha_zero + (radius-m_TPos[pos])/(m_TPos[pos+1]-m_TPos[pos])*(polar2L->alpha_zero-polar1L->alpha_zero);
+                chord1 = chord1 + (radius-m_TPos[pos])/(m_TPos[pos+1]-m_TPos[pos])*(chord2-chord1);
+
+            if (himmelskamp){
+                prop1L[0] = computeHimmelskamp(prop1L[0],radius,AoA,chord1,TSR*radius/m_TPos[m_NPanel],slope,alpha_zero);
+            }
+
+            result.append(prop1L[0]);
+            result.append(prop1L[1]);
+            result.append(usedReynolds1);
+            result.append(prop1L[2]);
+            result.append(prop1L[3]);
+            result.append(prop1L[4]);
+            result.append(chord1);
+            result.append(alpha_zero);
+            result.append(slope);
+            result.append(polar1L->m_bisDecomposed && polar2L->m_bisDecomposed);
+            result.append(prop1L[5]);
+            result.append(prop1L[6]);
+            result.append(prop1L[7]);
+
+
+
+        }
+        else if (polar1L){
+
+            if (himmelskamp){
+                prop1L[0] = computeHimmelskamp(prop1L[0],radius,AoA,chord1,TSR*radius/m_TPos[m_NPanel],polar1L->slope,polar1L->alpha_zero);
+            }
+
+            usedReynolds1 = polar1L->reynolds;
+
+            result.append(prop1L[0]);
+            result.append(prop1L[1]);
+            result.append(usedReynolds1);
+            result.append(prop1L[2]);
+            result.append(prop1L[3]);
+            result.append(prop1L[4]);
+            result.append(chord1);
+            result.append(polar1L->alpha_zero);
+            result.append(polar1L->slope);
+            result.append(polar1L->m_bisDecomposed);
+            result.append(prop1L[5]);
+            result.append(prop1L[6]);
+            result.append(prop1L[7]);
+
+
+        }
+        else{
+            result.append(-1);
+            result.append(-1);
+            result.append(-1);
+            result.append(-1);
+            result.append(-1);
+            result.append(-1);
+            result.append(-1);
+            result.append(-1);
+            result.append(-1);
+            result.append(-1);
+            result.append(-1);
+            result.append(-1);
+            result.append(-1);
+
+        }
+    }
+    else{
+        // find polars for interpolation with respect to blade position AND reynolds number
+        if (radius <= m_TPos[0]){
+            chord1 = m_TChord[0];
+            for (int i=0;i<m_PolarAssociatedFoils.size();i++){
+                if (m_Airfoils.at(0) == m_PolarAssociatedFoils.at(i)){
+                    if (Re <= Get360Polar(m_MultiPolars[i][0],m_Airfoils[0])->reynolds){
+                        polar1L = Get360Polar(m_MultiPolars[i][0],m_Airfoils[0]);
+                    }
+                    else if (Re >= Get360Polar(m_MultiPolars[i][m_MultiPolars.at(i).size()-1],m_Airfoils[0])->reynolds){
+                        polar1L = Get360Polar(m_MultiPolars[i][m_MultiPolars.at(i).size()-1],m_Airfoils[0]);
+                    }
+                    else{
+                        for (int j=0;j<m_MultiPolars.at(i).size()-1;j++){
+                            if (Re >= Get360Polar(m_MultiPolars.at(i).at(j), m_Airfoils[0])->reynolds && Re <= Get360Polar(m_MultiPolars.at(i).at(j+1), m_Airfoils[0])->reynolds){
+                                polar1L = Get360Polar(m_MultiPolars.at(i).at(j), m_Airfoils[0]);
+                                polar1H = Get360Polar(m_MultiPolars.at(i).at(j+1), m_Airfoils[0]);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        else if (radius >= m_TPos[m_NPanel]){
+            chord1 = m_TChord[m_NPanel];
+            for (int i=0;i<m_PolarAssociatedFoils.size();i++){
+                if (m_Airfoils.at(m_NPanel) == m_PolarAssociatedFoils.at(i)){
+
+                    if (Re <= Get360Polar(m_MultiPolars[i][0],m_Airfoils[m_NPanel])->reynolds){
+                        polar1L = Get360Polar(m_MultiPolars[i][0],m_Airfoils[m_NPanel]);
+                    }
+                    else if (Re >= Get360Polar(m_MultiPolars[i][m_MultiPolars.at(i).size()-1],m_Airfoils[m_NPanel])->reynolds){
+                        polar1L = Get360Polar(m_MultiPolars[i][m_MultiPolars.at(i).size()-1],m_Airfoils[m_NPanel]);
+                    }
+                    else{
+                        for (int j=0;j<m_MultiPolars.at(i).size()-1;j++){
+                            if (Re >= Get360Polar(m_MultiPolars.at(i).at(j), m_Airfoils[m_NPanel])->reynolds && Re <= Get360Polar(m_MultiPolars.at(i).at(j+1), m_Airfoils[m_NPanel])->reynolds){
+                                polar1L = Get360Polar(m_MultiPolars.at(i).at(j), m_Airfoils[m_NPanel]);
+                                polar1H = Get360Polar(m_MultiPolars.at(i).at(j+1), m_Airfoils[m_NPanel]);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        else{
+            for (int i=0;i<m_NPanel;i++){
+                if (radius >= m_TPos[i] && radius <= m_TPos[i+1]){
+                    pos = i;
+                    chord1 = m_TChord[i];
+                    chord2 = m_TChord[i+1];
+                    for (int j=0;j<m_PolarAssociatedFoils.size();j++){
+                        if (m_Airfoils.at(i) == m_PolarAssociatedFoils.at(j)){
+
+                            if (Re <= Get360Polar(m_MultiPolars[j][0],m_Airfoils[i])->reynolds){
+                                polar1L = Get360Polar(m_MultiPolars[j][0],m_Airfoils[i]);
+                            }
+                            else if (Re >= Get360Polar(m_MultiPolars[j][m_MultiPolars.at(j).size()-1],m_Airfoils[i])->reynolds){
+                                polar1L = Get360Polar(m_MultiPolars[j][m_MultiPolars.at(j).size()-1],m_Airfoils[i]);
+                            }
+                            else{
+                                for (int k=0;k<m_MultiPolars.at(j).size()-1;k++){
+                                    if (Re >= Get360Polar(m_MultiPolars.at(j).at(k), m_Airfoils[i])->reynolds && Re <= Get360Polar(m_MultiPolars.at(j).at(k+1), m_Airfoils[i])->reynolds){
+                                        polar1L = Get360Polar(m_MultiPolars.at(j).at(k), m_Airfoils[i]);
+                                        polar1H = Get360Polar(m_MultiPolars.at(j).at(k+1), m_Airfoils[i]);
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    for (int j=0;j<m_PolarAssociatedFoils.size();j++){
+                        if (m_Airfoils.at(i+1) == m_PolarAssociatedFoils.at(j)){
+
+                            if (Re <= Get360Polar(m_MultiPolars[j][0],m_Airfoils[i+1])->reynolds){
+                                polar2L = Get360Polar(m_MultiPolars[j][0],m_Airfoils[i+1]);
+                            }
+                            else if (Re >= Get360Polar(m_MultiPolars[j][m_MultiPolars.at(j).size()-1],m_Airfoils[i+1])->reynolds){
+                                polar2L = Get360Polar(m_MultiPolars[j][m_MultiPolars.at(j).size()-1],m_Airfoils[i+1]);
+                            }
+                            else{
+                                for (int k=0;k<m_MultiPolars.at(j).size()-1;k++){
+                                    if (Re >= Get360Polar(m_MultiPolars.at(j).at(k), m_Airfoils[i+1])->reynolds && Re <= Get360Polar(m_MultiPolars.at(j).at(k+1), m_Airfoils[i+1])->reynolds){
+                                        polar2L = Get360Polar(m_MultiPolars.at(j).at(k), m_Airfoils[i+1]);
+                                        polar2H = Get360Polar(m_MultiPolars.at(j).at(k+1), m_Airfoils[i+1]);
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        if (polar1L){
+            prop1L = polar1L->GetPropertiesAt(AoA);
+            slope1L = polar1L->slope;
+            alpha_zero1L = polar1L->alpha_zero;
+            usedReynolds1 = polar1L->reynolds;
+        }
+
+        if (polar1H) prop1H = polar1H->GetPropertiesAt(AoA);
+
+        if (!interpolate || polar1L == polar2L) polar2L = NULL; //deactivate interpolation in case no interpolation needed or desired
+
+        if (polar2L){
+            prop2L = polar2L->GetPropertiesAt(AoA);
+            slope2L = polar2L->slope;
+            alpha_zero2L = polar2L->alpha_zero;
+            usedReynolds2 = polar2L->reynolds;
+        }
+
+        if (polar2H) prop2H = polar2H->GetPropertiesAt(AoA);
+
+        //RE number interpolation
+        if (polar1L && polar1H){
+            for (int i=0; i<prop1L.size()-1;i++) prop1L[i] = prop1L[i] + (prop1H[i]-prop1L[i])/(polar1H->reynolds-polar1L->reynolds)*(Re-polar1L->reynolds);
+            slope1L = polar1L->slope + (polar1H->slope-polar1L->slope)/(polar1H->reynolds-polar1L->reynolds)*(Re-polar1L->reynolds);
+            alpha_zero1L = polar1L->alpha_zero + (polar1H->alpha_zero-polar1L->alpha_zero)/(polar1H->reynolds-polar1L->reynolds)*(Re-polar1L->reynolds);
+            usedReynolds1 = polar1L->reynolds + (polar1H->reynolds-polar1L->reynolds)/(polar1H->reynolds-polar1L->reynolds)*(Re-polar1L->reynolds);
+        }
+
+        if (polar2L && polar2H){
+            for (int i=0; i<prop2L.size()-1;i++) prop2L[i] = prop2L[i] + (prop2H[i]-prop2L[i])/(polar1H->reynolds-polar1L->reynolds)*(Re-polar1L->reynolds);
+            slope2L = polar2L->slope + (polar2H->slope-polar2L->slope)/(polar2H->reynolds-polar2L->reynolds)*(Re-polar2L->reynolds);
+            alpha_zero2L = polar2L->alpha_zero + (polar2H->alpha_zero-polar2L->alpha_zero)/(polar2H->reynolds-polar2L->reynolds)*(Re-polar2L->reynolds);
+            usedReynolds2 = polar2L->reynolds + (polar2H->reynolds-polar2L->reynolds)/(polar2H->reynolds-polar2L->reynolds)*(Re-polar2L->reynolds);
+        }
+        //end RE interpolation
+
+        if (polar1L && polar2L){
+
+            double RE, slope, alpha_zero;
+
+            for (int i=0; i<prop1L.size()-1;i++) prop1L[i] = prop1L[i]+(radius-m_TPos[pos])/(m_TPos[pos+1]-m_TPos[pos])*(prop2L[i]-prop1L[i]);
+            RE = usedReynolds1+(radius-m_TPos[pos])/(m_TPos[pos+1]-m_TPos[pos])*(usedReynolds2-usedReynolds1);
+
+
+
+                slope = slope1L + (radius-m_TPos[pos])/(m_TPos[pos+1]-m_TPos[pos])*(slope2L-slope1L);
+                alpha_zero = alpha_zero1L + (radius-m_TPos[pos])/(m_TPos[pos+1]-m_TPos[pos])*(alpha_zero2L-alpha_zero1L);
+                chord1 = chord1 + (radius-m_TPos[pos])/(m_TPos[pos+1]-m_TPos[pos])*(chord2-chord1);
+
+            if (himmelskamp){
+                prop1L[0] = computeHimmelskamp(prop1L[0],radius,AoA,chord1,TSR*radius/m_TPos[m_NPanel],slope,alpha_zero);
+            }
+
+            result.append(prop1L[0]);
+            result.append(prop1L[1]);
+            result.append(RE);
+            result.append(prop1L[2]);
+            result.append(prop1L[3]);
+            result.append(prop1L[4]);
+            result.append(chord1);
+            result.append(alpha_zero);
+            result.append(slope);
+            result.append(polar1L->m_bisDecomposed && polar2L->m_bisDecomposed);
+            result.append(prop1L[5]);
+            result.append(prop1L[6]);
+            result.append(prop1L[7]);
+
+
+        }
+        else if (polar1L){
+
+            if (himmelskamp){
+               prop1L[0] = computeHimmelskamp(prop1L[0],radius,AoA,chord1,TSR*radius/m_TPos[m_NPanel],slope1L,alpha_zero1L);
+            }
+
+            result.append(prop1L[0]);
+            result.append(prop1L[1]);
+            result.append(usedReynolds1);
+            result.append(prop1L[2]);
+            result.append(prop1L[3]);
+            result.append(prop1L[4]);
+            result.append(chord1);
+            result.append(alpha_zero1L);
+            result.append(slope1L);
+            result.append(polar1L->m_bisDecomposed);
+            result.append(prop1L[5]);
+            result.append(prop1L[6]);
+            result.append(prop1L[7]);
+
+
+        }
+        else{
+            result.append(-1);
+            result.append(-1);
+            result.append(-1);
+            result.append(-1);
+            result.append(-1);
+            result.append(-1);
+            result.append(-1);
+            result.append(-1);
+            result.append(-1);
+            result.append(-1);
+            result.append(-1);
+            result.append(-1);
+            result.append(-1);
+
+        }
+    }
+    return result;
+}
+double CBlade::computeHimmelskamp(double Cl, double radius, double AoA, double chord, double TSR, double slope, double alpha_zero){
+
+    if (radius <= m_TPos[m_NPanel]*0.8 && AoA >= alpha_zero && Cl > 0 && fabs(slope) > 10e-5 )
+    {
+        double blend = 0, CL = 0;
+        if (AoA < 30 && AoA >= alpha_zero) blend = 1;
+        else if (AoA <= 50 && AoA >alpha_zero) blend = 1-(AoA-30)/20;
+        if ((2*PI*(AoA-alpha_zero)/360*2*PI-CL)>0){
+
+            CL = Cl + (double(3.1)*pow(TSR,2))/(double(1)+pow(TSR,2))*blend*pow((chord/radius),2)*(slope*(AoA-alpha_zero)-Cl);
+            return CL; // return modified lift
+        }
+    }
+    return Cl; // return unmodified lift
 }
 
 double CBlade::getFASTRadiusAt(int position) {
 	return (m_TPos[position] + m_TPos[position+1]) / 2;
+}
+
+void CBlade::drawCoordinateAxes() {
+	// Save current OpenGL state
+	glPushAttrib(GL_ALL_ATTRIB_BITS);
+	glMatrixMode(GL_PROJECTION);
+	glPushMatrix();
+	glMatrixMode(GL_MODELVIEW);
+	glPushMatrix();
+	
+	const double length = getRotorRadius();
+	
+	glLineWidth(2.0);
+	g_mainFrame->getGlWidget()->qglColor(g_mainFrame->m_TextColor);
+	
+	glBegin(GL_LINES);
+		glVertex3d(-length/30, 0.0, 0.0);
+		glVertex3d( length/ 6, 0.0, 0.0);
+	glEnd();
+	g_mainFrame->getGlWidget()->overpaintText(length/5, 0.0, 0.0, "X");
+	
+	glBegin(GL_LINES);
+		glVertex3d(0.0, -length/ 30, 0.0);
+		glVertex3d(0.0,  length*1.2, 0.0);
+	glEnd();
+	g_mainFrame->getGlWidget()->overpaintText(0.0, length*1.25, 0.0, "Y");
+	
+	glBegin(GL_LINES);
+		glVertex3d(0.0, 0.0, -length/30);
+		glVertex3d(0.0, 0.0,  length/ 6);
+	glEnd();
+	g_mainFrame->getGlWidget()->overpaintText( 0.0, 0.0, length/5, "Z");
+	
+	// Restore OpenGL state
+	glMatrixMode(GL_MODELVIEW);
+	glPopMatrix();
+	glMatrixMode(GL_PROJECTION);
+	glPopMatrix();
+	glPopAttrib();
+}
+
+QStringList CBlade::prepareMissingObjectMessage(bool forDMS) {
+	if (!forDMS && g_rotorStore.isEmpty() && g_qbem->m_pBlade == NULL) {  // NM: m_pBlade -> blade is under construction
+		QStringList message = C360Polar::prepareMissingObjectMessage();
+		if (message.isEmpty()) {
+			message = QStringList(">>> Create a new HAWT Blade in the HAWT Blade Design Module");
+		}
+		message.prepend("- No HAWT Blade in Database");
+		return message;
+	} else if (forDMS && g_verticalRotorStore.isEmpty() && g_qdms->m_pBlade == NULL) {
+		QStringList message = C360Polar::prepareMissingObjectMessage();
+		if (message.isEmpty()) {
+			message = QStringList(">>> Create a new VAWT Blade in the VAWT Blade Design Module");
+		}
+		message.prepend("- No VAWT Blade in Database");
+		return message;
+	} else {
+		return QStringList();
+	}
 }
 
 void CBlade::ComputeGeometry()
@@ -160,202 +712,418 @@ void CBlade::ComputeGeometry()
 	m_PlanformSpan  = 2.0 * m_TPos[m_NPanel];
 }
 
+void CBlade::CreateLLTPanels(int discType, int numPanels, bool isVawt)
+{
+
+    // Constructs the Panel corner points for the lifting line simulation, also contructs new arrays for panel edges
+
+    m_PanelPoints.clear();
+    TOffsetX.clear();
+    TPos.clear();
+    TOffsetZ.clear();
+    TChord.clear();
+    TDihedral.clear();
+    TCircAngle.clear();
+    TFoilPAxisX.clear();
+    TFoilPAxisZ.clear();
+    TTwist.clear();
+
+    QList<CVector> panel;
+
+    if (discType == 0){
+        for (int i=0; i<m_NPanel+1; i++){
+            TPos.append(m_TPos[i]);
+            TOffsetX.append(m_TOffsetX[i]);
+            TThickness.append(g_mainFrame->GetFoil(m_Airfoils[i])->m_fThickness);
+            TOffsetZ.append(m_TOffsetZ[i]);
+            TDihedral.append(m_TDihedral[i]);
+            TChord.append(m_TChord[i]);
+            TCircAngle.append(m_TCircAngle[i]);
+            TFoilPAxisX.append(m_TFoilPAxisX[i]);
+            TFoilPAxisZ.append(m_TFoilPAxisZ[i]);
+            TTwist.append(m_TTwist[i]);
+        }
+    }
+    else if (discType == 1){
+        for (int i=0;i<=numPanels;i++){
+            TPos.append(m_TPos[0]+(m_TPos[m_NPanel]-m_TPos[0])/(numPanels)*i);
+        }
+        for (int i=0;i<TPos.size();i++){
+            for (int j=0;j<m_NPanel;j++){
+                if (TPos.at(i) >= m_TPos[j] && TPos.at(i) < m_TPos[j+1]){
+                    TThickness.append(g_mainFrame->GetFoil(m_Airfoils[j])->m_fThickness+(TPos.at(i)-m_TPos[j])/(m_TPos[j+1]-m_TPos[j])*(g_mainFrame->GetFoil(m_Airfoils[j+1])->m_fThickness-g_mainFrame->GetFoil(m_Airfoils[j])->m_fThickness));
+                    TOffsetX.append(m_TOffsetX[j]+(TPos.at(i)-m_TPos[j])/(m_TPos[j+1]-m_TPos[j])*(m_TOffsetX[j+1]-m_TOffsetX[j]));
+                    TOffsetZ.append(m_TOffsetZ[j]+(TPos.at(i)-m_TPos[j])/(m_TPos[j+1]-m_TPos[j])*(m_TOffsetZ[j+1]-m_TOffsetZ[j]));
+                    TDihedral.append(m_TDihedral[j]+(TPos.at(i)-m_TPos[j])/(m_TPos[j+1]-m_TPos[j])*(m_TDihedral[j+1]-m_TDihedral[j]));
+                    TChord.append(m_TChord[j]+(TPos.at(i)-m_TPos[j])/(m_TPos[j+1]-m_TPos[j])*(m_TChord[j+1]-m_TChord[j]));
+                    TCircAngle.append(m_TCircAngle[j]+(TPos.at(i)-m_TPos[j])/(m_TPos[j+1]-m_TPos[j])*(m_TCircAngle[j+1]-m_TCircAngle[j]));
+                    TFoilPAxisX.append(m_TFoilPAxisX[j]+(TPos.at(i)-m_TPos[j])/(m_TPos[j+1]-m_TPos[j])*(m_TFoilPAxisX[j+1]-m_TFoilPAxisX[j]));
+                    TFoilPAxisZ.append(m_TFoilPAxisZ[j]+(TPos.at(i)-m_TPos[j])/(m_TPos[j+1]-m_TPos[j])*(m_TFoilPAxisZ[j+1]-m_TFoilPAxisZ[j]));
+                    TTwist.append(m_TTwist[j]+(TPos.at(i)-m_TPos[j])/(m_TPos[j+1]-m_TPos[j])*(m_TTwist[j+1]-m_TTwist[j]));
+                }
+            }
+        }
+        TThickness.append(g_mainFrame->GetFoil(m_Airfoils[m_NPanel])->m_fThickness);
+        TOffsetX.append(m_TOffsetX[m_NPanel]);
+        TOffsetZ.append(m_TOffsetZ[m_NPanel]);
+        TDihedral.append(m_TDihedral[m_NPanel]);
+        TChord.append(m_TChord[m_NPanel]);
+        TCircAngle.append(m_TCircAngle[m_NPanel]);
+        TFoilPAxisX.append(m_TFoilPAxisX[m_NPanel]);
+        TFoilPAxisZ.append(m_TFoilPAxisZ[m_NPanel]);
+        TTwist.append(m_TTwist[m_NPanel]);
+
+    }
+    else{
+        double pos = 0;
+        double pos2 = m_TPos[0];
+        for (int i=0;i<numPanels+1;i++)
+        {
+            pos += sin(i*PI/(numPanels+1));
+        }
+        for (int i=0;i<numPanels+1;i++)
+        {
+            pos2 += sin(i*PI/(numPanels+1))*(m_TPos[m_NPanel]-m_TPos[0])/pos;
+            TPos.append(pos2);
+        }
+
+        for (int i=0;i<TPos.size();i++){
+            for (int j=0;j<m_NPanel;j++){
+                if (TPos.at(i) >= m_TPos[j] && TPos.at(i) < m_TPos[j+1]){
+                    TOffsetX.append(m_TOffsetX[j]+(TPos.at(i)-m_TPos[j])/(m_TPos[j+1]-m_TPos[j])*(m_TOffsetX[j+1]-m_TOffsetX[j]));
+                    TThickness.append(g_mainFrame->GetFoil(m_Airfoils[j])->m_fThickness+(TPos.at(i)-m_TPos[j])/(m_TPos[j+1]-m_TPos[j])*(g_mainFrame->GetFoil(m_Airfoils[j+1])->m_fThickness-g_mainFrame->GetFoil(m_Airfoils[j])->m_fThickness));
+                    TOffsetZ.append(m_TOffsetZ[j]+(TPos.at(i)-m_TPos[j])/(m_TPos[j+1]-m_TPos[j])*(m_TOffsetZ[j+1]-m_TOffsetZ[j]));
+                    TDihedral.append(m_TDihedral[j]+(TPos.at(i)-m_TPos[j])/(m_TPos[j+1]-m_TPos[j])*(m_TDihedral[j+1]-m_TDihedral[j]));
+                    TChord.append(m_TChord[j]+(TPos.at(i)-m_TPos[j])/(m_TPos[j+1]-m_TPos[j])*(m_TChord[j+1]-m_TChord[j]));
+                    TCircAngle.append(m_TCircAngle[j]+(TPos.at(i)-m_TPos[j])/(m_TPos[j+1]-m_TPos[j])*(m_TCircAngle[j+1]-m_TCircAngle[j]));
+                    TFoilPAxisX.append(m_TFoilPAxisX[j]+(TPos.at(i)-m_TPos[j])/(m_TPos[j+1]-m_TPos[j])*(m_TFoilPAxisX[j+1]-m_TFoilPAxisX[j]));
+                    TFoilPAxisZ.append(m_TFoilPAxisZ[j]+(TPos.at(i)-m_TPos[j])/(m_TPos[j+1]-m_TPos[j])*(m_TFoilPAxisZ[j+1]-m_TFoilPAxisZ[j]));
+                    TTwist.append(m_TTwist[j]+(TPos.at(i)-m_TPos[j])/(m_TPos[j+1]-m_TPos[j])*(m_TTwist[j+1]-m_TTwist[j]));
+                }
+            }
+        }
+        TThickness.append(g_mainFrame->GetFoil(m_Airfoils[m_NPanel])->m_fThickness);
+        TOffsetX.append(m_TOffsetX[m_NPanel]);
+        TOffsetZ.append(m_TOffsetZ[m_NPanel]);
+        TDihedral.append(m_TDihedral[m_NPanel]);
+        TChord.append(m_TChord[m_NPanel]);
+        TCircAngle.append(m_TCircAngle[m_NPanel]);
+        TFoilPAxisX.append(m_TFoilPAxisX[m_NPanel]);
+        TFoilPAxisZ.append(m_TFoilPAxisZ[m_NPanel]);
+        TTwist.append(m_TTwist[m_NPanel]);
+    }
+
+
+    for (int j = 0; j < TPos.size()-1; ++j)
+    {
+            CVector PLA, PTA, PLB, PTB;
+
+            if(!isVawt){
+                PLA.x = TOffsetX[j]-TChord[j]*TFoilPAxisX[j];
+                PLB.x = TOffsetX[j+1]-TChord[j+1]*TFoilPAxisX[j+1];
+                PLA.y = TPos[j];
+                PLB.y = TPos[j+1];
+                PLA.z = TOffsetZ[j]-TChord[j]*TFoilPAxisZ[j];
+                PLB.z = TOffsetZ[j+1]-TChord[j+1]*TFoilPAxisZ[j+1];
+                PTA.x = PLA.x+TChord[j];
+                PTB.x = PLB.x+TChord[j+1];
+                PTA.y = PLA.y;
+                PTB.y = PLB.y;
+                PTA.z = PLA.z;
+                PTB.z = PLB.z;
+            }
+            else{
+                PLA.x = TChord[j]*TFoilPAxisX[j];
+                PLB.x = TChord[j+1]*TFoilPAxisX[j+1];
+                PLA.y = TPos[j];
+                PLB.y = TPos[j+1];
+                PLA.z = TOffsetX[j];
+                PLB.z = TOffsetX[j+1];
+                PTA.x = PLA.x-TChord[j];
+                PTB.x = PLB.x-TChord[j+1];
+                PTA.y = PLA.y;
+                PTB.y = PLB.y;
+                PTA.z = TOffsetX[j];
+                PTB.z = TOffsetX[j+1];
+            }
+
+            //this section interpolated between panels to compute the pitch axis that can be tilted in the y-z plane
+            CVector twistA, twistB, twist, twistb, twistf;
+            if (TPos.size() == 2){
+                if (!isVawt){
+                    twist.Set(CVector(0,TPos[j],TOffsetZ[j]-TChord[j]*TFoilPAxisZ[j])-CVector(0,TPos[j+1],TOffsetZ[j+1]-TChord[j+1]*TFoilPAxisZ[j+1]));
+                }
+                else{
+                    twist.Set(CVector(0,TPos[j],TOffsetX[j])-CVector(0,TPos[j+1],TOffsetX[j+1]));
+                }
+                twist.Normalize();
+                twistA = twist;
+                twistB = twist;
+            }
+            else if (j==0){
+                if (!isVawt){
+                    twist.Set(CVector(0,TPos[j],TOffsetZ[j]-TChord[j]*TFoilPAxisZ[j])-CVector(0,TPos[j+1],TOffsetZ[j+1]-TChord[j+1]*TFoilPAxisZ[j+1]));
+                    twistf.Set(CVector(0,TPos[j+1],TOffsetZ[j+1]-TChord[j+1]*TFoilPAxisZ[j+1])-CVector(0,TPos[j+2],TOffsetZ[j+2]-TChord[j+2]*TFoilPAxisZ[j+2]));
+                }
+                else{
+                    twist.Set(CVector(0,TPos[j],TOffsetX[j])-CVector(0,TPos[j+1],TOffsetX[j+1]));
+                    twistf.Set(CVector(0,TPos[j+1],TOffsetX[j+1])-CVector(0,TPos[j+2],TOffsetX[j+2]));
+                }
+
+                twist.Normalize();
+                twistf.Normalize();
+                twistA = twist;
+                twistB = (twist+twistf)/2;
+            }
+            else if (j==TPos.size()-2){
+                if (!isVawt){
+                    twist.Set(CVector(0,TPos[j],TOffsetZ[j]-TChord[j]*TFoilPAxisZ[j])-CVector(0,TPos[j+1],TOffsetZ[j+1]-TChord[j+1]*TFoilPAxisZ[j+1]));
+                    twistb.Set(CVector(0,TPos[j-1],TOffsetZ[j-1]-TChord[j-1]*TFoilPAxisZ[j-1])-CVector(0,TPos[j],TOffsetZ[j]-TChord[j]*TFoilPAxisZ[j]));
+                }
+                else{
+                    twist.Set(CVector(0,TPos[j],TOffsetX[j])-CVector(0,TPos[j+1],TOffsetX[j+1]));
+                    twistb.Set(CVector(0,TPos[j-1],TOffsetX[j-1])-CVector(0,TPos[j],TOffsetX[j]));
+                }
+
+                twist.Normalize();
+                twistb.Normalize();
+                twistA = (twist+twistb)/2;
+                twistB = twist;
+            }
+            else{
+                if (!isVawt){
+                    twist.Set(CVector(0,TPos[j],TOffsetZ[j]-TChord[j]*TFoilPAxisZ[j])-CVector(0,TPos[j+1],TOffsetZ[j+1]-TChord[j+1]*TFoilPAxisZ[j+1]));
+                    twistf.Set(CVector(0,TPos[j+1],TOffsetZ[j+1]-TChord[j+1]*TFoilPAxisZ[j+1])-CVector(0,TPos[j+2],TOffsetZ[j+2]-TChord[j+2]*TFoilPAxisZ[j+2]));
+                    twistb.Set(CVector(0,TPos[j-1],TOffsetZ[j-1]-TChord[j-1]*TFoilPAxisZ[j-1])-CVector(0,TPos[j],TOffsetZ[j]-TChord[j]*TFoilPAxisZ[j]));
+                }
+                else{
+                    twist.Set(CVector(0,TPos[j],TOffsetX[j])-CVector(0,TPos[j+1],TOffsetX[j+1]));
+                    twistf.Set(CVector(0,TPos[j+1],TOffsetX[j+1])-CVector(0,TPos[j+2],TOffsetX[j+2]));
+                    twistb.Set(CVector(0,TPos[j-1],TOffsetX[j-1])-CVector(0,TPos[j],TOffsetX[j]));
+                }
+
+                twist.Normalize();
+                twistf.Normalize();
+                twistb.Normalize();
+                twistA = (twist+twistb)/2;
+                twistB = (twist+twistf)/2;
+            }
+
+            CVector RotA, RotB;
+            if (!isVawt){
+            RotA = CVector(TOffsetX[j], TPos[j], TOffsetZ[j]);
+            RotB = CVector(TOffsetX[j+1], TPos[j+1], TOffsetZ[j+1]);
+            }
+            else{
+            RotA = CVector(0, TPos[j], TOffsetX[j]);
+            RotB = CVector(0, TPos[j+1], TOffsetX[j+1]);
+            }
+            ////
+
+
+            //twist sections
+            if (!isVawt){
+                PLA.Rotate(RotA,twistA, TTwist[j]);
+                PTA.Rotate(RotA,twistA, TTwist[j]);
+                PLB.Rotate(RotB,twistB, TTwist[j+1]);
+                PTB.Rotate(RotB,twistB, TTwist[j+1]);
+            }
+            else{
+                PLA.Rotate(RotA,twistA, TTwist[j]-90);
+                PTA.Rotate(RotA,twistA, TTwist[j]-90);
+                PLB.Rotate(RotB,twistB, TTwist[j+1]-90);
+                PTB.Rotate(RotB,twistB, TTwist[j+1]-90);
+            }
+
+
+            //circ angle (for vawt)
+            PLA.RotateY(TCircAngle[j]);
+            PTA.RotateY(TCircAngle[j]);
+            PLB.RotateY(TCircAngle[j+1]);
+            PTB.RotateY(TCircAngle[j+1]);
+
+
+
+        panel.clear();
+        panel.append(PLA);
+        panel.append(PLB);
+        panel.append(PTA);
+        panel.append(PTB);
+        m_PanelPoints.append(panel);
+    }
+
+}
+
 void CBlade::CreateSurfaces(bool isVawt)
 {
-	// Constructs the surface objects based on the input data
-	// The surfaces are constructed from root to tip, and re-ordered from let tip to right tip
-	// One surface object for each of the wing's panels
-	// A is the surface's left side, B is the right side
+    m_Surface.clear();
 	
-	int j, nSurf;
+    int j;
     CVector PLA, PTA, PLB, PTB;
-	CVector O(0.0,0.0,0.0);
-	CVector VNormal[MAXSPANSECTIONS+1], PitchAxis[MAXSPANSECTIONS+1], VNSide[MAXSPANSECTIONS+1];
-	double MinPanelSize;
-	
-	MinPanelSize = 0.0;
-	
-	m_NSurfaces = 0;
-	
-	//define the normal of each surface
-	nSurf=0;
-	VNormal[0].Set(0.0, 0.0, 1.0);
-	VNSide[0].Set(0.0, 0.0, 1.0);
-	VNSide[0].RotateX(O,m_TDihedral[0]);
-	
-	for(j=0; j<m_NPanel;j++)
-	{
-		if (fabs(m_TPos[j]-m_TPos[j+1]) > MinPanelSize)
-		{
-			VNormal[nSurf].Set(0.0, 0.0, 1.0);
-			VNormal[nSurf].RotateX(O, m_TDihedral[j]);
-			
-			nSurf++;
-		}
-	}
-	
+
+    CVector O(0,0,0);
+
 	///construction of the pitch axis
 	for(j=0; j<m_NPanel;j++)
-	{
-		PLA.x = m_TOffset[j];
-		PLB.x = m_TOffset[j+1];
-		PLA.y = m_TPos[j];
-		PLB.y = m_TPos[j+1];
-        PLA.z = m_TPAxisZ[j];
-        PLB.z = m_TPAxisZ[j+1]; /// changed from PLA.z = 0 to allow visualization of deformations
-		
-//		PLB.RotateX(PLA,m_TDihedral[j]); /// commented because dihedral not in use anymore
+	{	
+        m_TPAxisX[j]= m_TOffsetX[j];
+        m_TPAxisY[j]= m_TPos[j];
+        m_TPAxisX[j+1]= m_TOffsetX[j+1];
+        m_TPAxisY[j+1]= m_TPos[j+1];
+	}
+    m_NSurfaces = m_NPanel;
 
-//        if (j>0)
-//        {
-//            T1 = CVector(m_TPAxisX[j]-PLA.x,m_TPAxisY[j]-PLA.y,m_TPAxisZ[j]-PLA.z);
-//            PLB.Translate(T1);
-//            PLA.Translate(T1); //commented for visualizations of deflections
-//        }
-		
-//		PLA.RotateY(O,m_TCircAngle[j]);
-//		if (j==m_NPanel-1) PLB.RotateY(O,m_TCircAngle[j+1]);
-		
-		m_TPAxisX[j]= PLA.x;
-		m_TPAxisY[j]= PLA.y;
-        m_TPAxisZ[j]= PLA.z;
-		
-		m_TPAxisX[j+1]= PLB.x;
-		m_TPAxisY[j+1]= PLB.y;
-        m_TPAxisZ[j+1]= PLB.z;
-	}
-	
-	m_NSurfaces = nSurf;
-	
-	//define the normals at panel junctions : average between the normals of the two connecting sufaces
-	for(j=0; j<nSurf;j++)
-	{
-		VNSide[j+1] = VNormal[j]+VNormal[j+1];
-		VNSide[j+1].Normalize();
-	}
-	
-	for (int m=0;m<=m_NPanel;m++)
-	{
-        if (isVawt)
-			VNSide[m].RotateY(O, m_TCircAngle[m]);
-	}
-	
-	for(j=0; j<=nSurf;j++)
-	{
-		if (j==0)
-			PitchAxis[j] = CVector(m_TPAxisX[j+1]-m_TPAxisX[j],m_TPAxisY[j+1]-m_TPAxisY[j],m_TPAxisZ[j+1]-m_TPAxisZ[j]);
-		else if (j==nSurf)
-			PitchAxis[j] = CVector(m_TPAxisX[j]-m_TPAxisX[j-1],m_TPAxisY[j]-m_TPAxisY[j-1],m_TPAxisZ[j]-m_TPAxisZ[j-1]);
-		else
-			PitchAxis[j] = CVector(m_TPAxisX[j+1]-m_TPAxisX[j-1],m_TPAxisY[j+1]-m_TPAxisY[j-1],m_TPAxisZ[j+1]-m_TPAxisZ[j-1]);
-		
-		PitchAxis[j].Normalize();
-	}
-	
-	int is = 0;
 	for (j = 0; j < m_NPanel; ++j)
 	{
-		if (fabs(m_TPos[j]-m_TPos[j+1]) > MinPanelSize)
-		{
-			m_Surface[is].m_pFoilA = g_mainFrame->GetFoil(m_Airfoils[j]);
-			m_Surface[is].m_pFoilB = g_mainFrame->GetFoil(m_Airfoils[j+1]);
+        CSurface surface;
+
+            surface.m_pFoilA = g_mainFrame->GetFoil(m_Airfoils[j]);
+            surface.m_pFoilB = g_mainFrame->GetFoil(m_Airfoils[j+1]);
+
+            if (!isVawt){
+                PLA.x = m_TOffsetX[j]-m_TChord[j]*m_TFoilPAxisX[j];
+                PLB.x = m_TOffsetX[j+1]-m_TChord[j+1]*m_TFoilPAxisX[j+1];
+                PLA.y = m_TPos[j];
+                PLB.y = m_TPos[j+1];
+                PLA.z = m_TOffsetZ[j]-m_TChord[j]*m_TFoilPAxisZ[j];
+                PLB.z = m_TOffsetZ[j+1]-m_TChord[j+1]*m_TFoilPAxisZ[j+1];
+                PTA.x = PLA.x+m_TChord[j];
+                PTB.x = PLB.x+m_TChord[j+1];
+                PTA.y = PLA.y;
+                PTB.y = PLB.y;
+                PTA.z = PLA.z;
+                PTB.z = PLB.z;
+            }
+            else{
+                PLA.x = m_TChord[j]*m_TFoilPAxisX[j];
+                PLB.x = m_TChord[j+1]*m_TFoilPAxisX[j+1];
+                PLA.y = m_TPos[j];
+                PLB.y = m_TPos[j+1];
+                PLA.z = m_TOffsetX[j];
+                PLB.z = m_TOffsetX[j+1];
+                PTA.x = PLA.x-m_TChord[j];
+                PTB.x = PLB.x-m_TChord[j+1];
+                PTA.y = PLA.y;
+                PTB.y = PLB.y;
+                PTA.z = m_TOffsetX[j];
+                PTB.z = m_TOffsetX[j+1];
+            }
 			
-			m_Surface[is].m_Length =  m_TPos[j+1] - m_TPos[j];
+            surface.m_LA.Copy(PLA);
+            surface.m_TA.Copy(PTA);
+            surface.m_LB.Copy(PLB);
+            surface.m_TB.Copy(PTB);
+
+            surface.SetNormal();
+
+
+            if (!isVawt){
+            surface.RotA = CVector(m_TOffsetX[j], m_TPos[j], m_TOffsetZ[j]);
+            surface.RotB = CVector(m_TOffsetX[j+1], m_TPos[j+1], m_TOffsetZ[j+1]);
+            surface.TwistAxis.Set(CVector(0,m_TPos[j], m_TOffsetZ[j])-CVector(0,m_TPos[j+1], m_TOffsetZ[j+1]));
+            }
+            else{
+            surface.RotA = CVector(0, m_TPos[j], m_TOffsetX[j]);
+            surface.RotB = CVector(0, m_TPos[j+1], m_TOffsetX[j+1]);
+            surface.TwistAxis.Set(CVector(0,m_TPos[j], m_TOffsetX[j])-CVector(0,m_TPos[j+1], m_TOffsetX[j+1]));
+            }
+            surface.TwistAxis.Normalize();
+
+            surface.m_NXPanels = m_NXPanels[j];
+            surface.m_NYPanels = m_NYPanels[j];
 			
 
-			PLA.x = m_TOffset[j]-m_TChord[j]*m_TFoilPAxisX[j];
-			PLB.x = m_TOffset[j+1]-m_TChord[j+1]*m_TFoilPAxisX[j+1];
-			PLA.y = m_TPos[j];
-			PLB.y = m_TPos[j+1];
-            PLA.z = m_TPAxisZ[j]-m_TChord[j]*m_TFoilPAxisZ[j];
-            PLB.z = m_TPAxisZ[j+1]-m_TChord[j+1]*m_TFoilPAxisZ[j+1];
-			PTA.x = PLA.x+m_TChord[j];
-			PTB.x = PLB.x+m_TChord[j+1];
-			PTA.y = PLA.y;
-			PTB.y = PLB.y;
-            PTA.z = PLA.z;
-            PTB.z = PLB.z;
-			
-			m_Surface[is].m_LA.Copy(PLA);
-			m_Surface[is].m_TA.Copy(PTA);
-			m_Surface[is].m_LB.Copy(PLB);
-			m_Surface[is].m_TB.Copy(PTB);
-			
-			m_Surface[is].SetNormal(); // is (0,0,1)
-			
-			m_Surface[is].m_XPitchA  =  m_TFoilPAxisX[j];
-			m_Surface[is].m_XPitchB  =  m_TFoilPAxisX[j+1];
-			m_Surface[is].m_ZPitchA  =  m_TFoilPAxisZ[j];
-			m_Surface[is].m_ZPitchB  =  m_TFoilPAxisZ[j+1];
-			
-			m_Surface[is].m_TwistA   =  -m_TTwist[j];
-			m_Surface[is].m_TwistB   =  -m_TTwist[j+1];
-			m_Surface[is].SetTwist3(m_TFoilPAxisX[j],m_TFoilPAxisZ[j]);
-			
-			////newnew code DM
-			if(m_bIsOrtho)
-			{
-				m_Surface[is].m_VecA = CVector(PitchAxis[j]);
-				m_Surface[is].m_VecB = CVector(PitchAxis[j+1]);
-			}
-			else
-			{
-				m_Surface[is].m_VecA = CVector(0,PitchAxis[j].y,PitchAxis[j].z);
-				m_Surface[is].m_VecB = CVector(0,PitchAxis[j+1].y,PitchAxis[j+1].z);
-			}
-			
-            if (!isVawt) if (m_bIsOrtho) m_Surface[is].RotateOrtho();
-			
-			m_Surface[is].RotateX(CVector(m_TOffset[j], m_TPos[j],0), m_TDihedral[j]);
-			m_Surface[is].NormalA.Set(VNSide[is].x,   VNSide[is].y,   VNSide[is].z);
-			m_Surface[is].NormalB.Set(VNSide[is+1].x, VNSide[is+1].y, VNSide[is+1].z);
-			
-            if (!isVawt)
-			{		
-				if (j>0)
-				{
-					m_Surface[is].m_LA= m_Surface[is-1].m_LB;
-					m_Surface[is].m_TA= m_Surface[is-1].m_TB;
-				}
-			}
-			
-            if (!isVawt)
-			{
-				m_Surface[is].NormalA.Rotate(m_Surface[is].m_VecA, m_Surface[is].m_TwistA);
-				m_Surface[is].NormalB.Rotate(m_Surface[is].m_VecB, m_Surface[is].m_TwistB);
-			}
-			else
-			{
-				m_Surface[is].NormalA.RotateY(O, m_Surface[is].m_TwistA);
-				m_Surface[is].NormalB.RotateY(O, m_Surface[is].m_TwistB);
-			}
-            m_Surface[is].m_LA.RotateY(m_TCircAngle[j]);
-            m_Surface[is].m_TA.RotateY(m_TCircAngle[j]);
-            m_Surface[is].m_LB.RotateY(m_TCircAngle[j+1]);
-            m_Surface[is].m_TB.RotateY(m_TCircAngle[j+1]);
-			m_Surface[is].m_NXPanels = m_NXPanels[j];
-			m_Surface[is].m_NYPanels = m_NYPanels[j];
-			
-			//AVL coding + invert sine and -sine for left wing
-			m_Surface[is].m_XDistType = 1;
-			m_Surface[is].m_YDistType =  0;
-			m_Surface[is].CreateXPoints();
-			m_Surface[is].SetFlap();
-			m_Surface[is].Init();
-			m_Surface[is].m_bIsLeftSurf   = false;
-			m_Surface[is].m_bIsRightSurf  = true;
-			m_Surface[is].m_bIsInSymPlane = false;
-			is++;
-		}
+        m_Surface.append(surface);
+    }
 
-	}
-	m_Surface[m_NSurfaces-1].m_bIsCenterSurf = true;  // previous left center surface
-	m_Surface[m_NSurfaces].m_bIsCenterSurf = true;  // next right center surface
-	
-	m_Surface[0].m_bIsTipLeft = true;
-	if (m_NSurfaces >= 1) {
-		m_Surface[m_NSurfaces-1].m_bIsTipRight = true;
-	}
+    for (int i=0;i<m_NSurfaces;i++){
+        if (m_bIsInverted){
+            m_Surface[i].Normal *= -1;
+            m_Surface[i].NormalB *= -1;
+            m_Surface[i].NormalA *= -1;
+        }
+    }
+
+    for (int i=0;i<m_Surface.size();i++){
+        if (m_NSurfaces == 1){
+            m_Surface[i].TwistAxisA = m_Surface[i].TwistAxis;
+            m_Surface[i].TwistAxisB = m_Surface[i].TwistAxis;
+            m_Surface[i].NormalA = m_Surface[i].Normal;
+            m_Surface[i].NormalB = m_Surface[i].Normal;
+
+        }
+        else if (i == 0){
+            m_Surface[i].TwistAxisA = m_Surface[i].TwistAxis;
+            m_Surface[i].TwistAxisB = (m_Surface[i].TwistAxis+m_Surface[i+1].TwistAxis)/2;
+
+            m_Surface[i].NormalA = m_Surface[i].Normal;
+            m_Surface[i].NormalB = (m_Surface[i].Normal+m_Surface[i+1].Normal)/2;
+        }
+        else if (i==m_NSurfaces-1){
+            m_Surface[i].TwistAxisA = (m_Surface[i-1].TwistAxis+m_Surface[i].TwistAxis)/2;
+            m_Surface[i].TwistAxisB = m_Surface[i].TwistAxis;
+
+            m_Surface[i].NormalA = (m_Surface[i-1].Normal+m_Surface[i].Normal)/2;
+            m_Surface[i].NormalB = m_Surface[i].Normal;
+        }
+        else{
+            m_Surface[i].TwistAxisA = (m_Surface[i-1].TwistAxis+m_Surface[i].TwistAxis)/2;
+            m_Surface[i].TwistAxisB = (m_Surface[i].TwistAxis+m_Surface[i+1].TwistAxis)/2;
+
+            m_Surface[i].NormalA = (m_Surface[i-1].Normal+m_Surface[i].Normal)/2;
+            m_Surface[i].NormalB = (m_Surface[i].Normal+m_Surface[i+1].Normal)/2;
+        }
+
+        m_Surface[i].TwistAxisA.Normalize();
+        m_Surface[i].TwistAxisB.Normalize();
+
+        m_Surface[i].NormalA.Normalize();
+        m_Surface[i].NormalB.Normalize();
+
+
+    }
+
+    for (int i=0;i<m_NSurfaces;i++){
+
+        //pitch
+        if (!isVawt){
+        m_Surface[i].m_LA.Rotate(m_Surface[i].RotA,m_Surface[i].TwistAxisA, m_TTwist[i]);
+        m_Surface[i].m_TA.Rotate(m_Surface[i].RotA,m_Surface[i].TwistAxisA, m_TTwist[i]);
+        m_Surface[i].m_LB.Rotate(m_Surface[i].RotB,m_Surface[i].TwistAxisB, m_TTwist[i+1]);
+        m_Surface[i].m_TB.Rotate(m_Surface[i].RotB,m_Surface[i].TwistAxisB, m_TTwist[i+1]);
+        m_Surface[i].NormalA.Rotate(O,m_Surface[i].TwistAxisA, m_TTwist[i]);
+        m_Surface[i].NormalB.Rotate(O,m_Surface[i].TwistAxisB, m_TTwist[i+1]);
+        }
+        else{
+        m_Surface[i].m_LA.Rotate(m_Surface[i].RotA,m_Surface[i].TwistAxisA, m_TTwist[i]-90);
+        m_Surface[i].m_TA.Rotate(m_Surface[i].RotA,m_Surface[i].TwistAxisA, m_TTwist[i]-90);
+        m_Surface[i].m_LB.Rotate(m_Surface[i].RotB,m_Surface[i].TwistAxisB, m_TTwist[i+1]-90);
+        m_Surface[i].m_TB.Rotate(m_Surface[i].RotB,m_Surface[i].TwistAxisB, m_TTwist[i+1]-90);
+        m_Surface[i].NormalA.Rotate(O,m_Surface[i].TwistAxisA, m_TTwist[i]-90);
+        m_Surface[i].NormalB.Rotate(O,m_Surface[i].TwistAxisB, m_TTwist[i+1]-90);
+        }
+
+
+
+        m_Surface[i].m_LA.RotateY(m_TCircAngle[i]);
+        m_Surface[i].m_TA.RotateY(m_TCircAngle[i]);
+        m_Surface[i].m_LB.RotateY(m_TCircAngle[i+1]);
+        m_Surface[i].m_TB.RotateY(m_TCircAngle[i+1]);
+
+        m_Surface[i].SetNormal();
+
+        m_Surface[i].m_XDistType = 1;
+        m_Surface[i].m_YDistType =  0;
+        m_Surface[i].CreateXPoints();
+        m_Surface[i].Init();
+
+    }
+
+
+    for (int i=0;i<m_NSurfaces;i++){
+        m_Surface[i].SetSidePoints();
+    }
+
 }
 
 void CBlade::Duplicate(CBlade *pWing)
@@ -363,34 +1131,48 @@ void CBlade::Duplicate(CBlade *pWing)
     // Copies the wing data from an existing wing
 	m_Polar = pWing->m_Polar;  // NM QList is said to make a deep copy as soon as one list is changed (copy-on-write)
 	m_Airfoils = pWing->m_Airfoils;
+    m_Range = pWing->m_Range;
+    m_MultiPolars = pWing->m_MultiPolars;
+    m_PolarAssociatedFoils = pWing->m_PolarAssociatedFoils;
+    m_MinMaxReynolds = pWing->m_MinMaxReynolds;
 
-	m_blades = pWing->m_blades;
+    m_bisSinglePolar = pWing->m_bisSinglePolar;
+
+
+    m_blades        = pWing->m_blades;
     m_NPanel        = pWing->m_NPanel;
     m_PlanformSpan  = pWing->m_PlanformSpan;
-    m_objectName    = pWing->getName();
+    m_objectName    = pWing->getName();    
 
-    m_Airfoils.clear();
-    for (int i = 0; i < pWing->m_Airfoils.size(); ++i)
-    {
-    m_Airfoils.append(pWing->m_Airfoils[i]);
+//    m_Airfoils.clear();
+//    for (int i = 0; i < pWing->m_Airfoils.size(); ++i)
+//    {
+//    m_Airfoils.append(pWing->m_Airfoils[i]);
+//    }
+
+    for (int i=0;i<pWing->m_StrutList.size();i++){
+        Strut *str = new Strut;
+        str->copy(pWing->m_StrutList.at(i));
+        str->setSingleParent(this);
+        m_StrutList.append(str);
+        g_StrutStore.add(str);
     }
-
 
     for (int i = 0; i <= MAXSPANSECTIONS; ++i)
     {
         m_TChord[i]     = pWing->m_TChord[i];
         m_TPos[i]       = pWing->m_TPos[i];
-        m_TOffset[i]    = pWing->m_TOffset[i];
+        m_TOffsetX[i]    = pWing->m_TOffsetX[i];
         m_TLength[i]    = pWing->m_TLength[i];
         m_NXPanels[i]   = pWing->m_NXPanels[i] ;
         m_NYPanels[i]   = pWing->m_NYPanels[i];
-//		m_Airfoils[i]      = pWing->m_Airfoils[i];  // NM DELETE
+        m_TOffsetX[i]    = pWing->m_TOffsetX[i];
         m_TTwist[i]     = pWing->m_TTwist[i];
         m_TDihedral[i]  = pWing->m_TDihedral[i];
-        m_TCircAngle[i]     = pWing->m_TCircAngle[i];
+        m_TCircAngle[i] = pWing->m_TCircAngle[i];
         m_TPAxisX[i]    = pWing->m_TPAxisX[i];
         m_TPAxisY[i]    = pWing->m_TPAxisY[i];
-        m_TPAxisZ[i]    = pWing->m_TPAxisZ[i];
+        m_TOffsetZ[i]    = pWing->m_TOffsetZ[i];
         m_TFoilPAxisX[i]= pWing->m_TFoilPAxisX[i];
         m_TFoilPAxisZ[i]= pWing->m_TFoilPAxisZ[i];
         m_TRelPos[i]    = pWing->m_TRelPos[i];
@@ -413,6 +1195,7 @@ CFoil* CBlade::GetFoilFromStation(int k)
 
 }
 
+
 void CBlade::ScaleChord(double NewChord)
 {
 	// Scales the wing chord-wise so that the root chord is set to the NewChord value
@@ -420,7 +1203,7 @@ void CBlade::ScaleChord(double NewChord)
 	for (int i=0; i<=MAXSPANSECTIONS; i++)
 	{
 		m_TChord[i]    *= ratio;
-		m_TOffset[i]   *= ratio;
+        m_TOffsetX[i]   *= ratio;
 	}
 	ComputeGeometry();
 }
@@ -435,367 +1218,6 @@ void CBlade::ScaleSpan(double NewSpan)
 		m_TLength[i]   *= NewSpan/m_PlanformSpan;
 	}
 	ComputeGeometry();
-}
-
-
-bool CBlade::SerializeWing(QDataStream &ar, bool bIsStoring, int ProjectFormat)
-{
-    //saves or loads the wing data to the archive ar
-    int i;
-    int ArchiveFormat;  // identifies the format of the file
-	QString strong;
-
-    if(bIsStoring)
-    {	// storing code
-            if(ProjectFormat>9)             ar << 1014;// JW modification
-            else if(ProjectFormat>7)        ar << 1013;// JW modification
-            else if(ProjectFormat==6)       ar << 1010;
-            else if(ProjectFormat==5)       ar << 1009;
-            //1014 : (new code DM) added storage of m_TYRel for Circumferential Angles
-            //1013 : (new code JW) added storage of swept area and max radius
-            //1012 : (new code DM) added storage of Othogonal sections
-            //1011 : (new code DM) added storage of Hub radius
-            //1010 : added storage of alpha channel + added a provision for ints and floats
-            //1009 : QFLR5 v0.03 : added mass properties for inertia calculations
-            //1008 : QFLR5 v0.02 : Added wing description field
-            //1007 : Changed length units to m
-            //1006 : Added Wing Color v2.99-15
-            //1005 : Added Chordwise spacing (v2.99-00)
-            //1004 : corrected m_NXPanels, m_NYPanels, m_YPanelDist to int (v1.99-33)
-            //1003 : AVL Format (v1.99-18)
-            //1002 : save VLM Mesh (v1.99-12)
-            //1001 : initial format
-        WriteCString(ar, m_objectName);
-		if(ProjectFormat>=5) WriteCString(ar, "");
-
-        ar << 0; //non elliptic...
-
-        ar << 1;
-
-        ar << m_NPanel;
-
-		for (i=0; i<=m_NPanel; i++) WriteCString(ar, m_Airfoils[i]);
-		//// duplicated to keep compatibility with old format with LFoil and RFoil (RFoil was removed)
-		for (i=0; i<=m_NPanel; i++) WriteCString(ar, m_Airfoils[i]);
-        for (i=0; i<=m_NPanel; i++) ar << (float)m_TChord[i];
-        for (i=0; i<=m_NPanel; i++) ar << (float)m_TPos[i];
-        for (i=0; i<=m_NPanel; i++) ar << (float)m_TOffset[i];
-        for (i=0; i<=m_NPanel; i++) ar << (float)m_TDihedral[i];
-        for (i=0; i<=m_NPanel; i++) ar << (float)m_TTwist[i];
-
-        ar << 0.0f;
-
-        ar<<0;
-        for (i=0; i<=m_NPanel; i++) ar << m_NXPanels[i];
-        for (i=0; i<=m_NPanel; i++) ar << m_NYPanels[i];
-        for (i=0; i<=m_NPanel; i++) ar << 0;//1005
-        for (i=0; i<=m_NPanel; i++) ar << 0;
-
-        WriteCOLORREF(ar,m_WingColor);
-
-        if(ProjectFormat>=5)
-        {
-            ar << (float) 0.0;
-            ar << 0;
-        }
-        if(ProjectFormat>5)
-        {
-            ar << m_WingColor.alpha();
-            for(int i=0; i<20; i++) ar<<(float)0.0f;
-            for(int i=0; i<20; i++) ar<<0;
-        }
-
-                //new code DM///////
-                ar << (float) m_Polar.size();
-                QString polar;
-                for (i=0;i<m_Polar.size();i++)
-                {
-                polar = m_Polar.at(i);
-                WriteCString(ar, polar);
-                }
-                ar << (float) m_blades;
-
-                ar << (float) m_HubRadius;
-
-                for (i=0; i<=m_NPanel; i++)
-                {
-                    ar << (float)m_TRelPos[i];
-                }
-
-                for (i=0; i<=m_NPanel; i++)
-                {
-                    ar << (float)m_TFoilPAxisX[i];
-                    ar << (float)m_TFoilPAxisZ[i];
-                }
-
-                ar << (float) m_bIsOrtho;
-
-                //end new code DM/////////
-
-                //new code JW///////
-                ar << (float) m_sweptArea;
-                ar << (float) m_MaxRadius;
-                //end new code JW///////
-
-                for (i=0; i<=m_NPanel;i++)
-                {
-                    ar << (float) m_TCircAngle[i];
-                }
-
-        return true;
-    }
-    else
-    {
-        // loading code
-        float f;
-        int k, dummyInt;
-		QString dummyString;
-        ar >> ArchiveFormat;
-
-        if (ArchiveFormat <1001 || ArchiveFormat>1100) {
-            m_objectName = "";
-            return false;
-        }
-
-        ReadCString(ar,m_objectName);
-        if (m_objectName.length() == 0) return false;
-
-        if (ArchiveFormat >=1008)
-        {
-            ReadCString(ar, dummyString);
-        }
-
-        ar >> k;
-        if(k!=0){
-            m_objectName = "";
-            return false;
-        }
-
-        ar >> k;
-
-        ar >> m_NPanel;
-        if(m_NPanel <=0 || m_NPanel>=100)
-        {
-            m_objectName = "";
-            return false;
-        }
-		for (i=0; i<=m_NPanel; i++) ReadCString(ar, strong);
-		for (i = 0; i <= m_NPanel; i++) {
-			ReadCString(ar, strong);
-			m_Airfoils.append(strong);
-		}
-		
-        for (i=0; i<=m_NPanel; i++)
-        {
-            ar >> f; m_TChord[i]=f;
-            if (fabs(m_TChord[i]) <0.0)
-            {
-                m_objectName = "";
-                return false;
-            }
-        }
-
-        for (i=0; i<=m_NPanel; i++)
-        {
-            ar >> f; m_TPos[i]=f;
-            if (fabs(m_TPos[i]) <0.0)
-            {
-                m_objectName = "";
-                return false;
-            }
-        }
-
-        for (i=0; i<=m_NPanel; i++)
-        {
-            ar >> f; m_TOffset[i]=f;
-        }
-
-        if(ArchiveFormat<1007)
-        {
-            //convert mm to m
-            for (i=0; i<=m_NPanel; i++)
-            {
-                m_TPos[i]    /= 1000.0;
-                m_TChord[i]  /= 1000.0;
-                m_TOffset[i] /= 1000.0;
-            }
-
-        }
-        for (i=0; i<=m_NPanel; i++)
-        {
-            ar >> f; m_TDihedral[i]=f;
-        }
-        for (i=0; i<=m_NPanel; i++)
-        {
-            ar >> f; m_TTwist[i]=f;
-        }
-
-        ar >> f;
-        ar >> k;
-
-        for (i=0; i<=m_NPanel; i++)
-        {
-            if(ArchiveFormat<=1003)
-            {
-                ar >> f;
-                m_NXPanels[i] = (int)f;
-            }
-            else
-                ar >> m_NXPanels[i];
-        }
-
-        for (i=0; i<=m_NPanel; i++)
-        {
-            if(ArchiveFormat<=1003)
-            {
-                ar >> f;
-                m_NYPanels[i] = (int)f;
-            }
-            else 	ar >> m_NYPanels[i];
-        }
-        int total = 0;
-        for (i=0; i<m_NPanel; i++)
-        {
-            total += m_NYPanels[i];
-        }
-
-        if(total*2>=MAXSPANSTATIONS)
-        {
-            double ratio = MAXSPANSTATIONS/total/2.0;
-            for (i=0; i<=m_NPanel; i++)
-            {
-                m_NYPanels[i] = (int) (ratio*m_NYPanels[i]);
-            }
-        }
-
-        int spanpos = 0;
-        int vlmpanels = 0;
-        for (int l=0; l<m_NPanel; l++)
-        {
-            spanpos  += m_NYPanels[l];
-            vlmpanels +=m_NXPanels[l]*m_NYPanels[l];
-        }
-
-
-        if (ArchiveFormat >=1005)
-        {
-            for (i=0; i<=m_NPanel; i++) ar >> dummyInt;
-        }
-
-        for (i=0; i<=m_NPanel; i++)
-        {
-            ar >> dummyInt;
-        }
-
-        if(ArchiveFormat>=1006)
-        {
-            ReadCOLORREF(ar, m_WingColor);
-        }
-
-        if(ArchiveFormat>=1009)
-        {
-            ar >> f;
-            ar >> dummyInt;
-        }
-
-        if(ArchiveFormat>=1010)
-        {
-            ar >> k; m_WingColor.setAlpha(k);
-            for(int i=0; i<20; i++) ar>>f;
-            for(int i=0; i<20; i++) ar>>k;
-        }
-
-        ComputeGeometry();
-
-        //new code DM////////
-        float l,m;
-        QString polar;
-        ar >> l;
-        for (i=0;i<l;i++)
-        {
-            ReadCString(ar, polar);
-            m_Polar.append(polar);
-        }
-
-        ar >> m;
-        m_blades = (int) m;
-
-
-        if (ArchiveFormat>=1011)
-        {
-            ar >> m;
-            m_HubRadius = (double) m;
-        }
-        else
-        {
-            m_HubRadius = m_TPos[0];
-        }
-
-        if (ArchiveFormat>=1011)
-        {
-            for (i=0; i<=m_NPanel; i++)
-            {
-                ar >> f;
-                m_TRelPos[i]=f;
-            }
-        }
-        else
-        {
-        for (i=0; i<=m_NPanel; i++)
-            {
-               m_TRelPos[i]=m_TPos[i]-m_HubRadius;
-            }
-        }
-
-        if (ArchiveFormat>=1012)
-        {
-            for (i=0; i<=m_NPanel; i++)
-            {
-                ar >> f;
-                m_TFoilPAxisX[i]=f;
-                ar >> f;
-                m_TFoilPAxisZ[i]=f;
-            }
-        }
-        else
-        {
-        for (i=0; i<=m_NPanel; i++)
-            {
-                m_TFoilPAxisX[i]=0.25;
-                m_TFoilPAxisZ[i]=0;
-            }
-        }
-
-        if (ArchiveFormat>=1012)
-        {
-            ar >> f;
-            m_bIsOrtho = bool(f);
-        }
-        else m_bIsOrtho = false;
-        //////////end new code DM///////
-
-
-        /////new code JW////////
-        if (ArchiveFormat>=1013)
-        {
-            float n;
-            ar >> n;
-            m_sweptArea = (float) n;
-            ar >> n;
-            m_MaxRadius = (float) n;
-        }
-        /////end new code JW////////
-
-        if (ArchiveFormat>=1014)
-        {
-            for (i=0; i<=m_NPanel; i++)
-            {
-                ar >> f;
-                m_TCircAngle[i]=f;
-            }
-        }
-        return true;
-    }
 }
 
 void CBlade::ScaleTwist(double Twist)

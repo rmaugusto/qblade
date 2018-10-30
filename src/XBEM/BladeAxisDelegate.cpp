@@ -1,7 +1,7 @@
 /****************************************************************************
 
     BladeDelegate Class
-        Copyright (C) 2012 David Marten qblade@web.de
+        Copyright (C) 2012 David Marten david.marten@tu-berlin.de
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -31,6 +31,12 @@ QWidget *BladeAxisDelegate::createEditor(QWidget *parent, const QStyleOptionView
 		editor->setParent(parent);
         editor->setAlignment(Qt::AlignRight);
         editor->setAutomaticPrecision(m_Precision[index.column()]);
+
+        if(index.column()==0 /*|| index.column()==3*/)
+        {
+        editor->setEnabled(false);
+        }
+
         return editor;
 }
 
@@ -43,7 +49,7 @@ void BladeAxisDelegate::setEditorData(QWidget *editor, const QModelIndex &index)
         NumberEdit *floatEdit = static_cast<NumberEdit*>(editor);
         floatEdit->setValue(value);
 
-        if(index.column()==2 /*|| index.column()==3*/)
+        if(index.column()==3 /*|| index.column()==3*/)
         {
         floatEdit->setMaximum(1.0);
         floatEdit->setMinimum(-1.0);

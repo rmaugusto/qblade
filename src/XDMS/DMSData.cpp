@@ -20,12 +20,21 @@
 *****************************************************************************/
 
 #include "DMSData.h"
-#include "../XBEM/Blade.h"
+
 #include <QString>
 #include <QList>
+#include <QDebug>
+#include <QProgressDialog>
+
+#include "../XBEM/Blade.h"
 #include "../Globals.h"
 #include "../Store.h"
 #include "../Serializer.h"
+#include "../MainFrame.h"
+#include "DData.h"
+#include "../Graph/NewCurve.h"
+#include "../ColorManager.h"
+#include "../ParameterViewer.h"
 
 
 DMSData::DMSData()
@@ -53,6 +62,31 @@ DMSData::DMSData()
     m_bTipLoss = false;
     m_bVariable = false;
     m_bAspectRatio = false;
+	
+	m_windspeed = 7;
+	m_tipSpeedFrom = 1;
+	m_tipSpeedTo = 10;
+	m_tipSpeedDelta = 0.5;
+	m_windspeedFrom = 1;
+	m_windspeedTo = 20;
+	m_windspeedDelta = 0.5;
+}
+
+DMSData::DMSData(ParameterViewer<Parameter::DMSData> *viewer) {
+	m_bShowPoints = false;
+	m_bIsVisible = true;
+	m_Style = 0;
+	m_Width = 1;
+	m_bPowerLaw = false;
+	m_bConstant = false;
+	m_bLogarithmic = false;
+	exponent = 0.4;
+	roughness = 1;
+	m_bAspectRatio = false;
+
+	viewer->storeObject(this);
+
+	m_DMSName = getName();
 }
 
 DMSData::~DMSData()
@@ -62,6 +96,45 @@ DMSData::~DMSData()
 	}
 }
 
+QStringList DMSData::prepareMissingObjectMessage() {
+	if (g_dmsdataStore.isEmpty()) {
+		QStringList message = CBlade::prepareMissingObjectMessage(true);
+		if (message.isEmpty()) {
+			if (g_mainFrame->m_iApp == DMS && g_mainFrame->m_iView == BEMSIMVIEW) {
+				message = QStringList(">>> Click 'Define Simulation' to create a new DMS Simulation");
+			} else {
+				message = QStringList(">>> Click 'Define Simulation' to create a new DMS Simulation");
+			}
+		}
+		message.prepend("- No DMS Simulation in Database");
+		return message;
+	} else {
+		return QStringList();
+	}
+}
+
+QVariant DMSData::accessParameter(Parameter::DMSData::Key key, QVariant value) {
+	typedef Parameter::DMSData P;
+
+	const bool set = value.isValid();
+	switch (key) {
+	case P::Name: if(set) setName(value.toString()); else value = getName(); break;
+	case P::Rho: if(set) rho = value.toDouble(); else value = rho; break;
+	case P::Viscosity: if(set) visc = value.toDouble(); else value = visc; break;
+	case P::Discretize: if(set) elements = value.toDouble(); else value = elements; break;
+	case P::MaxIterations: if(set) iterations = value.toDouble(); else value = iterations; break;
+	case P::MaxEpsilon: if(set) epsilon = value.toDouble(); else value = epsilon; break;
+	case P::RelaxFactor: if(set) relax = value.toDouble(); else value = relax; break;
+	case P::TipLoss: if(set) m_bTipLoss = value.toBool(); else value = m_bTipLoss; break;
+	case P::VariableInduction: if(set) m_bVariable = value.toBool(); else value = m_bVariable; break;
+	case P::TipSpeedFrom: if(set) m_tipSpeedFrom = value.toDouble(); else value = m_tipSpeedFrom; break;
+	case P::TipSpeedTo: if(set) m_tipSpeedTo = value.toDouble(); else value = m_tipSpeedTo; break;
+	case P::TipSpeedDelta: if(set) m_tipSpeedDelta = value.toDouble(); else value = m_tipSpeedDelta; break;
+	case P::Windspeed: if(set) m_windspeed = value.toDouble(); else value = m_windspeed; break;
+	}
+
+	return (set ? QVariant() : value);
+}
 
 void DMSData::Clear()
 {
@@ -79,11 +152,15 @@ void DMSData::Clear()
     m_Cm1.clear();
     m_Cm2.clear();
     m_Kp.clear();
-
+    m_P.clear();
+    m_T.clear();
+    m_V.clear();
+    m_Omega.clear();
+    m_Thrust.clear();
 }
 
 
-void DMSData::Compute(DData *pDData, CBlade *pWing, double lambda, double pitch)
+void DMSData::Compute(DData *pDData, CBlade *pWing, double lambda, double inflowspeed)
 {
 
     pDData->elements = elements;
@@ -93,31 +170,25 @@ void DMSData::Compute(DData *pDData, CBlade *pWing, double lambda, double pitch)
     pDData->m_bAspectRatio = m_bAspectRatio;
     pDData->m_bVariable = m_bVariable;
 
-    /*
-    pDData->m_bRootLoss = m_bRootLoss;
-    pDData->m_b3DCorrection = m_b3DCorrection;
-    pDData->m_bInterpolation = m_bInterpolation;
-    pDData->m_bNewRootLoss = m_bNewRootLoss;
-    pDData->m_bNewTipLoss = m_bNewTipLoss;
-    */
     pDData->relax = relax;
     pDData->rho = rho;
     pDData->visc = visc;
     pDData->Toff = 0;
-    pDData->windspeed = 0;
 
     pDData->bPowerLaw = m_bPowerLaw;
     pDData->bConstant = m_bConstant;
     pDData->bLogarithmic = m_bLogarithmic;
     pDData->exponent = exponent;
     pDData->roughness = roughness;
+    pDData->windspeed = inflowspeed;
 
-	pDData->Init(pWing,lambda,pitch);
-	pDData->OnDMS();
+    pDData->Init(pWing,lambda,0);
+    pDData->OnDMS(pWing);
+
+    double rot = lambda / pWing->m_MaxRadius *60 / 2 / PI * inflowspeed;
 
     if (!pDData->m_bBackflow)
     {
-
         m_DData.append(pDData);
         m_Cp.append(pDData->cp);
         m_Cp1.append(pDData->cp1);
@@ -129,146 +200,39 @@ void DMSData::Compute(DData *pDData, CBlade *pWing, double lambda, double pitch)
         m_Cm2.append(pDData->cm2);
         m_w.append(pDData->w);
         m_Kp.append(pDData->cp / pow(pDData->lambda_global, 3));
-
-
+        m_Omega.append(rot);
+        m_P.append(pDData->power);
+        m_T.append(pDData->torque);
+        m_Thrust.append(pDData->thrust);
+        m_V.append(inflowspeed);
     }
 
-}
-
-
-void DMSData::Serialize(QDataStream &ar, bool bIsStoring, int /*ArchiveFormat*/)
-{
-    int i,n,j;
-    float f;
-
-    if (bIsStoring)
-    {
-        n= (int) m_Cp.size();
-
-        if (m_bIsVisible)  ar<<1; else ar<<0;
-        if (m_bShowPoints) ar<<1; else ar<<0;
-        ar << (int) m_Style;
-        ar << (int) m_Width;
-        ar << (float) elements;
-        ar << (float) rho;
-        ar << (float) epsilon;
-        ar << (float) iterations;
-        ar << (float) relax;
-        ar << (float) visc;
-        ar << (float) exponent;
-        ar << (float) roughness;
-
-        if (m_bTipLoss) ar << 1; else ar<<0;
-        if (m_bAspectRatio) ar << 1; else ar<<0;
-        if (m_bVariable) ar << 1; else ar<<0;
-        if (m_bConstant) ar << 1; else ar<<0;
-        if (m_bPowerLaw) ar << 1; else ar<<0;
-        if (m_bLogarithmic) ar << 1; else ar<<0;
-
-        WriteCOLORREF(ar,m_Color);
-        WriteCString(ar, m_WingName);
-        WriteCString(ar, m_DMSName);
-
-        ar << (int) n;
-        for (i=0;i<n;i++)
-        {
-            ar << (float) m_Cp[i] << (float) m_Cp1[i] << (float) m_Cp2[i];
-            ar << (float) m_Cm[i] << (float) m_Cm1[i] << (float) m_Cm2[i];
-            ar << (float) m_Lambda[i] << (float) m_one_over_Lambda[i] << (float) m_Kp[i];
-        }
-        for (i=0;i<n;i++)
-        {
-            m_DData.at(i)->Serialize(ar,bIsStoring);
-        }
-
-    }
-    else
-    {
-
-        ar >> f;
-        if (f) m_bIsVisible = true; else m_bIsVisible = false;
-        ar >> f;
-        if (f) m_bShowPoints = true; else m_bShowPoints = false;
-        ar >> j;
-        m_Style = j;
-        ar >> j;
-        m_Width = j;
-        ar >> f;
-        elements = f;
-        ar >> f;
-        rho = f;
-        ar >> f;
-        epsilon = f;
-        ar >> f;
-        iterations = f;
-        ar >> f;
-        relax = f;
-        ar >> f;
-        visc = f;
-        ar >> f;
-        exponent = f;
-        ar >> f;
-        roughness = f;
-
-        ar >> f;
-        if (f) m_bTipLoss = true; else m_bTipLoss = false;
-        ar >> f;
-        if (f) m_bAspectRatio = true; else m_bAspectRatio = false;
-        ar >> f;
-        if (f) m_bVariable = true; else m_bVariable = false;
-        ar >> f;
-        if (f) m_bConstant = true; else m_bConstant = false;
-        ar >> f;
-        if (f) m_bPowerLaw = true; else m_bPowerLaw = false;
-        ar >> f;
-        if (f) m_bLogarithmic = true; else m_bLogarithmic = false;
-
-        ReadCOLORREF(ar,m_Color);
-        ReadCString(ar,m_WingName);
-//		setParentName(m_WingName);  // NM REPLACE
-		setSingleParent(g_verticalRotorStore.getObjectByNameOnly(m_WingName));  // only needed for downwards compatibility
-        ReadCString(ar,m_DMSName);
-		setName(m_DMSName);
-
-        ar >> n;
-
-        for (i=0;i<n;i++)
-        {
-            ar >> f;
-            m_Cp.append(f);
-            ar >> f;
-            m_Cp1.append(f);
-            ar >> f;
-            m_Cp2.append(f);
-            ar >> f;
-            m_Cm.append(f);
-            ar >> f;
-            m_Cm1.append(f);
-            ar >> f;
-            m_Cm2.append(f);
-            ar >> f;
-            m_Lambda.append(f);
-            ar >> f;
-            m_one_over_Lambda.append(f);
-            ar >> f;
-            m_Kp.append(f);
-        }
-
-        for (i=0;i<n;i++)
-        {
-            DData *pDData = new DData;
-            pDData->Serialize(ar,bIsStoring);
-            m_DData.append(pDData);
-        }
-
-	}
 }
 
 void DMSData::serialize() {
 	StorableObject::serialize();
-	
+    if (g_serializer.getArchiveFormat() >= 100052) {
+		ShowAsGraphInterface::serialize();
+	}
+
 	g_serializer.readOrWriteString (&m_WingName);
 	g_serializer.readOrWriteString (&m_DMSName);
+
+    if (g_serializer.getArchiveFormat() >= 100027) {
+		g_serializer.readOrWriteDoubleList1D (&m_P);
+		g_serializer.readOrWriteDoubleList1D (&m_T);
+		g_serializer.readOrWriteDoubleList1D (&m_V);
+		g_serializer.readOrWriteDoubleList1D (&m_Omega);
+		g_serializer.readOrWriteDoubleList1D (&m_Thrust);
+    } else if (g_serializer.isReadMode() && g_serializer.getArchiveFormat() < 100027){
+      for (int i=0;i<m_Cp.size();i++){
+          m_P.append(0);
+          m_T.append(0);
+          m_V.append(0);
+          m_Omega.append(0);
+          m_Thrust.append(0);
+      }
+    }
 	
 	g_serializer.readOrWriteDoubleList1D (&m_Cp);
 	g_serializer.readOrWriteDoubleList1D (&m_Cp1);
@@ -315,23 +279,115 @@ void DMSData::serialize() {
 	g_serializer.readOrWriteBool (&m_bTipLoss);
 	g_serializer.readOrWriteBool (&m_bVariable);
 	g_serializer.readOrWriteBool (&m_bAspectRatio);
+	
+	if (g_serializer.getArchiveFormat() >= 100032) {
+		g_serializer.readOrWriteDouble (&m_windspeedFrom);
+		g_serializer.readOrWriteDouble (&m_windspeedTo);
+		g_serializer.readOrWriteDouble (&m_windspeedDelta);
+	}
 }
 
 void DMSData::restorePointers() {
-	StorableObject::restorePointers();
-	
-	DData *dData;
-	for (int i = 0; i < m_DData.size(); ++i) {
-		dData = m_DData[i];
-		for (int j = 0; j < dData->m_PolarPointers.size(); ++j) {
-			g_serializer.restorePointer (reinterpret_cast<StorableObject**> (&dData->m_PolarPointers[j]));	
+	StorableObject::restorePointers();  // TODO more here?
+}
+
+QStringList DMSData::getAvailableVariables(NewGraph::GraphType graphType) {
+	QStringList variables;
+
+	switch (graphType) {  // WARNING: when changing any variables list, change newCurve as well!
+	case NewGraph::TurbineRotor:
+		variables << "Cp" << "Cp upwind" << "Cp downwind" << "Cm" << "Cm upwind" << "Cm downwind" << "Kp" <<
+					 "Tip Speed Ratio" << "1 / Tip Speed Ratio" << "Power" << "Thrust" << "Torque" <<
+					 "Rotational Speed" << "Windspeed";
+		break;
+	default:
+		break;
+	}
+
+	return variables;
+}
+
+NewCurve *DMSData::newCurve(QString xAxis, QString yAxis, NewGraph::GraphType graphType) {
+	if (xAxis == "" || yAxis == "" || !hasResults())
+		return NULL;
+
+	QList<double> xList, yList;
+	switch (graphType) {
+	case NewGraph::TurbineRotor:
+	{
+		for (int i = 0; i < 2; ++i) {
+			const int index = getAvailableVariables(graphType).indexOf(i == 0 ? xAxis : yAxis);
+			QList<double>* list = (i == 0 ? &xList : &yList);
+
+			switch (index) {
+			case  0: *list = m_Cp; break;
+			case  1: *list = m_Cp1; break;
+			case  2: *list = m_Cp2; break;
+			case  3: *list = m_Cm; break;
+			case  4: *list = m_Cm1; break;
+			case  5: *list = m_Cm2; break;
+			case  6: *list = m_Kp; break;
+			case  7: *list = m_Lambda; break;
+			case  8: *list = m_one_over_Lambda; break;
+			case  9: *list = m_P; break;
+			case 10: *list = m_Thrust; break;
+			case 11: *list = m_T; break;
+			case 12: *list = m_Omega; break;
+			case 13: *list = m_V; break;
+			default: return NULL;
+			}
 		}
-		for (int j = 0; j < dData->m_PolarPointersTO.size(); ++j) {
-			g_serializer.restorePointer (reinterpret_cast<StorableObject**> (&dData->m_PolarPointersTO[j]));	
+
+		NewCurve *curve = new NewCurve(this);
+		// dimension can be taken from any list (here m_Lambda.size()), it's all the same
+		curve->setAllPoints(xList.toVector().data(), yList.toVector().data(), m_Lambda.size());
+		return curve;
+	}
+	default:
+		return NULL;
+	}
+}
+
+void DMSData::startSimulation() {  // NM copied from QDMS::OnStartRotorSimulation
+	const int times = int((m_tipSpeedTo-m_tipSpeedFrom)/m_tipSpeedDelta);
+
+	QProgressDialog progress("", "Abort DMS", 0, times, g_mainFrame);
+	progress.setModal(true);
+
+	CBlade *blade = static_cast<CBlade*> (getParent());
+
+	for (int i = 0; i <= times; ++i) {
+		if (progress.wasCanceled())
+			break;
+
+		QString curlambda;
+		curlambda.sprintf("%.2f", m_tipSpeedFrom + i*m_tipSpeedDelta);
+		QString text = "Compute DMS for Lambda " + curlambda;
+		progress.setLabelText(text);
+		progress.setValue(i);
+
+		DData *data = new DData (m_objectName);
+		Compute(data, blade, m_tipSpeedFrom + i*m_tipSpeedDelta, m_windspeed);  // NM appends data to m_DData
+
+		if (!data->m_bBackflow) {
+			data->m_Color = g_mainFrame->GetColor(15);  // old DMS
+			data->pen()->setColor(g_colorManager.getColor(m_DData.size()-1));
 		}
 	}
 }
 
+QPen DMSData::doGetPen (int curveIndex, int highlightedIndex, bool forTheDot) {
+	if (highlightedIndex == -1) {  // in case of "only one curve"
+		return m_pen;
+	} else {
+		QPen pen (m_pen);
+		pen.setColor(g_colorManager.getColor(curveIndex));
+		if (curveIndex == highlightedIndex && !forTheDot) {
+			pen.setWidth(pen.width()+2);
+		}
+		return pen;
+	}
+}
 
 DMSData* DMSData::newBySerialize() {
 	DMSData* dmsData = new DMSData ();

@@ -2,6 +2,8 @@
 
 #include <QComboBox>
 #include <QDebug>
+#include <QMessageBox>
+
 #include <typeinfo>
 
 #include "StorableObject_heirs.h"
@@ -9,14 +11,28 @@
 #include "GlobalFunctions.h"
 #include "Serializer.h"
 
+/* this is the "sorting" rule for the storable objects (comparison of lower case strings) */
+bool compareAlphabetically (StorableObject *T1, StorableObject *T2) {
+    return T1->getName().toLower() < T2->getName().toLower();
+}
+
+/* try to sort numerically, if not possible fall back to lower case string comparison */
+bool compareNumerically (StorableObject *T1, StorableObject *T2) {
+    bool c1, c2;
+    double v1 = T1->getName().toDouble(&c1);
+    double v2 = T2->getName().toDouble(&c2);
+    if (c1 && c2) return v1 < v2;
+    else return compareAlphabetically(T1, T2);
+}
 
 StoreBase::StoreBase (StoreBase *parentStore, StoreBase *anotherParentStore) {
 	if (parentStore) {
 		parentStore->addChildStore(this);
-		if (anotherParentStore) {
-			anotherParentStore->addChildStore(this);
-		}
+        if (anotherParentStore) {
+            anotherParentStore->addChildStore(this);
+        }
 	}
+
 }
 
 void StoreBase::addChildStore(StoreBase *childStore) {
@@ -24,10 +40,14 @@ void StoreBase::addChildStore(StoreBase *childStore) {
 }
 
 template <class T>
-Store<T>::Store(bool sameNameAllowed, StoreBase *parentStore, StoreBase *anotherParentStore)
+Store<T>::Store(bool sameNameAllowed, StoreBase *parentStore, StoreBase *anotherParentStore, bool sort, SortType sortType)
 	: StoreBase (parentStore, anotherParentStore)
 {
 	m_sameNameAllowed = sameNameAllowed;
+    m_locked = false;
+    m_sort = sort;
+    m_sortType = sortType;
+    m_lockMessage = "Store is locked!\n- Cannot add or remove objects";
 }
 
 template <class T>
@@ -36,6 +56,27 @@ Store<T>::~Store() {
 	for (int i = 0; i < m_objectList.size(); ++i) {
 		delete m_objectList.at(i);
 	}
+}
+
+template <class T>
+bool Store<T>::isLocked() {
+	if (m_locked) {
+		QMessageBox::critical(g_mainFrame, tr("Warning"), m_lockMessage, QMessageBox::Ok);
+		return true;
+	}
+	return false;
+}
+
+template <class T>
+void Store<T>::sortStore() {
+	if (m_sort) {
+		switch (m_sortType) {
+		case ALPHABETICALLY: qSort(m_objectList.begin(), m_objectList.end(), compareAlphabetically);
+			break;
+		case NUMERICALLY: qSort(m_objectList.begin(), m_objectList.end(), compareNumerically);
+			break;
+		}
+    }	
 }
 
 template <class T>
@@ -58,12 +99,13 @@ bool Store<T>::add(T *newObject, int position) {
 	if (nameExists) {
 		nameExists = ! rename (newObject);
 	}
-
 	if (! nameExists) {
 		if (position == -1) {
-			m_objectList.append(newObject);			
+            m_objectList.append(newObject);
+			sortStore();
 		} else {
-			m_objectList.insert(position, newObject);			
+            m_objectList.insert(position, newObject);
+			sortStore();
 		}
 		if (isSignalEnabled()) {
 			emit objectListChanged(true);
@@ -77,28 +119,33 @@ bool Store<T>::add(T *newObject, int position) {
 
 template <class T>
 void Store<T>::remove (T *objectToRemove) {
+    if (isLocked()) { return; }
 	for (int i = 0; i < m_childStoreList.size(); ++i) {	 // first remove the children of the object
 		m_childStoreList.at(i)->removeAllWithParent(objectToRemove);
 	}
 	
-//	qDebug() << "lösche: " << objectToRemove->getName();
-	delete objectToRemove;
 	m_objectList.removeOne(objectToRemove);
 	if (isSignalEnabled()) {
 		emit objectListChanged(true);
 	}
+
+	/* the actual deletion must be in the end, so that references can be cut as reaction to the objectListChanged signal */
+	objectToRemove->deleteLater();
 }
 
 template <class T>
 void Store<T>::removeAt (int indexToRemove) {
+    if (isLocked()) { return; }
 	remove (at(indexToRemove));
 }
 
 template <class T>
 void Store<T>::replace (T *objectToRemove, T *newObject) {
+    if (isLocked()) { delete newObject; return; }
 	int index = m_objectList.indexOf(objectToRemove);
 	delete m_objectList.at(index);
 	m_objectList.replace(index, newObject);
+	sortStore();
 }
 
 template <class T>
@@ -106,6 +153,8 @@ bool Store<T>::rename (T *objectToRename, QString newName) {
 	if (newName != "") {
 		if (! isNameExisting(newName, objectToRename->getParent())) {
 			objectToRename->setName (newName);
+			sortStore();
+
 			return true;
 		}
 	}
@@ -123,6 +172,7 @@ bool Store<T>::rename (T *objectToRename, QString newName) {
 	} else if (response == RenameDialog<T>::DontSave) {
 		renamed = false;
 	} else if (response == RenameDialog<T>::Overwrite) {
+        if (isLocked()) { return false; }
 		T* objectToOverwrite = getObjectByName (dialog->getNewName(), objectToRename->getParent());
 		disableSignal();
 		remove (objectToOverwrite);
@@ -133,8 +183,11 @@ bool Store<T>::rename (T *objectToRename, QString newName) {
 		}
 		renamed = true;
 	}
-		
 	delete dialog;
+	
+	if (renamed) {
+		sortStore();
+	}
 	return renamed;
 }
 
@@ -146,6 +199,11 @@ T* Store<T>::at (int position) {
 template <class T>
 int Store<T>::size () {
 	return m_objectList.size();
+}
+
+template <class T>
+bool Store<T>::isEmpty() {
+	return m_objectList.isEmpty();
 }
 
 template <class T>
@@ -179,6 +237,20 @@ bool Store<T>::isNameExisting(T *object) {
 }
 
 template <class T>
+QString Store<T>::getNextName(QString baseName) {
+	int maxNumber = 0;
+	foreach (T* object, m_objectList) {
+		if (object->getName() == baseName) {
+			maxNumber = std::max(maxNumber, 2);
+		} else if (object->getName().startsWith(baseName)) {
+			const int number = object->getName().split('(').last().remove(')').toInt();
+			maxNumber = std::max(maxNumber, number + 1);
+		}
+	}
+	return (maxNumber < 2) ? baseName : QString ("%1 (%2)").arg(baseName).arg(maxNumber);
+}
+
+template <class T>
 void Store<T>::serializeContent() {
 	disableSignal();
 	
@@ -197,6 +269,34 @@ void Store<T>::serializeContent() {
 	}
 	
 	enableSignal();
+}
+
+template <class T>
+void Store<T>::addAllCurves(QList<NewCurve*> *curves, QString xAxis, QString yAxis, NewGraph::GraphType graphType) {
+	/* Since template specialization for "all classes that inherit X" is complicated before C++11, a dynamic cast
+	 * is used here. */
+	for (int i = 0; i < m_objectList.size(); ++i) {
+		ShowAsGraphInterface *object = dynamic_cast<ShowAsGraphInterface*>(m_objectList[i]);
+		if (object && object->isShownInGraph()) {
+			NewCurve *curve = object->newCurve(xAxis, yAxis, graphType);
+			if (curve) {
+				curves->append(curve);
+			}
+		}
+	}
+}
+
+template <class T>
+void Store<T>::showAllCurves(bool show, ShowAsGraphInterface *showThisObject) {
+	for (int i = 0; i < m_objectList.size(); ++i) {
+		ShowAsGraphInterface *object = dynamic_cast<ShowAsGraphInterface*>(m_objectList[i]);
+		if (object) {
+			object->setShownInGraph(show);			
+		}
+    }
+	if (showThisObject) {  // for "Show Curent Only"
+		showThisObject->setShownInGraph(true);
+	}
 }
 
 template <class T>
@@ -237,7 +337,12 @@ template class Store<CDMSData>;
 template class Store<OpPoint>;
 template class Store<BladeStructureLoading>;
 template class Store<QLLTSimulation>;
+template class Store<QLLTCutPlane>;
 template class Store<NoiseSimulation>;
+template class Store<Strut>;
+
+//dont forget to add RenameDialog<Strut> to XWidgets for the Rename Dialog...
+
 
 WindFieldStore g_windFieldStore (false);
 AirfoilStore g_foilStore (false);
@@ -247,17 +352,19 @@ RotorStore g_rotorStore (false, &g_360PolarStore);
 VerticalRotorStore g_verticalRotorStore (false, &g_360PolarStore);
 BladeStructureStore g_bladeStructureStore (true, &g_rotorStore);
 FASTSimulationStore g_FASTSimulationStore (false, &g_windFieldStore, &g_bladeStructureStore);
-TDataStore g_tdataStore (true, &g_rotorStore);
-TDataStore g_verttdataStore (true, &g_verticalRotorStore);
+TDataStore g_tdataStore (false, &g_rotorStore);
+TDataStore g_verttdataStore (false, &g_verticalRotorStore);
 BEMDataStore g_bemdataStore (true, &g_rotorStore);
 TBEMDataStore g_tbemdataStore (true, &g_tdataStore);
 CBEMDataStore g_cbemdataStore (true, &g_rotorStore);
 DMSDataStore g_dmsdataStore (true, &g_verticalRotorStore);
 TDMSDataStore g_tdmsdataStore (true, &g_verttdataStore);
 CDMSDataStore g_cdmsdataStore (true, &g_verticalRotorStore);
-OpPointStore g_oppointStore (true, &g_polarStore);
+OpPointStore g_oppointStore (true, &g_polarStore, NULL, true, StoreBase::NUMERICALLY);
 BladeStructureLoadingStore g_bladestructureloadingStore (true, &g_bladeStructureStore);
-QLLTVAWTSimulationStore g_QLLTVAWTSimulationStore(false, &g_verticalRotorStore);
-QLLTHAWTSimulationStore g_QLLTHAWTSimulationStore(false, &g_rotorStore);
-NoiseSimulationStore g_NoiseSimulationStore(false, &g_rotorStore);
+QLLTVAWTSimulationStore g_QLLTVAWTSimulationStore(false, &g_verticalRotorStore, &g_windFieldStore);
+QLLTHAWTSimulationStore g_QLLTHAWTSimulationStore(false, &g_rotorStore, &g_windFieldStore);
+QLLTCutPlaneStore g_QLLTCutPlaneStore(false, &g_QLLTVAWTSimulationStore, &g_QLLTHAWTSimulationStore, false);
+NoiseSimulationStore g_noiseSimulationStore(false, &g_oppointStore);
+StrutStore g_StrutStore(true, &g_verticalRotorStore, &g_360PolarStore, false);
 

@@ -1,15 +1,47 @@
-#include "QLLTToolBar.h"
+/****************************************************************************
 
+    QLLTToolBar Class
+        Copyright (C) 2015 David Marten david.marten@tu-berlin.de
+
+    This program is free software; you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation; either version 2 of the License, or
+    (at your option) any later version.
+
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with this program; if not, write to the Free Software
+    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+
+*****************************************************************************/
+
+#include "QLLTToolBar.h"
+#include <QLabel>
 #include <QAction>
 #include <QGroupBox>
 #include <QGridLayout>
+#include <QMainWindow>
 #include "../Store.h"
 #include "../StoreAssociatedComboBox.h"
-#include <QMainWindow>
+#include "QLLTSimulation.h"
+#include "QLLTDock.h"
+
 
 QLLTToolBar::QLLTToolBar(QMainWindow *parent, QLLTModule *module)
 {
+	setObjectName("QLLTToolbar");
+	
     m_module = module;
+    m_QLLTThread = NULL;
+
+    QRect rec = QApplication::desktop()->screenGeometry();
+    int width = rec.width();
+    setIconSize(QSize(width*0.025,width*0.025));
+
 
     GLView = new QAction(QIcon(":/images/3dview.png"), tr("3D OpenGL View"), this);
     GLView->setCheckable(true);
@@ -27,57 +59,197 @@ QLLTToolBar::QLLTToolBar(QMainWindow *parent, QLLTModule *module)
     addAction(TwoDView);
     addSeparator();
 
-    QGroupBox *groupBox = new QGroupBox (tr("LLT Simulation"));
-    m_LLTSimulationComboBox = new LLTSimulationComboBox(&g_QLLTHAWTSimulationStore);
-    m_LLTSimulationComboBox->setSizeAdjustPolicy(QComboBox::AdjustToContents);
-    m_LLTSimulationComboBox->setMinimumWidth(170);
-    connect (m_LLTSimulationComboBox, SIGNAL(valueChanged(int)), m_module, SLOT(OnSelChangeLLTSimulation()));
+    QGroupBox *groupbox = new QGroupBox (tr("LLT HAWT Simulation"));
+    m_LLTHAWTSimulationComboBox = new LLTSimulationComboBox(&g_QLLTHAWTSimulationStore);
+    m_LLTHAWTSimulationComboBox->setSizeAdjustPolicy(QComboBox::AdjustToContents);
+    m_LLTHAWTSimulationComboBox->setMinimumWidth(170);
+    connect (m_LLTHAWTSimulationComboBox, SIGNAL(valueChanged(int)), m_module, SLOT(OnSelChangeLLTSimulation()));
     QGridLayout *grid = new QGridLayout ();
-    grid->addWidget(m_LLTSimulationComboBox, 0, 0);
-    groupBox->setLayout(grid);
-    addWidget(groupBox);
+    grid->addWidget(m_LLTHAWTSimulationComboBox, 0, 0);
+    groupbox->setLayout(grid);
+    HAWTBox = addWidget(groupbox);
+
+    groupbox = new QGroupBox (tr("LLT VAWT Simulation"));
+    m_LLTVAWTSimulationComboBox = new LLTSimulationComboBox(&g_QLLTVAWTSimulationStore);
+    m_LLTVAWTSimulationComboBox->setSizeAdjustPolicy(QComboBox::AdjustToContents);
+    m_LLTVAWTSimulationComboBox->setMinimumWidth(170);
+    connect (m_LLTVAWTSimulationComboBox, SIGNAL(valueChanged(int)), m_module, SLOT(OnSelChangeVAWTLLTSimulation()));
+    grid = new QGridLayout ();
+    grid->addWidget(m_LLTVAWTSimulationComboBox, 0, 0);
+    groupbox->setLayout(grid);
+    VAWTBox = addWidget(groupbox);
+
+    groupbox = new QGroupBox (tr("Time"));
+    m_Timesteps = new QSlider;
+    m_Timesteps->setOrientation(Qt::Horizontal);
+    m_Timesteps->setEnabled(false);
+
+    m_TimeLabel = new QLabel("");
+
+    grid = new QGridLayout ();
+
+    m_startReplay = new QPushButton("Replay");
+    m_DelayBox = new QDoubleSpinBox;
+    m_DelayBox->setMinimum(0.0);
+    m_DelayBox->setSingleStep(0.01);
+    m_DelayBox->setVisible(false);
+    grid->addWidget(m_startReplay, 0, 0);
+    grid->addWidget(m_DelayBox, 0, 1);
+    grid->addWidget(m_TimeLabel, 0, 2);
+    grid->addWidget(m_Timesteps, 0, 3);
+    groupbox->setLayout(grid);
+    addWidget(groupbox);
 
     parent->addToolBar(this);
     hide();
+    connect(m_startReplay, SIGNAL(clicked()), this, SLOT(onStartReplay()));
+
+
+
+    connect(&g_QLLTHAWTSimulationStore, SIGNAL(objectListChanged(bool)), m_module, SLOT(OnSelChangeLLTSimulation()));
+    connect(&g_QLLTVAWTSimulationStore, SIGNAL(objectListChanged(bool)), m_module, SLOT(OnSelChangeVAWTLLTSimulation()));
+
+
+}
+
+void QLLTToolBar::onStartReplay(){
+    m_DelayBox->setVisible(true);
+    m_startReplay->setText("Stop");
+    m_module->GetQLLTDock()->onReplayStarted();
+    disconnect(m_startReplay, SIGNAL(clicked()), this, SLOT(onStartReplay()));
+    connect(m_startReplay, SIGNAL(clicked()), m_module, SLOT(OnStopReplay()));
+    connect(m_startReplay, SIGNAL(clicked()), this, SLOT(onStopReplay()));
+
+    m_QLLTThread =  new QLLTThread ();
+    m_QLLTThread->simulation = m_module->GetQLLTSim();
+    connect(m_QLLTThread, SIGNAL(finished()), m_QLLTThread, SLOT(deleteLater()), Qt::QueuedConnection);
+    m_QLLTThread->start();
+
+}
+
+void QLLTToolBar::onStopReplay(){
+    m_DelayBox->setVisible(false);
+    m_startReplay->setText("Replay");
+    m_module->GetQLLTDock()->onReplayStopped();
+
+    connect(m_startReplay, SIGNAL(clicked()), this, SLOT(onStartReplay()));
+    disconnect(m_startReplay, SIGNAL(clicked()), m_module, SLOT(OnStopReplay()));
+    disconnect(m_startReplay, SIGNAL(clicked()), this, SLOT(onStopReplay()));
+
+    m_QLLTThread = NULL;
+}
+
+void QLLTToolBar::OnTimeSliderChanged(){
+    if (!m_module->GetQLLTSim()) return;
+    if (!m_module->GetQLLTSim()->hasStoredData()) return;
+
+    if (m_module->GetQLLTSim()->getIsVawt())
+		m_LLTVAWTSimulationComboBox->currentObject()->setShownTimeIndex(m_Timesteps->value());
+    if (!m_module->GetQLLTSim()->getIsVawt())
+		m_LLTHAWTSimulationComboBox->currentObject()->setShownTimeIndex(m_Timesteps->value());
+
+    if (m_module->GetQLLTSim()->getStoreWake())
+		m_module->forceReRender();
+
+    setShownTimeForAllSimulations();
+
+    QString strong;
+    m_TimeLabel->setText(strong.number(m_module->GetQLLTSim()->getResultsArray().at(0)->at(m_Timesteps->value()),'f',3) +
+						 " [s]");
+
+	m_module->reloadBladeGraphs();
+	
+	if (m_module->GetQLLTSim()->getStoreWake()) {
+		m_module->OnRenderCutPlanes();
+	}
+}
+
+void QLLTToolBar::DisableBoxes(){
+    m_LLTVAWTSimulationComboBox->setEnabled(false);
+    m_LLTHAWTSimulationComboBox->setEnabled(false);
+    m_Timesteps->setEnabled(false);
+    m_startReplay->setEnabled(false);
+}
+
+void QLLTToolBar::EnableBoxes(){
+    m_LLTVAWTSimulationComboBox->setEnabled(g_QLLTVAWTSimulationStore.size());
+    m_LLTHAWTSimulationComboBox->setEnabled(g_QLLTHAWTSimulationStore.size());
+    m_Timesteps->setEnabled(true);
+    if (m_module->GetQLLTSim()){
+        if (m_module->GetQLLTSim()->getStoreWake() && m_module->GetQLLTSim()->hasStoredData()) m_startReplay->setEnabled(true);
+    }
+}
+
+
+void QLLTToolBar::OnHAWTView(){
+    HAWTBox->setVisible(true);
+    m_LLTHAWTSimulationComboBox->show();
+    VAWTBox->setVisible(false);
+    m_LLTVAWTSimulationComboBox->hide();
+}
+
+void QLLTToolBar::OnVAWTView(){
+    HAWTBox->setVisible(false);
+    m_LLTHAWTSimulationComboBox->hide();
+    VAWTBox->setVisible(true);
+    m_LLTVAWTSimulationComboBox->show();
 }
 
 void QLLTToolBar::useLLTSimulation (QLLTSimulation *newShownLLTSimulation) {
-//	m_FASTSimulationComboBox->setCurrentObject(newShownFASTSimulation);
+    if (newShownLLTSimulation){
+        if (newShownLLTSimulation->hasStoredData() && newShownLLTSimulation->getShownTimeIndex() == -1) newShownLLTSimulation->setShownTimeIndex(0);
+    }
 
-//	/* update the sectionBox */
-//	m_enableSectionChange = false;
-//	m_sectionComboBox->clear();
-//	if (newShownFASTSimulation != NULL) {
-//		for (int i = 0; i < newShownFASTSimulation->getAeroDynOutput().size(); ++i) {
-//			if (newShownFASTSimulation->getAeroDynOutput().at(i) == true) {
-//				m_sectionComboBox->addItem(QString("%1 - %2m - %3").arg(i+1, 2).arg(newShownFASTSimulation->getUsedRotor()->getFASTRadiusAt(i), 6, 'f', 2).arg(newShownFASTSimulation->getUsedRotor()->get360PolarAt(i)->getName()), i+1);
-//				if (newShownFASTSimulation->getShownBladeSection() == i+1) {
-//					m_sectionComboBox->setCurrentIndex(m_sectionComboBox->count()-1);
-//				}
-//			}
-//		}
-//	}
-//	m_sectionComboBox->setEnabled(m_sectionComboBox->count());
-//	m_enableSectionChange = true;
-//	onSectionBoxChanged();
+    m_startReplay->setEnabled(false);
 
-//	/* update the time slider */
-//	m_timeEdit->setEnabled(newShownFASTSimulation && newShownFASTSimulation->hasAeroDynResults());
-//	m_timeSlider->setEnabled(newShownFASTSimulation && newShownFASTSimulation->hasAeroDynResults());
-//	if (newShownFASTSimulation && newShownFASTSimulation->hasAeroDynResults()) {
-//		m_enableTimeChange = false;
-//		m_timeSlider->setMaximum(newShownFASTSimulation->getTimeData()->numberOfRows-1);
-//		m_timeEdit->setMinimum(newShownFASTSimulation->getTimeData()->data[0]);
-//		m_timeEdit->setMaximum(newShownFASTSimulation->getTimeData()->data[newShownFASTSimulation->getTimeData()->numberOfRows-1]);
-//		m_timeSlider->setValue(newShownFASTSimulation->getShownTimeIndex());
-//		m_timeEdit->setValue(newShownFASTSimulation->getTimeData()->data[newShownFASTSimulation->getShownTimeIndex()]);
-//		setShownTimeForAllSimulations();
-//		m_enableTimeChange = true;
-//	} else {
-//		m_enableTimeChange = false;
-//		m_timeSlider->setValue(0);
-//		m_timeEdit->setValue(0);
-//		m_enableTimeChange = true;
-//	}
-//	m_module->emitUpdateBladeGraphs();
+    if (!newShownLLTSimulation){
+        m_TimeLabel->setText("");
+        m_Timesteps->setValue(0);
+        m_Timesteps->setEnabled(false);
+        return;
+    }
+
+    if (!newShownLLTSimulation->getIsVawt()) m_LLTHAWTSimulationComboBox->setCurrentObject(newShownLLTSimulation);
+    else m_LLTVAWTSimulationComboBox->setCurrentObject(newShownLLTSimulation);
+
+    if (newShownLLTSimulation->hasStoredData()){
+        QString strong;
+        disconnect(m_Timesteps, SIGNAL(valueChanged(int)), 0, 0);
+        m_Timesteps->setEnabled(true);
+        m_Timesteps->setMinimum(0);
+        m_Timesteps->setMaximum(newShownLLTSimulation->getNumTimestepsComputed()-1);
+        m_Timesteps->setValue(newShownLLTSimulation->getShownTimeIndex());
+        m_TimeLabel->setText(strong.number(m_module->GetQLLTSim()->getResultsArray().at(0)->at(m_Timesteps->value()),'f',3)+" [s]");
+        connect(m_Timesteps,SIGNAL(valueChanged(int)),this,SLOT(OnTimeSliderChanged()));
+        setShownTimeForAllSimulations(); 
+
+		m_module->reloadBladeGraphs();
+		
+        if (newShownLLTSimulation->getStoreWake())
+			m_startReplay->setEnabled(true);
+    }
+    else{
+        m_TimeLabel->setText("");
+        m_Timesteps->setValue(0);
+        m_Timesteps->setEnabled(false);
+    }
+}
+
+void QLLTToolBar::setShownTimeForAllSimulations() {
+    double shownTime = -1;
+    if (m_module->GetQLLTSim()->hasStoredData()) shownTime = m_module->GetQLLTSim()->getShownTime();
+    if (m_module->GetQLLTSim()->getIsVawt()){
+        for (int i = 0; i < g_QLLTVAWTSimulationStore.size(); ++i) {
+            if (g_QLLTVAWTSimulationStore.at(i) != m_LLTVAWTSimulationComboBox->currentObject()) {  // the correct time is set already
+                g_QLLTVAWTSimulationStore.at(i)->setShownTime(shownTime);
+            }
+        }
+    }
+    else if(!m_module->GetQLLTSim()->getIsVawt()){
+        for (int i = 0; i < g_QLLTHAWTSimulationStore.size(); ++i) {
+            if (g_QLLTHAWTSimulationStore.at(i) != m_LLTHAWTSimulationComboBox->currentObject()) {  // the correct time is set already
+                g_QLLTHAWTSimulationStore.at(i)->setShownTime(shownTime);
+            }
+        }
+    }
 }

@@ -26,6 +26,7 @@ public:
     ~BladeStructureLoading();
     void serialize();        // override from StorableObject
     void restorePointers();  // override from StorableObject
+	static QStringList prepareMissingObjectMessage();	
     bool RunModalTest();
 
     bool simulationFinished;

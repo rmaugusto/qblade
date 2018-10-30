@@ -1,7 +1,7 @@
 /****************************************************************************
 
     AboutBEM Class
-        Copyright (C) 2010 David Marten qblade@web.de
+        Copyright (C) 2010 David Marten david.marten@tu-berlin.de
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -30,7 +30,7 @@ class AboutBEM : public QDialog
     Q_OBJECT
 
 public:
-        explicit AboutBEM(void *parent = 0);
+        explicit AboutBEM(QWidget *parent = NULL);
         virtual ~AboutBEM();
 
 
@@ -38,13 +38,11 @@ private:
         void SetupLayout();
 
         QPushButton *OKButton;
-        QLabel * m_pXFLR5Link, *m_pQBladeLink;
         QLabel *m_IconQ5;
         QLabel *m_Rotor;
         QLabel *m_HFI;
 
 
-        void *m_pBEM;
 };
 
 #endif // AboutQ5_H

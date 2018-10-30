@@ -1,7 +1,7 @@
 /****************************************************************************
 
     TBEMData Class
-        Copyright (C) 2010 David Marten qblade@web.de
+        Copyright (C) 2010 David Marten david.marten@tu-berlin.de
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -41,8 +41,7 @@ public:
 
     void Compute(BData *pBData, CBlade *pWing, double lambda, double pitch, double windspeed);
     void Clear();
-    void Serialize(QDataStream &ar, bool bIsStoring, int ArchiveFormat);
-	void SerializeDummy (QDataStream &ar, bool bIsStoring, int ArchiveFormat);
+	static QStringList prepareMissingObjectMessage();
 
 	static TBEMData* newBySerialize();
 	void serialize();  // override from BEMData
@@ -52,14 +51,8 @@ private:
     QString m_TurbineName;
     QString m_SimName;
 
-    QList <double> m_P;                     //power
-    QList <double> m_S;                     //thrust
-    QList <double> m_V;                     //wind speed
-    QList <double> m_Omega;                 //rotational speed
 	QList <double> m_Pitch;                 //pitch angle
-    QList <double> m_Bending;               //bending moment
     QList <double> m_Cp_loss;               //power coefficient including losses
-    QList <double> m_Torque;                // rotor torque
 
     double OuterRadius;
 

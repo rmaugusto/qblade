@@ -2,8 +2,13 @@
 #define SERIALIZER_H
 
 #include <QVector>
+#include <QPair>
+#include <QException>
+#include <QString>
+#include "../src/Objects/CVector.h"
+#include "../src/Objects/CVectorf.h"
+
 class QDataStream;
-class QString;
 class StorableObject;
 class QColor;
 class QPen;
@@ -14,6 +19,12 @@ class QBitArray;
 class Serializer
 {
 public:
+	class Exception : public QException {
+	public:
+		Exception(QString message) : message(message) { }
+		QString message;
+	};
+	
 	Serializer();
 	
 	enum Mode {READ, WRITE};
@@ -32,12 +43,18 @@ public:
 	void readOrWriteBool (bool*);
 	void readOrWriteInt (int*);
 	void readOrWriteIntArray1D (int*, int);
-    void readOrWriteIntArray2D (int *array, int dim1, int dim2);
+	void readOrWriteIntArray2D (int*, int, int);
 	void readOrWriteIntVector1D (QVector<int>*);
 	void readOrWriteFloat (float*);
 	void readOrWriteFloatArray1D (float**, int);
 	void readOrWriteFloatArray2D (float***, int, int);
 	void readOrWriteFloatArray3D (float****, int, int, int);
+    void readOrWriteCVectorArray1D (CVector**, int);
+    void readOrWriteCVectorfArray1D (CVectorf**, int);
+    void readOrWriteCVectorArray2D (CVector***, int, int);
+    void readOrWriteCVectorfArray2D (CVectorf***, int, int);
+    void readOrWriteCVectorArray3D (CVector****, int, int, int);
+    void readOrWriteCVectorfArray3D (CVectorf****, int, int, int);
 	void readOrWriteDouble (double*);
 	void readOrWriteDoubleArray1D (double*, int);
 	void readOrWriteDoubleArray2D (double*, int, int);
@@ -47,8 +64,10 @@ public:
 	void readOrWriteDoubleVector3D (QVector<QVector<QVector<double> > >*);
 	void readOrWriteDoubleList1D (QList<double>*);
 	void readOrWriteDoubleList2D (QList<QList<double> >*);
+	void readOrWritePairIntDoubleVector (QPair<int,QVector<double> >*);
 	void readOrWriteString (QString*);
 	void readOrWriteStringList (QStringList*);
+    void readOrWriteStringList1D (QList<QString>*);
 	void readOrWriteColor (QColor*);
 	void readOrWritePen (QPen*);
 	void readOrWriteBitArray (QBitArray*);
@@ -65,9 +84,6 @@ public:
 	QVector<StorableObject*> m_oldIds;  /**< IDs of objects when saved to project. Index corresponds to m_newAddresses. */
 	QVector<StorableObject*> m_newAddresses;  /**< New adresses of objects that were loaded. Index corresponds to m_oldIds. */
 };
-
-extern Serializer g_serializer;
-
 
 template <class ENUM>  // template functions have to be in the header
 void Serializer::readOrWriteEnum (ENUM *value) {
@@ -99,5 +115,7 @@ void Serializer::readOrWriteStorableObjectVector (QVector<OBJECT> *vector) {
 		readOrWriteStorableObject(&((*vector)[i]));
 	}
 }
+
+extern Serializer g_serializer;
 
 #endif // SERIALIZER_H

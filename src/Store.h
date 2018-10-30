@@ -6,7 +6,9 @@ class QComboBox;
 
 #include "Store_include.h"
 #include "Misc/SignalBlockerInterface.h"
+#include "Graph/NewGraph.h"
 class StorableObject;
+class NewCurve;
 
 
 /**
@@ -21,13 +23,14 @@ class StoreBase : public QObject, public SignalBlockerInterface
 	Q_OBJECT
 	
 public:
+	enum SortType {ALPHABETICALLY, NUMERICALLY};
+		
 	void emitObjectListChanged (bool searchForLastActive) { emit objectListChanged(searchForLastActive); }
 	
 	/**
 	 * @brief Removes all objects from this store that belong to the specified parent.
 	 *
 	 * @param deletedParent Name of the deleted parent whos children are to be deleted.
-	 * @param deletedGrandParent Name of the deleted grand parent whos children are to be deleted.
 	 */
 	virtual void removeAllWithParent (StorableObject *deletedParent) = 0;
 	
@@ -80,10 +83,32 @@ template <class T>
 class Store : public StoreBase
 {
 public:
-	Store(bool sameNameAllowed, StoreBase *parentStore = NULL, StoreBase *anotherParentStore = NULL);
+    Store(bool sameNameAllowed, StoreBase *parentStore = NULL, StoreBase *anotherParentStore = NULL,
+		  bool sort = true, SortType sortType = ALPHABETICALLY);
 	~Store();
 	
 	void printState();  // debugging function
+
+    /**
+     * @brief locks the store
+     *
+     * Objects cannot be overwritten or removed
+     */
+    void lockStore() { m_locked = true; }
+
+    /**
+     * @brief unlocks the store
+     *
+     * Objects can be overwritten or removed
+     */
+    void unlockStore() { m_locked = false; }
+
+    /**
+     * @brief message that is shown when store is locked
+     *
+     * Sets the message that is shown when a store is locked
+     */
+    void setLockMessage(QString message) { m_lockMessage = message; }
 	
 	/**
 	 * @brief Adds an object to the store.
@@ -101,7 +126,6 @@ public:
 	 * @brief Removes an object from the store.
 	 *
 	 * Deletes the object and removes the reference from the store.
-	 * @attention Does not yet care for child objects of the deleted one!
 	 * @param objectToRemove The object that is to be removed.
 	 */
 	void remove (T *objectToRemove);
@@ -110,7 +134,6 @@ public:
 	 * @brief Removes the object at a given position from store.
 	 *
 	 * Deletes the object and removes the reference from the store.
-	 * @attention Does not yet care for child objects of the deleted one!
 	 * @param indexToRemove The position in store that is to be removed.
 	 */
 	void removeAt (int indexToRemove);
@@ -154,6 +177,13 @@ public:
 	int size ();
 	
 	/**
+	 * @brief Returns whether the store is empty.
+	 *
+	 * @return True if the store is empty.
+	 */
+	bool isEmpty ();
+	
+	/**
 	 * @brief Returnes the corresponding object.
 	 *
 	 * Searches for an object where name and parent match. Due to the uniqueness of the parent pointer
@@ -164,43 +194,57 @@ public:
 	 * @return Pointer to the demanded object or NULL.
 	 */
 	T* getObjectByName (QString objectName, StorableObject *parent);
-	T* getObjectByNameOnly (QString objectName);  // this ignores parent. Remove asap!
+	T* getObjectByNameOnly (QString objectName);  // this ignores parent. TODO Remove asap!
 	
 	bool isNameExisting (QString name, StorableObject *parent);
 	bool isNameExisting (T *object);
 	bool isSameNameAllowed () { return m_sameNameAllowed; }
+	QString getNextName (QString baseName);  // returns the next not yet assigned name
 	
 	void serializeContent ();
+	void addAllCurves (QList<NewCurve*> *curves, QString xAxis, QString yAxis, NewGraph::GraphType graphType);
+	void showAllCurves (bool show, ShowAsGraphInterface *showThisObject = NULL);
 	
 protected:
 	void removeAllWithParent (StorableObject *deletedParent);
+    bool isLocked();
+	
+	/**
+	 * @brief Sorts the store according to settings.
+	 */
+	void sortStore ();	
 	
 	QList<T*> m_objectList;  /**< Contains the stored objects */
 	bool m_sameNameAllowed;  /**< If two objects can hold the same name as long as the parents differ */
+    bool m_locked;           /**< When true no objects can be overwritten or removed */
+    bool m_sort;             /**< When true the objects in the store are sorted */
+    SortType m_sortType;     /**< Determines which sorting function will be used */
+    QString m_lockMessage;   /**< The message that is shown when the store is locked */
 };
 
-extern WindFieldStore g_windFieldStore;				/**< global store for windfields */
-extern RotorStore g_rotorStore;						/**< global store for HAWT rotors */
-extern Polar360Store g_360PolarStore;				/**< global store for 360 polars */
-extern VerticalRotorStore g_verticalRotorStore;		/**< global store for VAWT rotors */
-extern BladeStructureStore g_bladeStructureStore;	/**< global store for blade structures */
-extern FASTSimulationStore g_FASTSimulationStore;	/**< global store for FAST simulations */
-extern AirfoilStore g_foilStore;					/**< global store for airfoils */
-extern PolarStore g_polarStore;						/**< global store for polars */
-extern TDataStore g_tdataStore;						/**< global store for HAWT turbines */
-extern BEMDataStore g_bemdataStore;					/**< global store for HAWT rotor simulations */
-extern TBEMDataStore g_tbemdataStore;				/**< global store for HAWT turbine simulations */
-extern CBEMDataStore g_cbemdataStore;				/**< global store for HAWT characteristic simulations */
-extern DMSDataStore g_dmsdataStore;					/**< global store for VAWT rotor simulation */
-extern TDMSDataStore g_tdmsdataStore;				/**< global store for VAWT turbines */
-extern CDMSDataStore g_cdmsdataStore;				/**< global store characteristic VAWT simulations */
-extern TDataStore g_verttdataStore;					/**< global store for VAWT turbines */
-extern OpPointStore g_oppointStore;                 /**< global store for Operational Points of the Airfoil */
-extern BladeStructureLoadingStore g_bladestructureloadingStore;   /**< global store for a static loading of a BladeStructure object */
-extern QLLTVAWTSimulationStore g_QLLTVAWTSimulationStore;
-extern QLLTHAWTSimulationStore g_QLLTHAWTSimulationStore;
-extern NoiseSimulationStore g_NoiseSimulationStore;
-
+extern WindFieldStore g_windFieldStore;                             /**< global store for windfields */
+extern RotorStore g_rotorStore;                                     /**< global store for HAWT rotors */
+extern Polar360Store g_360PolarStore;                               /**< global store for 360 polars */
+extern VerticalRotorStore g_verticalRotorStore;                     /**< global store for VAWT rotors */
+extern BladeStructureStore g_bladeStructureStore;                   /**< global store for blade structures */
+extern FASTSimulationStore g_FASTSimulationStore;                   /**< global store for FAST simulations */
+extern AirfoilStore g_foilStore;                                    /**< global store for airfoils */
+extern PolarStore g_polarStore;                                     /**< global store for polars */
+extern TDataStore g_tdataStore;                                 	/**< global store for HAWT turbines */
+extern BEMDataStore g_bemdataStore;                             	/**< global store for HAWT rotor simulations */
+extern TBEMDataStore g_tbemdataStore;                           	/**< global store for HAWT turbine simulations */
+extern CBEMDataStore g_cbemdataStore;                           	/**< global store for HAWT characteristic simulations */
+extern DMSDataStore g_dmsdataStore;                             	/**< global store for VAWT rotor simulation */
+extern TDMSDataStore g_tdmsdataStore;                               /**< global store for VAWT turbines */
+extern CDMSDataStore g_cdmsdataStore;                               /**< global store characteristic VAWT simulations */
+extern TDataStore g_verttdataStore;                                 /**< global store for VAWT turbines */
+extern OpPointStore g_oppointStore;                                 /**< global store for Operational Points of the Airfoil */
+extern BladeStructureLoadingStore g_bladestructureloadingStore;     /**< global store for a static loading of a BladeStructure object */
+extern QLLTVAWTSimulationStore g_QLLTVAWTSimulationStore;           /**< global store for a QLLT VAWT Simulations */
+extern QLLTHAWTSimulationStore g_QLLTHAWTSimulationStore;           /**< global store for a QLLT HAWT Simulations */
+extern QLLTCutPlaneStore g_QLLTCutPlaneStore;                       /**< global store for a QLLT Velocity Cut Planes */
+extern NoiseSimulationStore g_noiseSimulationStore;                 /**< global store for noise simulations */
+extern StrutStore g_StrutStore;                                     /**< global store for VAWT struts */
 
 
 #endif // STORE_H

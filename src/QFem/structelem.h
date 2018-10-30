@@ -2,6 +2,7 @@
 #define EIGEN_DISABLE_UNALIGNED_ARRAY_ASSERT
 #ifndef STRUCTELEM_H
 #define STRUCTELEM_H
+
 #include "structintegrator.h"
 #include "Clipper/clipper.hpp"
 #include <Eigen/Dense>

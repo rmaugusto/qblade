@@ -74,14 +74,12 @@ private:
 
 	bool AlphaLoop();
 	bool Iterate();
-	bool ReLoop();
 
 	GraphWidget * m_pGraphWidget;
 	QTextEdit *m_pctrlTextOutput;
 	QPushButton* m_pctrlCancel, *m_pctrlSkip;
 
 	bool m_bAlpha;
-	bool m_bType4;
 	bool m_bSequence;
 	bool m_bSkip, m_bExit, m_bFinished, m_bAutoInitBL;
 

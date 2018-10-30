@@ -57,6 +57,9 @@ public:
 	bool IsInDrawRect(QPoint const &pt);
 	bool Init();
 
+    bool m_autoReset;
+
+
 	double ClientTox(int x);
 	double ClientToy(int y);
 
@@ -107,6 +110,7 @@ public:
 	void SetXMinGrid(bool state, bool bAuto, QColor clr, int style, int width, double unit = -1.0);
 	void SetYMinGrid(bool state, bool bAuto, QColor clr, int style, int width, double unit = -1.0);
 	void SetAuto(bool bAuto);
+    void ResetIfAuto();
 	void SetAutoX(bool bAuto);
 	void SetAutoY(bool bAuto);
 	void SetLogPixelsY(int n);

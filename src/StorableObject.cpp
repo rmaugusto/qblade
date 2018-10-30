@@ -44,6 +44,12 @@ void StorableObject::removeParent(StorableObject *formerParent) {
 	}
 }
 
+void StorableObject::removeAllParents() {
+	for (int i = m_parentVector.size()-1; i >= 0; --i) {
+		removeParent(m_parentVector[i]);
+	}
+}
+
 void StorableObject::removeChild(StorableObject *formerChild) {
 	int pos = m_childVector.indexOf(formerChild);
 	if (pos != -1) {
@@ -53,9 +59,7 @@ void StorableObject::removeChild(StorableObject *formerChild) {
 }
 
 void StorableObject::setSingleParent(StorableObject *newParent) {
-	for (int i = m_parentVector.size()-1; i >= 0; --i) {  // remove old parents
-		removeParent(m_parentVector[i]);
-	}
+	removeAllParents();  // remove old parents
     addParent(newParent);  // and add the new one
 }
 

@@ -20,15 +20,12 @@
 	
 *****************************************************************************/
 
+#define __CL_ENABLE_EXCEPTIONS
+
 #include "QBladeApplication.h"
-#include "MainFrame.h"
-#include <QSplashScreen>
-#include <QMessageBox>
 
-CFoil *g_pCurFoil;	//make it common to all applications
+int main(int argc, char *argv[]) {    
 
-int main(int argc, char *argv[])
-{
     QBladeApplication app(argc, argv);
-	return app.exec();
+    return app.exec();
 }

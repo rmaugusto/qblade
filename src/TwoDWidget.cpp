@@ -23,7 +23,6 @@
 
 #include "MainFrame.h"
 #include "XDirect/XDirect.h"
-#include "Miarex/Miarex.h"
 #include "Design/AFoil.h"
 #include "XInverse/XInverse.h"
 #include "XBEM/BEM.h"
@@ -35,11 +34,11 @@ TwoDWidget::TwoDWidget(QWidget *parent)
 	: QWidget(parent)
 {
 	m_pXDirect   = NULL;
-	m_pMiarex    = NULL;
 	m_pAFoil     = NULL;
 	m_pBEM       = NULL;
 	m_pDMS       = NULL;
 	
+    setAttribute(Qt::WA_AcceptTouchEvents, true);
 	setMouseTracking(true);  // NM not really needed. Could be realized much more efficient
 	setCursor(Qt::CrossCursor);
 }
@@ -50,11 +49,6 @@ void TwoDWidget::keyPressEvent(QKeyEvent *event)
 	{
 		QXDirect* pXDirect = (QXDirect*)m_pXDirect;
 		pXDirect->keyPressEvent(event);
-	}
-	else if(g_mainFrame->m_iApp == MIAREX && m_pMiarex)
-	{
-		QMiarex* pMiarex = (QMiarex*)m_pMiarex;
-		pMiarex->keyPressEvent(event);
 	}
 	else if(g_mainFrame->m_iApp == DIRECTDESIGN && m_pAFoil)
 	{
@@ -77,11 +71,6 @@ void TwoDWidget::keyReleaseEvent(QKeyEvent *event)
 		QXDirect* pXDirect = (QXDirect*)m_pXDirect;
 		pXDirect->keyReleaseEvent(event);
 	}
-	else if(g_mainFrame->m_iApp == MIAREX && m_pMiarex)
-	{
-		QMiarex* pMiarex = (QMiarex*)m_pMiarex;
-		pMiarex->keyReleaseEvent(event);
-	}
 	else if(g_mainFrame->m_iApp == DIRECTDESIGN && m_pAFoil)
 	{
 		QAFoil *pAFoil= (QAFoil*)m_pAFoil;
@@ -102,11 +91,6 @@ void TwoDWidget::mousePressEvent(QMouseEvent *event)
 	{
 		QXDirect* pXDirect = (QXDirect*)m_pXDirect;
 		pXDirect->mousePressEvent(event);
-	}
-	else if(g_mainFrame->m_iApp == MIAREX && m_pMiarex)
-	{
-		QMiarex* pMiarex = (QMiarex*)m_pMiarex;
-		pMiarex->mousePressEvent(event);
 	}
 	else if(g_mainFrame->m_iApp == DIRECTDESIGN && m_pAFoil)
 	{
@@ -130,11 +114,6 @@ void TwoDWidget::mouseReleaseEvent(QMouseEvent *event)
 		QXDirect* pXDirect = (QXDirect*)m_pXDirect;
 		pXDirect->mouseReleaseEvent(event);
 	}
-	else if(g_mainFrame->m_iApp == MIAREX && m_pMiarex)
-	{
-		QMiarex* pMiarex = (QMiarex*)m_pMiarex;
-		pMiarex->mouseReleaseEvent(event);
-	}
 	else if(g_mainFrame->m_iApp == DIRECTDESIGN && m_pAFoil)
 	{
 		QAFoil *pAFoil= (QAFoil*)m_pAFoil;
@@ -156,11 +135,6 @@ void TwoDWidget::mouseMoveEvent(QMouseEvent *event)
 	{
 		QXDirect* pXDirect = (QXDirect*)m_pXDirect;
 		pXDirect->mouseMoveEvent(event);
-	}
-	else if(g_mainFrame->m_iApp == MIAREX && m_pMiarex)
-	{
-		QMiarex* pMiarex = (QMiarex*)m_pMiarex;
-		pMiarex->mouseMoveEvent(event);
 	}
 	else if(g_mainFrame->m_iApp == DIRECTDESIGN && m_pAFoil)
 	{
@@ -198,16 +172,6 @@ void TwoDWidget::mouseDoubleClickEvent ( QMouseEvent * event )
 		QAFoil *pAFoil= (QAFoil*)m_pAFoil;
 		pAFoil->mouseDoubleClickEvent(event);
 	}
-	else if(g_mainFrame->m_iApp == MIAREX && m_pMiarex)
-	{
-		QMiarex* pMiarex = (QMiarex*)m_pMiarex;
-		pMiarex->mouseDoubleClickEvent(event );
-	}
-	else if(g_mainFrame->m_iApp == DIRECTDESIGN && m_pAFoil)
-	{
-//		QAFoil *pAFoil= (QAFoil*)m_pAFoil;
-//		pAFoil->SetScale(rect());
-	}
 	else if(g_mainFrame->m_iApp == INVERSEDESIGN && m_pXInverse)
 	{
 		QXInverse *pXInverse= (QXInverse*)m_pXInverse;
@@ -230,7 +194,6 @@ void TwoDWidget::mouseDoubleClickEvent ( QMouseEvent * event )
 void TwoDWidget::resizeEvent(QResizeEvent */*event*/)
 {
 	QXDirect  *pXDirect  = (QXDirect*)m_pXDirect;
-	QMiarex   *pMiarex   = (QMiarex*)m_pMiarex;
 	QAFoil    *pAFoil    = (QAFoil*)m_pAFoil;
 	QXInverse *pXInverse = (QXInverse*)m_pXInverse;
 	
@@ -238,13 +201,6 @@ void TwoDWidget::resizeEvent(QResizeEvent */*event*/)
 	{
 		pXDirect->SetFoilScale(rect());
 		pXDirect->SetPolarLegendPos();
-	}
-	if(m_pMiarex)
-	{
-		pMiarex->m_bIs2DScaleSet = false;
-		pMiarex->Set2DScale();
-		if(pMiarex->m_iView==WOPPVIEW)   pMiarex->SetWingLegendPos();
-		if(pMiarex->m_iView==WPOLARVIEW) pMiarex->SetWPlrLegendPos();
 	}
 	if(m_pAFoil)
 	{
@@ -281,11 +237,6 @@ void TwoDWidget::wheelEvent(QWheelEvent *event)
 		QXDirect* pXDirect = (QXDirect*)m_pXDirect;
 		pXDirect->wheelEvent(event);
 	}
-	else if(g_mainFrame->m_iApp == MIAREX && m_pMiarex)
-	{
-		QMiarex* pMiarex = (QMiarex*)m_pMiarex;
-		pMiarex->wheelEvent(event);
-	}
 	else if(g_mainFrame->m_iApp == DIRECTDESIGN && m_pAFoil)
 	{
 		QAFoil *pAFoil= (QAFoil*)m_pAFoil;
@@ -313,43 +264,67 @@ void TwoDWidget::wheelEvent(QWheelEvent *event)
 void TwoDWidget::paintEvent(QPaintEvent *event)
 {
 	QPainter painter(this);
+	painter.fillRect(rect(), g_mainFrame->m_BackgroundColor);
 	
-	if(g_mainFrame->m_iApp == XFOILANALYSIS && m_pXDirect)
-	{	
-		QXDirect* pXDirect = (QXDirect*)m_pXDirect;
-		pXDirect->PaintView(painter);
-	}
-	else if(g_mainFrame->m_iApp == MIAREX && m_pMiarex)
-	{
-		QMiarex* pMiarex = (QMiarex*)m_pMiarex;
-		pMiarex->PaintView(painter);
-	}
-	else if(g_mainFrame->m_iApp == DIRECTDESIGN && m_pAFoil)
-	{
-		QAFoil *pAFoil= (QAFoil*)m_pAFoil;
-		pAFoil->PaintView(painter);
-	}
-	else if(g_mainFrame->m_iApp == INVERSEDESIGN && m_pXInverse)
-	{
-		QXInverse *pXInverse= (QXInverse*)m_pXInverse;
-		pXInverse->PaintView(painter);
-	}
-	else if(g_mainFrame->m_iApp == BEM && m_pBEM)
-	{
-		QBEM *pBEM = (QBEM *) m_pBEM;
-		pBEM->PaintView(painter);
-	}
-	else if(g_mainFrame->m_iApp == DMS && m_pDMS)
-	{
-		QDMS *pDMS = (QDMS *) m_pDMS;
-		pDMS->PaintView(painter);
-	} else if (g_mainFrame->getTwoDWidgetInterface()) {
+	/* realize the message as overpaint */
+	QStringList missingObjectMessages = g_mainFrame->prepareMissingObjectMessage();
+	if (!missingObjectMessages.isEmpty()) {
+	    const QFont missingObjectFont (g_mainFrame->m_TextFont.family(), 0.02*width());
+	    const QFont hintFont (g_mainFrame->m_TextFont.family(), 0.015*width());
 
-		g_mainFrame->getTwoDWidgetInterface()->onPaintEvent(event);
-	}
-	else
-	{
-		painter.fillRect(rect(), g_mainFrame->m_BackgroundColor);
+		painter.setFont(missingObjectFont);
+		const int betweenTextGap = 0.08*height();
+		QPoint textPosition = QPoint (0.15*width(), 0.15*height());
+		for (int i = 0; i < missingObjectMessages.size() - 1; ++i) {
+			painter.drawText(textPosition, missingObjectMessages[i]);
+			textPosition.ry() += betweenTextGap;
+		}
+		painter.setFont(hintFont);
+		painter.drawText(textPosition, missingObjectMessages.last());
+	} else {
+		if(g_mainFrame->m_iApp == XFOILANALYSIS && m_pXDirect)
+		{	
+			QXDirect* pXDirect = (QXDirect*)m_pXDirect;
+			pXDirect->PaintView(painter);
+		}
+		else if(g_mainFrame->m_iApp == DIRECTDESIGN && m_pAFoil)
+		{
+			QAFoil *pAFoil= (QAFoil*)m_pAFoil;
+			pAFoil->PaintView(painter);
+		}
+		else if(g_mainFrame->m_iApp == INVERSEDESIGN && m_pXInverse)
+		{
+			QXInverse *pXInverse= (QXInverse*)m_pXInverse;
+			pXInverse->PaintView(painter);
+		}
+		else if(g_mainFrame->m_iApp == BEM && m_pBEM)
+		{
+			QBEM *pBEM = (QBEM *) m_pBEM;
+			pBEM->PaintView(painter);
+		}
+		else if(g_mainFrame->m_iApp == DMS && m_pDMS)
+		{
+			QDMS *pDMS = (QDMS *) m_pDMS;
+			pDMS->PaintView(painter);
+		} else if (g_mainFrame->getTwoDWidgetInterface()) {
+			g_mainFrame->getTwoDWidgetInterface()->onPaintEvent(event);
+		}
+        else{
+            QImage image(":/images/logo_1000.png");
+            int width = this->width();
+            int height = this->height();
+
+            painter.drawImage(QRectF(width/2-height/3,height/2-height/3,height/1.5,height/1.5),image);
+            QFont font (g_mainFrame->m_TextFont.family(), 0.06*height);
+            painter.setFont(font);
+            QPoint textPosition = QPoint (width/2-height*0.12, height/2+height/2.5);
+            painter.drawText(textPosition, "v0.96");
+
+            QFont font2(g_mainFrame->m_TextFont.family(), 0.03*height);
+            textPosition = QPoint (width/2-height*0.52, height/2-height/2.5);
+            painter.setFont(font2);
+            painter.drawText(textPosition, "Click on the Airfoil Design Module in the Toolbar to Start");
+        }
 	}
 }
 
@@ -359,26 +334,6 @@ void TwoDWidget::contextMenuEvent (QContextMenuEvent *event)
 	QPoint CltPt = event->pos();
 	switch(g_mainFrame->m_iApp)
 	{
-	case MIAREX:
-	{
-		QMiarex *pMiarex = (QMiarex*)m_pMiarex;
-		if(event->reason()==QContextMenuEvent::Keyboard)
-		{
-			ScreenPt.rx() = pMiarex->m_LastPoint.x()+g_mainFrame->pos().x()+geometry().x();
-			ScreenPt.ry() = pMiarex->m_LastPoint.y()+g_mainFrame->pos().y()+geometry().y();
-		}
-		
-		pMiarex->m_pCurGraph = pMiarex->GetGraph(CltPt);
-		if(pMiarex->m_iView==WOPPVIEW)         g_mainFrame->WOppCtxMenu->exec(ScreenPt);
-		else if (pMiarex->m_iView==WPOLARVIEW) g_mainFrame->WPlrCtxMenu->exec(ScreenPt);
-		else if (pMiarex->m_iView==WCPVIEW)    g_mainFrame->WCpCtxMenu->exec(ScreenPt);
-		else if(pMiarex->m_iView==WSTABVIEW)
-		{
-			if(pMiarex->m_iStabilityView==STABTIMEVIEW)       g_mainFrame->WTimeCtxMenu->exec(ScreenPt);
-			else if(pMiarex->m_iStabilityView==STABPOLARVIEW) g_mainFrame->WPlrCtxMenu->exec(ScreenPt);
-		}
-		break;
-	}
 	case XFOILANALYSIS:
 	{
 		QXDirect *pXDirect = (QXDirect*)m_pXDirect;

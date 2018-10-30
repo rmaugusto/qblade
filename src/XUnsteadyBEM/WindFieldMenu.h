@@ -16,12 +16,14 @@ public:
 	
 private:
 	WindFieldModule *m_module;
-	QAction *m_writeWindfieldBinaryFileAction, *m_writeWindfieldTxtFileAction;
+    QAction *m_writeWindfieldBinaryFileAction, *m_writeWindfieldTxtFileAction, *m_importWindfieldBinaryFileAction;
 	
 private slots:
 	void onAboutToShow ();
 	void onWriteWindfieldBinaryFile ();
 	void onWriteWindfieldTxtFile ();
+    void onImportWindfieldBinaryFile();
+
 };
 
 #endif // WINDFIELDMENU_H

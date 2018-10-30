@@ -22,18 +22,7 @@ FastTwoDContextMenu::FastTwoDContextMenu(QWidget *parent, FASTModule *module)
 	addAction(m_setGraphTypeBladeAction);
 }
 
-void FastTwoDContextMenu::setCurrentGraphType(NewGraph::GraphType graphType) {
-	m_setGraphTypeFastAction->setChecked(false);
-	m_setGraphTypeBladeAction->setChecked(false);
-	
-	switch (graphType) {
-	case NewGraph::FastSimulation:
-		m_setGraphTypeFastAction->setChecked(true);
-		break;
-	case NewGraph::BladeGraph:
-		m_setGraphTypeBladeAction->setChecked(true);
-		break;
-	default:
-		break;
-	}
+void FastTwoDContextMenu::setCurrentGraphType(NewGraph::GraphType graphType, NewGraph::GraphType /*graphTypeMulti*/) {
+	m_setGraphTypeFastAction->setChecked(graphType == NewGraph::FastSimulation);
+	m_setGraphTypeBladeAction->setChecked(graphType == NewGraph::BladeGraph);
 }

@@ -109,7 +109,7 @@ private:
 
 public:
 	Graph *m_pGraph, *m_pMemGraph;
-		Graph *m_GraphArray[43];// DM modification
+        Graph *m_GraphArray[45];// DM modification
 	int m_NGraph;
 	int m_XSel, m_YSel;
 	int m_iGraphType;

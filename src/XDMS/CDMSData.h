@@ -5,49 +5,36 @@
 #include <QString>
 #include <QColor>
 #include "DData.h"
+#include "../ParameterObject.h"
+template <class ParameterGroup>
+class ParameterViewer;
 
-class CDMSData : public StorableObject
+
+class CDMSData : public StorableObject, public ShowAsGraphInterface, public ParameterObject<Parameter::CDMSData>
 {
-	friend class QBEM;
-	friend class QDMS;
-    friend class MainFrame;
-
 public:
 	static CDMSData* newBySerialize ();
 	CDMSData();
+	CDMSData(ParameterViewer<Parameter::CDMSData> *viewer);
 	virtual ~CDMSData();
+	static QStringList prepareMissingObjectMessage();
 
 public:
 	void Compute(DData *pDData, CBlade *pWing, double lambda, double pitch, double windspeed);
-    void Serialize(QDataStream &ar, bool bIsStoring, int ArchiveFormat);
 	void serialize();  // override from StorableObject
     void initArrays(int wtimes, int rtimes, int ptimes);
     void DeleteArrays();
 
+	bool hasResults() { return simulated; }  // return true, if simulation was finished
+	void startSimulation ();
+	NewCurve* newCurve (QString /*xAxis*/, QString /*yAxis*/, NewGraph::GraphType /*graphType*/) { return NULL; }
+	NewCurve* newCurve (QString xAxis, QString yAxis, int windIndex, int rotIndex, int pitchIndex);
+	static QStringList getAvailableVariables (NewGraph::GraphType graphType = NewGraph::None, bool xAxis = true);
+	QString getObjectName () { return m_objectName; }
 
-
-private:
+public:
     QString m_WingName;
     QString m_SimName;
-
-//	double m_Lambda [100][100][100];                //tip-speed ratio
-//	double m_one_over_Lambda [100][100][100];       //1/tip speed ratio
-
-//    double m_V [100][100][100];                     //wind speed
-//	double m_w [100][100][100];						//rotational speed
-//	double m_Pitch [100][100][100];                 //pitch angle
-
-//	double m_Cp [100][100][100];                    //power coefficient
-//	double m_Cp1 [100][100][100];                   //power coefficient
-//	double m_Cp2 [100][100][100];                   //power coefficient
-//	double m_Kp [100][100][100];                    //dimensionless
-
-//	double m_Cm [100][100][100];                    //torque coefficient
-//	double m_Cm1 [100][100][100];                   //torque coefficient
-//	double m_Cm2 [100][100][100];                   //torque coefficient
-
-//	double m_P [100][100][100];                     //power
-//    double m_Torque [100][100][100];                //rotor torque
 
     float*** m_Lambda;
     float*** m_one_over_Lambda;
@@ -103,6 +90,10 @@ private:
 	bool m_bTipLoss;
 	bool m_bAspectRatio;
 	bool m_bVariable;
+	
+private:
+	virtual QPen doGetPen (int curveIndex, int highlightedIndex, bool forTheDot);
+	QVariant accessParameter(Parameter::CDMSData::Key key, QVariant value = QVariant());	
 };
 
 #endif // CDMSDATA_H

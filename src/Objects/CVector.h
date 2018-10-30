@@ -32,6 +32,8 @@ public:
 	double y;
 	double z;
 
+    void serialize();
+
 	//inline costructors
 	CVector()
 	{
@@ -177,8 +179,10 @@ public:
 	void RotateX(CVector const &O, double XTilt);
 	void RotateY(CVector const &O, double YTilt);
 	void RotateZ(CVector const &O, double ZTilt);
+    void RotateY(double YTilt);
     void RotZ(double ZTilt);
-	void RotateY(double YTilt);
+    void RotY(double YTilt);
+
 
  
 };

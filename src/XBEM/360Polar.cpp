@@ -9,6 +9,7 @@
 #include "../Objects/Polar.h"
 #include <QDate>
 #include <QTime>
+#include "../XBEM/BEM.h"
 
 
 C360Polar* C360Polar::newBySerialize() {
@@ -28,6 +29,7 @@ C360Polar::C360Polar(QString name, StorableObject *parent)
 	m_Width = 1;
 	m_bIsVisible = true;
 	m_bShowPoints = false;
+    m_bisDecomposed = false;
 //	m_Color = ;	 // NM not initialised in CPolar constructor too
 }
 
@@ -51,6 +53,23 @@ void C360Polar::serialize() {
 	g_serializer.readOrWriteBool (&m_bIsVisible);
 	g_serializer.readOrWriteBool (&m_bShowPoints);
 	g_serializer.readOrWriteColor (&m_Color);
+
+    if (g_serializer.getArchiveFormat() > 100032){
+        g_serializer.readOrWriteDoubleList1D (&m_Cl_att);
+        g_serializer.readOrWriteDoubleList1D (&m_Cl_sep);
+        g_serializer.readOrWriteDoubleList1D (&m_fst);
+        g_serializer.readOrWriteBool(&m_bisDecomposed);
+        g_serializer.readOrWriteDouble(&CLzero);
+    }
+    else if (g_serializer.isReadMode() && g_serializer.getArchiveFormat() < 100033){
+        for (int i=0; i<m_Alpha.size();i++){
+            m_Cl_att.append(0);
+            m_Cl_sep.append(0);
+            m_fst.append(0);
+            m_bisDecomposed = false;
+            CLzero = 0;
+        }
+    }
 }
 
 void C360Polar::restorePointers() {
@@ -59,52 +78,51 @@ void C360Polar::restorePointers() {
 	g_serializer.restorePointer (reinterpret_cast<StorableObject**> (&m_airfoil));
 }
 
-void C360Polar::Serialize360(QDataStream &ar, bool bIsStoring, int ArchiveFormat)
-{
-	int i,n;
-	float f;
-	QString strong;
-	
-	if (bIsStoring)
-	{
-		// won't happen
-	}
-	else
-	{
-		float Alpha,Cl,Cd;
-		
-		m_Cl.clear();
-		m_Cd.clear();
-		m_Alpha.clear();
-		
-		ReadCString(ar, strong);
-		m_airfoil = g_foilStore.getObjectByNameOnly(strong);
-//		setGrandParentName(m_FoilName);  // NM DELETE
-		ReadCString(ar, strong);
-		setName(strong);
-		ReadCString(ar, strong);
-//		setParentName(strong);  // NM REPLACE
-		setSingleParent(g_polarStore.getObjectByName(strong, m_airfoil)); // downwards compatibility
-		
-		ReadCOLORREF(ar, m_Color);
-		if (ArchiveFormat >= 100016)
-		{
-			ar >> f; m_Style = f;
-			ar >> f; m_Width = f;
+QStringList C360Polar::prepareMissingObjectMessage() {
+	if (g_360PolarStore.isEmpty() && g_qbem->m_pCur360Polar == NULL) {
+		QStringList message = CPolar::prepareMissingObjectMessage();
+		if (message.isEmpty()) {
+			message = QStringList(">>> Create a new 360 Polar in the 360 Polar Extrapolation Module");
 		}
-        ar >> f; reynolds = f;
-        ar >> f; CD90 = f;
-        ar >> f; slope = f;
-        ar >> f; alpha_zero = f;
-		ar >> n;
-		for (i=0;i<n;i++)
-		{
-			ar >> Alpha >> Cl >> Cd;
-			m_Alpha.append(Alpha);
-			m_Cl.append(Cl);
-			m_Cd.append(Cd);
-		}
+		message.prepend("- No 360 Polar in Database");
+		return message;
+	} else {
+		return QStringList();
 	}
+}
+
+QList<double> C360Polar::GetPropertiesAt(double AoA) {
+    QList<double> results;
+    double clMax, CdZero, clMin;
+    clMax = getClMaximum();
+    clMin = getClMinimum();
+    CdZero = getCdAtAlphaZero();
+
+    for (int i=0;i<m_Alpha.size()-1;i++){
+        if (AoA >= m_Alpha.at(i) && AoA <= m_Alpha.at(i+1)){
+            results.append(m_Cl.at(i)+(AoA-m_Alpha.at(i))/(m_Alpha.at(i+1)-m_Alpha.at(i))*(m_Cl.at(i+1)-m_Cl.at(i)));
+            results.append(m_Cd.at(i)+(AoA-m_Alpha.at(i))/(m_Alpha.at(i+1)-m_Alpha.at(i))*(m_Cd.at(i+1)-m_Cd.at(i)));
+            results.append(m_Cl_att.at(i)+(AoA-m_Alpha.at(i))/(m_Alpha.at(i+1)-m_Alpha.at(i))*(m_Cl_att.at(i+1)-m_Cl_att.at(i)));
+            results.append(m_Cl_sep.at(i)+(AoA-m_Alpha.at(i))/(m_Alpha.at(i+1)-m_Alpha.at(i))*(m_Cl_sep.at(i+1)-m_Cl_sep.at(i)));
+            results.append(m_fst.at(i)+(AoA-m_Alpha.at(i))/(m_Alpha.at(i+1)-m_Alpha.at(i))*(m_fst.at(i+1)-m_fst.at(i)));
+            results.append(clMax);
+            results.append(CdZero);
+            results.append(clMin);
+            break;
+        }
+    }
+    if (AoA < m_Alpha.at(0) || AoA > m_Alpha.at(m_Alpha.size()-1)){
+        results.append(m_Cl.at(0));
+        results.append(m_Cd.at(0));
+        results.append(m_Cl.at(0));
+        results.append(m_Cl_sep.at(0));
+        results.append(m_fst.at(0));
+        results.append(clMax);
+        results.append(CdZero);
+        results.append(clMin);
+    }
+
+    return results;
 }
 
 void C360Polar::ExportPolarNREL(QTextStream &out) {
@@ -145,7 +163,7 @@ void C360Polar::ExportPolarNREL(QTextStream &out) {
 //			"Minimum CD value" << endl;
 
 	/* Version that really is compatibel with AeroDyn 13 */
-    out <<  "AeroDyn airfoil file Created with QBlade v0.8 on "<<date.toString("dd.MM.yyyy") << " at " << time.toString("hh:mm:ss") << " Compatible with AeroDyn v13.0." << endl <<
+    out <<  "AeroDyn airfoil file Created with " << g_mainFrame->m_VersionName << " on "<<date.toString("dd.MM.yyyy") << " at " << time.toString("hh:mm:ss") << " Compatible with AeroDyn v13.0." << endl <<
 			"Polar \"" << getName() << "\" on Foil \"" << getParent()->getName() << "\" :: generated by QBlade"<< endl <<
 			QString("%1").arg(1, -15) <<
 			"Number of airfoil tables in this file" << endl <<
@@ -374,4 +392,42 @@ void C360Polar::getClMaximum(double &clMax, double &clMaxAngle) {
         clMax = m_Cl[maxIndex];
         clMaxAngle = m_Alpha[maxIndex];
     }
+}
+
+double C360Polar::getClMaximum() {
+    if (m_Cl.empty()) {
+        return 0;
+    } else {
+        int maxIndex = 0;
+        for (int i = 0; i < m_Cl.size(); ++i) {
+            if (m_Cl[i] > m_Cl[maxIndex]) {
+                maxIndex = i;
+            }
+        }
+        return  m_Cl[maxIndex];
+    }
+}
+
+double C360Polar::getClMinimum() {
+    if (m_Cl.empty()) {
+        return 0;
+    } else {
+        int minIndex = 0;
+        for (int i = 0; i < m_Cl.size(); ++i) {
+            if (m_Cl[i] < m_Cl[minIndex]) {
+                minIndex = i;
+            }
+        }
+        return  m_Cl[minIndex];
+    }
+}
+
+double C360Polar::getCdAtAlphaZero(){
+    for (int j=0;j<m_Alpha.size()-1;j++){
+        if (alpha_zero >= m_Alpha.at(j) && alpha_zero <= m_Alpha.at(j+1)){
+            return m_Cd.at(j)+(alpha_zero-m_Alpha.at(j))/(m_Alpha.at(j+1)-m_Alpha.at(j))*(m_Cd.at(j+1)-m_Cd.at(j));
+            break;
+        }
+    }
+    return -10;
 }

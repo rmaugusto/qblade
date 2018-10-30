@@ -10,13 +10,13 @@
 #include "QDebug"
 #include "../MainFrame.h"
 #include <omp.h>
-#include "../XGlobals.h"
 #include "../XBEM/BEM.h"
 #include "../StoreAssociatedComboBox.h"
 #include "../XBEM/TBEMData.h"
-#include <gsl/gsl_errno.h>
-#include <gsl/gsl_spline.h>
 #include <functional>
+#include "../Store.h"
+#include "QFEMModule.h"
+#include "QFEMDock.h"
 
 
 BladeStructureLoading::BladeStructureLoading()
@@ -47,7 +47,24 @@ BladeStructureLoading::~BladeStructureLoading() {
 void BladeStructureLoading::restorePointers() {
     StorableObject::restorePointers();
 
-    g_serializer.restorePointer (reinterpret_cast<StorableObject**> (&m_structure));
+	g_serializer.restorePointer (reinterpret_cast<StorableObject**> (&m_structure));
+}
+
+QStringList BladeStructureLoading::prepareMissingObjectMessage() {
+	if (g_bladestructureloadingStore.isEmpty() && g_QFEMModule->m_QFEMDock->m_Loading == NULL) {
+		QStringList message = BladeStructure::prepareMissingObjectMessage();
+		if (message.isEmpty()) {
+			if (g_mainFrame->m_iApp == QFEMMODULE && g_mainFrame->m_iView == QFEMLOADINGVIEW) {
+				message = QStringList(">>> Click 'New' to create a new Structural Loading");
+			} else {
+				message = QStringList(">>> Create a new Static Blade Loading in the 'Static Blade Loading' Tab");
+			}
+		}
+		message.prepend("- No Static Blade Loading in Database");
+		return message;
+	} else {
+		return QStringList();
+	}
 }
 
 void BladeStructureLoading::serialize() {

@@ -1,12 +1,14 @@
 #include "CDMSData.h"
-#include "../Objects/Wing.h"
+
 #include <QString>
 #include <QList>
-//#include <qDebug>//debug JW
+#include <QProgressDialog>
 
-#include "../Globals.h"
 #include "../Store.h"
 #include "../Serializer.h"
+#include "../Graph/NewCurve.h"
+#include "../ColorManager.h"
+#include "../ParameterViewer.h"
 
 
 CDMSData *CDMSData::newBySerialize() {
@@ -50,15 +52,65 @@ CDMSData::CDMSData()
     visc = 0.0000178;
     rho = 1.2;
 
-
+	
 }
 
-CDMSData::~CDMSData()
-{  
-
-DeleteArrays();
-
+CDMSData::CDMSData(ParameterViewer<Parameter::CDMSData> *viewer) {
+	m_bShowPoints   =   false;
+	m_bIsVisible    =   true;
+	m_Style        =   0;
+	m_Width        =   1;
+	m_bAspectRatio = false;
+	m_bPowerLaw = false;
+	m_bConstant = true;
+	m_bLogarithmic = false;
+	simulated = false;
+	
+	viewer->storeObject(this);
+	   
+	windtimes = floor((windend - windstart) / winddelta) + 1;  // TODO implement 'fix'
+	rottimes = floor((rotend - rotstart) / rotdelta) + 1;
+	pitchtimes = floor((pitchend - pitchstart) / pitchdelta) +1;
+	m_SimName = getName();
+	m_Color = g_mainFrame->GetColor(12);  // for the old DMS module
 }
+
+CDMSData::~CDMSData() {
+	if (simulated) {
+		DeleteArrays();
+	}
+}
+
+QStringList CDMSData::prepareMissingObjectMessage() {
+	if (g_cdmsdataStore.isEmpty()) {
+		QStringList message = CBlade::prepareMissingObjectMessage(true);
+		if (message.isEmpty()) {
+			if (g_mainFrame->m_iApp == DMS && g_mainFrame->m_iView == CHARSIMVIEW) {
+				message = QStringList(">>> Click 'Define Simulation' to create a new Multi Parameter DMS Simulation");
+			} else {
+				message = QStringList(">>> unknown hint");
+			}
+		}
+		message.prepend("- No Multi Parameter DMS Simulation in Database");
+		return message;
+	} else {
+		return QStringList();
+	}
+}
+
+QPen CDMSData::doGetPen(int curveIndex, int highlightedIndex, bool forTheDot) {
+	if (highlightedIndex == -1) {  // in case of "only one curve"
+		return m_pen;
+	} else {
+		QPen pen (m_pen);
+		pen.setColor(g_colorManager.getColor(curveIndex));
+		if (curveIndex == highlightedIndex && !forTheDot) {
+			pen.setWidth(pen.width()+2);
+		}
+		return pen;
+	}
+}
+
 void CDMSData::DeleteArrays()
 {
     if (pitchtimes == 0) return;
@@ -109,7 +161,185 @@ void CDMSData::DeleteArrays()
     delete [] m_Cm1;
     delete [] m_Cm2;
     delete [] m_P;
-    delete [] m_Torque;
+	delete [] m_Torque;
+}
+
+void CDMSData::startSimulation() {
+	QProgressDialog progress("", "Abort DMS", 0, rottimes * windtimes * pitchtimes, g_mainFrame);
+	progress.setWindowTitle("Simulating...");
+	progress.setModal(true);
+	
+	initArrays(windtimes, rottimes, pitchtimes);
+	
+	CBlade *rotor = dynamic_cast<CBlade*> (this->getParent());
+	int count = 0;
+	for (int i = 0; i < windtimes; ++i) {
+		const double windspeed = windstart + winddelta*i;
+		
+		for (int j = 0; j < rottimes; ++j) {
+			const double rot = rotstart + rotdelta*j;
+			
+			for (int k = 0; k < pitchtimes; ++k) {
+				const double pitch = pitchstart + pitchdelta*k;
+				DData *pDData = new DData (m_objectName);
+				
+				if (progress.wasCanceled()) {
+					simulated = false;
+					DeleteArrays();
+					return;
+				}
+				
+				QString text = QString("Windspeed: %1 m/s\nRotational Speed: %2 1/min\nPitch Angle: %3 deg"
+									   ).arg(windspeed).arg(rot).arg(pitch);
+				progress.setLabelText(text);
+				count++;
+				progress.setValue(count);
+				
+				const double lambda = (rot * rotor->m_MaxRadius / 60 * 2 * PI) / windspeed;
+				
+				Compute(pDData, rotor, lambda, pitch, windspeed);
+				
+				if (!pDData->m_bBackflow) {
+					m_P[i][j][k] = 0.5 * rho * pow(windspeed,3) * pDData->sweptArea * pDData->cp;
+					m_Torque[i][j][k] = 0.5 * rho * pow(windspeed,3) * pDData->sweptArea * pDData->cp / (rot/60*2*PI);
+					
+					m_Lambda[i][j][k] = lambda;
+					m_one_over_Lambda[i][j][k] = 1 / lambda;
+					
+					m_V[i][j][k] = windspeed;
+					m_w[i][j][k] = rot;
+					m_Pitch[i][j][k] = pitch;
+					
+					m_Cp[i][j][k] = pDData->cp;
+					m_Cp1[i][j][k] = pDData->cp1;
+					m_Cp2[i][j][k] = pDData->cp2;
+					m_Kp[i][j][k] = pDData->cp / pow(lambda,3);
+					
+					m_Cm[i][j][k] = pDData->cm;
+					m_Cm1[i][j][k] = pDData->cm1;
+					m_Cm2[i][j][k] = pDData->cm2;
+				}
+				
+				delete pDData;
+			}
+		}
+	}
+	
+	simulated = true;
+}
+
+NewCurve *CDMSData::newCurve(QString xAxis, QString yAxis, int windIndex, int rotIndex, int pitchIndex) {
+	if (xAxis == "" || yAxis == "" || !hasResults())
+		return NULL;
+	
+	float ***xList, ***yList;
+	for (int i = 0; i < 2; ++i) {
+		const int index = getAvailableVariables(NewGraph::None).indexOf(i == 0 ? xAxis : yAxis);
+		float ****list = (i == 0 ? &xList : &yList);
+		
+		switch (index) {
+		case  0: *list = m_P; break;
+		case  1: *list = m_Torque; break;
+		case  2: *list = m_V; break;
+		case  3: *list = m_Lambda; break;
+		case  4: *list = m_one_over_Lambda; break;
+		case  5: *list = m_w; break;
+		case  6: *list = m_Pitch; break;
+		case  7: *list = m_Cp; break;
+		case  8: *list = m_Cp1; break;
+		case  9: *list = m_Cp2; break;
+		case 10: *list = m_Cm; break;
+		case 11: *list = m_Cm1; break;
+		case 12: *list = m_Cm2; break;
+		case 13: *list = m_Kp; break;
+		default: return NULL;
+		}
+	}
+	
+	NewCurve *curve = new NewCurve(this);
+	if (windIndex == -1) {
+		for (int i = 0; i < windtimes; ++i) {
+			curve->addPoint(xList[i][rotIndex][pitchIndex], yList[i][rotIndex][pitchIndex]);
+		}
+	} else if (rotIndex == -1) {
+		for (int i = 0; i < rottimes; ++i) {
+			curve->addPoint(xList[windIndex][i][pitchIndex], yList[windIndex][i][pitchIndex]);
+		}
+	} else if (pitchIndex == -1) {
+		for (int i = 0; i < pitchtimes; ++i) {
+			curve->addPoint(xList[windIndex][rotIndex][i], yList[windIndex][rotIndex][i]);
+		}
+	}
+	return curve;
+	
+		
+//		NewCurve *curve = new NewCurve(this);
+//		// dimension can be taken from any list (here m_P.size()), it's all the same
+//		curve->setAllPoints(xList.toVector().data(), yList.toVector().data(), m_P.size());
+//		return curve;
+//	}
+//	case NewGraph::TurbineWeibull:
+//	{
+//		// for the Weibull graph the y array depends only on the selected x array.
+//		const int index = getAvailableVariables(graphType, true).indexOf(xAxis);
+//		if (index == -1) {
+//			return NULL;
+//		} else {
+//			QList<double> yList = (index == 0 ? m_aepk : m_aepA);
+//			for (int i = 0; i < yList.size(); ++i) {  // divide by 1000 because graph shows kWh, but Wh is stored in list
+//				yList[i] /= 1000;
+//			}
+			
+//			NewCurve *curve = new NewCurve(this);
+//			curve->setAllPoints((index == 0 ? kWeibull : aWeibull).toVector().data(),
+//								yList.toVector().data(),
+//								kWeibull.size());
+//			return curve;
+//		}
+//	}
+//	default:
+//		return NULL;
+	//	}
+}
+
+QStringList CDMSData::getAvailableVariables(NewGraph::GraphType /*graphType*/, bool /*xAxis*/) {
+	QStringList variables;
+	
+	// WARNING: when changing any variables list, change newCurve as well!
+	variables << "Power" << "Rotor Torque" << "Windspeed" << "Tip Speed Ratio" << "1 / Tip Speed Ratio" <<
+				 "Rotational Speed" << "Pitch Angle" << "Power Coefficent Cp" << "Power Coefficent Cp1" <<
+				 "Power Coefficent Cp2" << "Torque Coefficient Cm" << "Torque Coefficient Cm1" <<
+				 "Torque Coefficient Cm2" << "Dimensionless Power Coefficent Kp";
+	
+	return variables;
+}
+
+QVariant CDMSData::accessParameter(Parameter::CDMSData::Key key, QVariant value) {
+	typedef Parameter::CDMSData P;
+	
+	const bool set = value.isValid();
+	switch (key) {
+	case P::Name: if(set) setName(value.toString()); else value = getName(); break;
+	case P::Rho: if(set) rho = value.toDouble(); else value = rho; break;
+	case P::Viscosity: if(set) visc = value.toDouble(); else value = visc; break;
+	case P::Discretize: if(set) elements = value.toDouble(); else value = elements; break;
+	case P::MaxIterations: if(set) iterations = value.toDouble(); else value = iterations; break;
+	case P::MaxEpsilon: if (set) epsilon = value.toDouble(); else value = epsilon; break;
+	case P::RelaxFactor: if (set) relax = value.toDouble(); else value = relax; break;
+	case P::TipLoss: if(set) m_bTipLoss = value.toBool(); else value = m_bTipLoss; break;
+	case P::VariableInduction: if(set) m_bVariable = value.toBool(); else value = m_bVariable; break;
+	case P::WindspeedFrom: if (set) windstart = value.toDouble(); else value = windstart; break;
+	case P::WindspeedTo: if (set) windend = value.toDouble(); else value = windend; break;
+	case P::WindspeedDelta: if (set) winddelta = value.toDouble(); else value = winddelta; break;
+	case P::RotationalFrom: if (set) rotstart = value.toDouble(); else value = rotstart; break;
+	case P::RotationalTo: if (set) rotend = value.toDouble(); else value = rotend; break;
+	case P::RotationalDelta: if (set) rotdelta = value.toDouble(); else value = rotdelta; break;
+	case P::PitchFrom: if (set) pitchstart = value.toDouble(); else value = pitchstart; break;
+	case P::PitchTo: if (set) pitchend = value.toDouble(); else value = pitchend; break;
+	case P::PitchDelta: if (set) pitchdelta = value.toDouble(); else value = pitchdelta; break;
+	}
+
+	return (set ? QVariant() : value);
 }
 
 void CDMSData::initArrays(int wtimes, int rtimes, int ptimes)
@@ -167,9 +397,7 @@ void CDMSData::initArrays(int wtimes, int rtimes, int ptimes)
 
 }
 
-void CDMSData::Compute(DData *pDData, CBlade *pWing, double lambda, double pitch, double windspeed)
-{
-
+void CDMSData::Compute(DData *pDData, CBlade *pWing, double lambda, double pitch, double windspeed) {
 	pDData->elements = elements;
 	pDData->epsilon = epsilon;
 	pDData->iterations = iterations;
@@ -184,193 +412,12 @@ void CDMSData::Compute(DData *pDData, CBlade *pWing, double lambda, double pitch
 	pDData->bLogarithmic = m_bLogarithmic;
 	pDData->exponent = exponent;
 	pDData->roughness = roughness;
-
-	pDData->Toff = 0;
 	pDData->windspeed = windspeed;
-
-	pDData->Init(pWing,lambda,pitch);
-	pDData->OnDMS();
-
-
-}
-
-
-void CDMSData::Serialize(QDataStream &ar, bool bIsStoring, int /*ArchiveFormat*/)
-{
-    int i,j,k,w,r,p;
-    float f;
-
-    if (bIsStoring)
-    {
-        w = (int) windtimes;
-        r = (int) rottimes;
-        p = (int) pitchtimes;
-
-        ar << (float)windtimes;
-        ar << (float)pitchtimes;
-        ar << (float)rottimes;
-        ar << (float)windstart;
-        ar << (float)windend;
-        ar << (float)winddelta;
-        ar << (float)rotstart;
-        ar << (float)rotend;
-        ar << (float)rotdelta;
-        ar << (float)pitchstart;
-        ar << (float)pitchend;
-        ar << (float)pitchdelta;
-
-        ar << (int) m_Style;
-        ar << (int) m_Width;
-        ar << (float) elements;
-        ar << (float) rho;
-        ar << (float) epsilon;
-        ar << (float) iterations;
-        ar << (float) relax;
-        ar << (float) visc;
-		ar << (float) exponent;
-		ar << (float) roughness;
-
-		if (simulated) ar << 1; else ar<<0;
-		if (m_bTipLoss) ar << 1; else ar<<0;
-		if (m_bAspectRatio) ar << 1; else ar<<0;;
-		if (m_bVariable) ar << 1; else ar<<0;
-		if (m_bConstant) ar << 1; else ar<<0;
-		if (m_bPowerLaw) ar << 1; else ar<<0;
-		if (m_bLogarithmic) ar << 1; else ar<<0;
-
-        WriteCOLORREF(ar,m_Color);
-        WriteCString(ar, m_WingName);
-        WriteCString(ar, m_SimName);
-        ar << (int) w << (int) r << (int) p;
-        for (i=0;i<w;i++)
-        {
-            for (j=0;j<r;j++)
-            {
-                for (k=0;k<p;k++)
-                {
-					ar << (float) m_P[i][j][k] << (float) m_V[i][j][k] << (float) m_w[i][j][k] << (float) m_Lambda[i][j][k] << (float) m_Cp[i][j][k] << (float) m_Cp1[i][j][k] << (float) m_Cp2[i][j][k] << (float) m_Cm[i][j][k] << (float) m_Cm1[i][j][k] << (float) m_Cm2[i][j][k] << (float) m_Pitch[i][j][k] << (float) m_Kp[i][j][k] << (float) m_one_over_Lambda[i][j][k] << (float) m_Torque[i][j][k];
-                }
-            }
-        }
-
-    }
-    else
-    {
-        ar >> f;
-        windtimes = f;
-        ar >> f;
-        pitchtimes = f;
-        ar >> f;
-        rottimes = f;
-        ar >> f;
-        windstart = f;
-        ar >> f;
-        windend = f;
-        ar >> f;
-        winddelta = f;
-        ar >> f;
-        rotstart = f;
-        ar >> f;
-        rotend = f;
-        ar >> f;
-        rotdelta = f;
-        ar >> f;
-        pitchstart = f;
-        ar >> f;
-        pitchend = f;
-        ar >> f;
-        pitchdelta = f;
-
-
-
-        ar >> j;
-        m_Style = j;
-        ar >> j;
-        m_Width = j;
-        ar >> f;
-        elements = f;
-        ar >> f;
-        rho = f;
-        ar >> f;
-        epsilon = f;
-        ar >> f;
-        iterations = f;
-        ar >> f;
-        relax = f;
-        ar >> f;
-        visc = f;
-		ar >> f;
-		exponent = f;
-		ar >> f;
-		roughness = f;
-
-        ar >> f;
-		if (f) simulated = true; else simulated = false;
-		ar >> f;
-		if (f) m_bTipLoss = true; else m_bTipLoss = false;
-		ar >> f;
-		if (f) m_bAspectRatio = true; else m_bAspectRatio = false;
-		ar >> f;
-		if (f) m_bVariable = true; else m_bVariable = false;
-		ar >> f;
-		if (f) m_bConstant = true; else m_bConstant = false;
-		ar >> f;
-		if (f) m_bPowerLaw = true; else m_bPowerLaw = false;
-		ar >> f;
-		if (f) m_bLogarithmic = true; else m_bLogarithmic = false;
-
-        ReadCOLORREF(ar,m_Color);
-        ReadCString(ar,m_WingName);
-//		setParentName(m_WingName);  // NM REPLACE
-		setSingleParent(g_verticalRotorStore.getObjectByNameOnly(m_WingName));  // only for backwards compatibility
-        ReadCString(ar,m_SimName);
-		setName(m_SimName);
-
-        ar >> w;
-        ar >> r;
-        ar >> p;
-
-        initArrays(w,r,p);
-
-        for (i=0;i<w;i++)
-        {
-            for (j=0;j<r;j++)
-            {
-                for (k=0;k<p;k++)
-				{
-                    ar >> f;
-					m_P[i][j][k] = f;
-					ar >> f;
-                    m_V[i][j][k] = f;
-                    ar >> f;
-					m_w[i][j][k] = f;
-                    ar >> f;
-                    m_Lambda[i][j][k] = f;
-					ar >> f;
-					m_Cp[i][j][k] = f;
-					ar >> f;
-					m_Cp1[i][j][k] = f;
-					ar >> f;
-					m_Cp2[i][j][k] = f;
-					ar >> f;
-					m_Cm[i][j][k] = f;
-					ar >> f;
-					m_Cm1[i][j][k] = f;
-					ar >> f;
-					m_Cm2[i][j][k] = f;
-					ar >> f;
-                    m_Pitch[i][j][k] = f;
-					ar >> f;
-                    m_Kp[i][j][k] = f;
-                    ar >> f;
-                    m_one_over_Lambda[i][j][k] = f;
-                    ar >> f;
-					m_Torque[i][j][k] = f;
-                }
-            }
-
-        }
-	}
+	
+	pDData->Toff = 0;
+	
+	pDData->Init(pWing, lambda, pitch);
+	pDData->OnDMS(pWing);
 }
 
 void CDMSData::serialize() {

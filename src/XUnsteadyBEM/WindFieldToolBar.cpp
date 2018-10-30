@@ -8,45 +8,49 @@
 #include "WindFieldModule.h"
 #include "WindField.h"
 #include "../Misc/NumberEdit.h"
-#include "../Store_include.h"
-extern WindFieldStore g_windFieldStore;
+#include "../Store.h"
+
 
 
 WindFieldToolBar::WindFieldToolBar(QMainWindow *parent, WindFieldModule *module)
 {
+	setObjectName("WindfieldToolbar");
+	
 	m_module = module;
 	m_shownWindField = NULL;
 
-
-    QGroupBox *groupBox = new QGroupBox (tr("Windfield"));
-    m_windfieldBox = addWidget(groupBox);
-    QVBoxLayout *vBox = new QVBoxLayout ();
-        groupBox->setLayout(vBox);
-        m_windFieldComboBox = new WindFieldComboBox (&g_windFieldStore);
-        m_windFieldComboBox->setSizeAdjustPolicy(QComboBox::AdjustToContents);
-        m_windFieldComboBox->setMinimumWidth(170);
-        vBox->addWidget(m_windFieldComboBox);
-
-    connect (m_windFieldComboBox, SIGNAL(valueChanged(int)), m_module, SLOT(onShownWindFieldChanged(int)));
-
-
-
-
-	groupBox = new QGroupBox (tr("Timestep"));
-	m_timestepBox = addWidget(groupBox);
-	QHBoxLayout *hBox = new QHBoxLayout ();
-	groupBox->setLayout(hBox);
-	m_timestepEdit = new NumberEdit (NumberEdit::Standard, 0);
-	m_timestepEdit->setFixedWidth(60);
-	m_timestepEdit->setMinimum(1);
-	m_timestepEdit->setValue(1);
-	connect (m_timestepEdit, SIGNAL(editingFinished()), this, SLOT(onTimestepEditEdited()));
-	hBox->addWidget(m_timestepEdit);
-	m_timestepSlider = new QSlider ();
-	m_timestepSlider->setOrientation(Qt::Horizontal);
-	m_timestepSlider->setMinimum(1);
-	connect (m_timestepSlider, SIGNAL(valueChanged(int)), this, SLOT(onSliderChanged(int)));
-	hBox->addWidget(m_timestepSlider);
+    QRect rec = QApplication::desktop()->screenGeometry();
+    int width = rec.width();
+    setIconSize(QSize(width*0.025,width*0.025));
+	
+	{
+		QGroupBox *groupBox = new QGroupBox (tr("Windfield"));
+		addWidget(groupBox); {
+			QVBoxLayout *vBox = new QVBoxLayout ();
+			groupBox->setLayout(vBox);
+			m_windFieldComboBox = new WindFieldComboBox (&g_windFieldStore);
+			m_windFieldComboBox->setSizeAdjustPolicy(QComboBox::AdjustToContents);
+			m_windFieldComboBox->setMinimumWidth(170);
+			vBox->addWidget(m_windFieldComboBox);
+			connect (m_windFieldComboBox, SIGNAL(valueChanged(int)), m_module, SLOT(onShownWindFieldChanged(int)));
+	} } {
+		QGroupBox *groupBox = new QGroupBox (tr("Timestep"));
+		addWidget(groupBox); {
+			QHBoxLayout *hBox = new QHBoxLayout ();
+			groupBox->setLayout(hBox); {
+				m_timestepEdit = new NumberEdit (NumberEdit::Standard, 0);
+//				m_timestepEdit->setFixedWidth(60);
+                m_timestepEdit->setMinimum(1);
+				m_timestepEdit->setValue(1);
+                m_timestepEdit->
+				connect (m_timestepEdit, SIGNAL(editingFinished()), this, SLOT(onTimestepEditEdited()));
+				hBox->addWidget(m_timestepEdit);
+				m_timestepSlider = new QSlider ();
+				m_timestepSlider->setOrientation(Qt::Horizontal);
+				m_timestepSlider->setMinimum(1);
+				connect (m_timestepSlider, SIGNAL(valueChanged(int)), this, SLOT(onSliderChanged(int)));
+				hBox->addWidget(m_timestepSlider);
+	} } }
 	
 	useWindField(NULL);
 	

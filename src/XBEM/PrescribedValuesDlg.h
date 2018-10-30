@@ -24,7 +24,7 @@ public:
         PrescribedValuesDlg();
         void InitDialog();
 
-private slots:
+public slots:  //private slots:
         void OnDeletePoint();
         void OnInsertPoint();
         void SetSelection(int sel);
@@ -45,7 +45,7 @@ private:
 //        void FillTable();
         void keyPressEvent(QKeyEvent *event);
 
-private:
+public:  //private:
         QPushButton *m_pctrlDeletePoint, *m_pctrlInsertPoint, *m_pctrlResetButton;
         QPushButton *OKButton, *CancelButton;
 

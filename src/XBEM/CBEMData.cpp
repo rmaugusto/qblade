@@ -1,5 +1,4 @@
 #include "CBEMData.h"
-#include "../Objects/Wing.h"
 #include <QString>
 #include <QList>
 #include "QDebug"
@@ -7,6 +6,7 @@
 #include "../Globals.h"
 #include "../Store.h"
 #include "../Serializer.h"
+#include "../MainFrame.h"
 
 
 CBEMData* CBEMData::newBySerialize() {
@@ -48,6 +48,23 @@ CBEMData::~CBEMData()
 
 DeleteArrays();
 
+}
+
+QStringList CBEMData::prepareMissingObjectMessage() {
+	if (g_cbemdataStore.isEmpty()) {
+		QStringList message = CBlade::prepareMissingObjectMessage(false);
+		if (message.isEmpty()) {
+			if (g_mainFrame->m_iApp == BEM && g_mainFrame->m_iView == CHARSIMVIEW) {
+				message = QStringList(">>> Click 'Define Simulation' to create a new Multi Parameter Simulation");
+			} else {
+				message = QStringList(">>> unknown hint");
+			}
+		}
+		message.prepend("- No Multi Parameter BEM Simulation in Database");
+		return message;
+	} else {
+		return QStringList();
+	}
 }
 
 void CBEMData::DeleteArrays()
@@ -119,11 +136,9 @@ void CBEMData::Compute(BData *pBData, CBlade *pWing, double lambda, double pitch
     pBData->m_bNewTipLoss = m_bNewTipLoss;
     pBData->m_bCdReynolds = m_bCdReynolds;
 
-    pBData->windspeed = windspeed;
-
     pBData->Init(pWing,lambda);
 
-    pBData->OnBEM(pitch);
+    pBData->OnBEM(pitch, pWing, windspeed);
 }
 
 void CBEMData::initArrays(int wtimes, int rtimes, int ptimes)
@@ -175,182 +190,6 @@ void CBEMData::initArrays(int wtimes, int rtimes, int ptimes)
         }
     }
 
-}
-
-
-
-void CBEMData::Serialize(QDataStream &ar, bool bIsStoring, int ArchiveFormat)
-{
-    int i,j,k,w,r,p;
-    float f;
-
-    if (bIsStoring)
-    {
-        w = (int) windtimes;
-        r = (int) rottimes;
-        p = (int) pitchtimes;
-
-        ar << (float)windtimes;
-        ar << (float)pitchtimes;
-        ar << (float)rottimes;
-        ar << (float)windstart;
-        ar << (float)windend;
-        ar << (float)winddelta;
-        ar << (float)rotstart;
-        ar << (float)rotend;
-        ar << (float)rotdelta;
-        ar << (float)pitchstart;
-        ar << (float)pitchend;
-        ar << (float)pitchdelta;
-
-        ar << (int) m_Style;
-        ar << (int) m_Width;
-        ar << (float) elements;
-        ar << (float) rho;
-        ar << (float) epsilon;
-        ar << (float) iterations;
-        ar << (float) relax;
-        ar << (float) visc;
-
-        if (simulated) ar << 1; else ar<<0;
-        if (m_bTipLoss) ar << 1; else ar<<0;
-        if (m_bRootLoss) ar << 1; else ar<<0;
-        if (m_b3DCorrection) ar << 1; else ar<<0;
-        if (m_bInterpolation) ar << 1; else ar<<0;
-        if (m_bNewTipLoss) ar << 1; else ar<<0;
-        if (m_bNewRootLoss) ar << 1; else ar<<0;
-        if (m_bCdReynolds) ar << 1; else ar<<0;
-
-        WriteCOLORREF(ar,m_Color);
-        WriteCString(ar, m_WingName);
-        WriteCString(ar, m_SimName);
-        ar << (int) w << (int) r << (int) p;
-        for (i=0;i<w;i++)
-        {
-            for (j=0;j<r;j++)
-            {
-                for (k=0;k<p;k++)
-                {
-                    ar << (float) m_P[i][j][k] << (float) m_S[i][j][k] << (float) m_V[i][j][k] << (float) m_Omega[i][j][k] << (float) m_Lambda[i][j][k] << (float) m_Cp[i][j][k] << (float) m_Ct[i][j][k] << (float) m_Cm[i][j][k] << (float) m_Pitch[i][j][k] << (float) m_Bending[i][j][k] << (float) m_Kp[i][j][k] << (float) m_one_over_Lambda[i][j][k] << (float) m_Torque[i][j][k];
-                }
-            }
-        }
-
-    }
-    else
-    {
-        ar >> f;
-        windtimes = f;
-        ar >> f;
-        pitchtimes = f;
-        ar >> f;
-        rottimes = f;
-        ar >> f;
-        windstart = f;
-        ar >> f;
-        windend = f;
-        ar >> f;
-        winddelta = f;
-        ar >> f;
-        rotstart = f;
-        ar >> f;
-        rotend = f;
-        ar >> f;
-        rotdelta = f;
-        ar >> f;
-        pitchstart = f;
-        ar >> f;
-        pitchend = f;
-        ar >> f;
-        pitchdelta = f;
-
-        ar >> j;
-        m_Style = j;
-        ar >> j;
-        m_Width = j;
-        ar >> f;
-        elements = f;
-        ar >> f;
-        rho = f;
-        ar >> f;
-        epsilon = f;
-        ar >> f;
-        iterations = f;
-        ar >> f;
-        relax = f;
-        ar >> f;
-        visc = f;
-        ar >> f;
-
-        if (f) simulated = true; else simulated = false;
-        ar >> f;
-        if (f) m_bTipLoss = true; else m_bTipLoss = false;
-        ar >> f;
-        if (f) m_bRootLoss = true; else m_bRootLoss = false;
-        ar >> f;
-        if (f) m_b3DCorrection = true; else m_b3DCorrection = false;
-        ar >> f;
-        if (f) m_bInterpolation = true; else m_bInterpolation = false;
-        ar >> f;
-        if (f) m_bNewTipLoss = true; else m_bNewTipLoss = false;
-        ar >> f;
-        if (f) m_bNewRootLoss = true; else m_bNewRootLoss = false;
-        if (ArchiveFormat >= 100021)
-        {
-            ar >> f;
-            if (f) m_bCdReynolds = true; else m_bCdReynolds = false;
-        }
-
-        ReadCOLORREF(ar,m_Color);
-        ReadCString(ar,m_WingName);
-//		setParentName(m_WingName);  // NM REPLACE
-		setSingleParent(g_rotorStore.getObjectByNameOnly(m_WingName));  // only needed for downwards compatibility
-        ReadCString(ar,m_SimName);
-		setName(m_SimName);
-
-        ar >> w;
-        ar >> r;
-        ar >> p;
-
-        initArrays(w,r,p);
-
-        for (i=0;i<w;i++)
-        {
-            for (j=0;j<r;j++)
-            {
-                for (k=0;k<p;k++)
-                {
-                    ar >> f;
-                    m_P[i][j][k] = f;
-                    ar >> f;
-                    m_S[i][j][k] = f;
-                    ar >> f;
-                    m_V[i][j][k] = f;
-                    ar >> f;
-                    m_Omega[i][j][k] = f;
-                    ar >> f;
-                    m_Lambda[i][j][k] = f;
-                    ar >> f;
-                    m_Cp[i][j][k] = f;
-                    ar >> f;
-                    m_Ct[i][j][k] = f;
-                    ar >> f;
-                    m_Cm[i][j][k] = f;
-                    ar >> f;
-                    m_Pitch[i][j][k] = f;
-                    ar >> f;
-                    m_Bending[i][j][k] = f;
-                    ar >> f;
-                    m_Kp[i][j][k] = f;
-                    ar >> f;
-                    m_one_over_Lambda[i][j][k] = f;
-                    ar >> f;
-                    m_Torque[i][j][k] = f;
-                }
-            }
-
-        }
-	}
 }
 
 void CBEMData::serialize() {

@@ -1,43 +1,51 @@
 #include "NewGraph.h"
 
-#include <cmath>
 #include <limits>
 #include <QPainter>
 #include <QPoint>
 #include <QVector>
 #include <QFontMetrics>
-#include <QDebug>
 #include <QSettings>
 #include <QDate>
 #include <QTime>
-#include <QPen>
 
 #include "NewCurve.h"
 #include "ShowAsGraphInterface.h"
 #include "../Store.h"
+#include "../XUnsteadyBEM/FASTModule.h"
+#include "../XDMS/TurDmsModule.h"
+#include "../XDMS/MultiDmsModule.h"
+#include "../XLLT/QLLTModule.h"
 #include "../XUnsteadyBEM/FASTSimulation.h"
 #include "../QFem/BladeStructure.h"
-#include "../XUnsteadyBEM/FASTModule.h"
-#include "../XLLT/QLLTModule.h"
-#include "../Noise/noisemodule.h"
-#include "../XGlobals.h" //TODO remove this line when QLLTStore implemented
+#include "../XBEM/TData.h"
+#include "../Noise/NoiseModule.h"
 
 
-// the graph won't update itself when changes are made. The calling class have to take care about that.
-NewGraph::NewGraph(QString nameInSettings, GraphType graphType, TwoDWidgetInterface *twoDInterface) {
-	m_graphType = None;
-	
-	m_twoDInterface = twoDInterface;
-	m_nameInSettings = nameInSettings;
-	m_xAxis.setTickSizeFactor(2.5);
-	m_yAxis.setTickSizeFactor(5);
-	m_xAxis.setLimits(-1.1, 1.1);
-	m_yAxis.setLimits(-1.1, 1.1);
-	m_gapWidth = 3;
-	m_borderGapWidth = 3;
+/* the graph won't reprint itself when changes are made. The calling class has to take care of that. */
+NewGraph::NewGraph(QString nameInSettings, TwoDWidgetInterface *twoDInterface, const GraphDefaults &defaults)
+	: m_graphType(None),
+	  m_graphTypeMulti(None),
+	  m_twoDInterface(twoDInterface),
+	  m_xAxis (-1.1, 1.1, 2.5, defaults.xLogarithmic),
+	  m_yAxis (-1.1, 1.1, 5, defaults.yLogarithmic),
+	  m_nameInSettings(nameInSettings),
+	  m_borderGapWidth(3),
+	  m_gapWidth(3)
+{
+	static bool registerMetaType = false;  // this is needed to save and load this type from settings
+	if (!registerMetaType) {  // execute once
+		registerMetaType = true;
+		qRegisterMetaType<QMap<int, QPair<QString,QString> > >("GraphTypeMap");
+		qRegisterMetaTypeStreamOperators<QMap<int, QPair<QString,QString> > >("GraphTypeMap");
+		qRegisterMetaType<QMap<int, int> >("GraphTypeMultiMap");
+		qRegisterMetaTypeStreamOperators<QMap<int, int> >("GraphTypeMultiMap");
+	}
 	
 	if (! loadStylesFromSettings()) {  // set the default style, if this graph is not found in the settings
-		setGraphType(graphType);
+		setGraphType(defaults.graphType);
+		m_xAxisTitle = defaults.xTitle;
+		m_yAxisTitle = defaults.yTitle;
 		m_backgroundColor = QColor ("white");
 		m_borderColor = QColor ("lightgrey");
 		m_titleColor = QColor ("black");
@@ -57,7 +65,6 @@ NewGraph::NewGraph(QString nameInSettings, GraphType graphType, TwoDWidgetInterf
 	}
 	
 	reloadCurves();
-	setOptimalLimits();
 }
 
 NewGraph::~NewGraph() {
@@ -65,73 +72,113 @@ NewGraph::~NewGraph() {
 	saveStylesToSettings ();
 }
 
-void NewGraph::setGraphType(NewGraph::GraphType graphType) {
+void NewGraph::setGraphType(GraphType graphType) {
 	if (m_graphType == graphType)
 		return;  // nothing to do
 	
-	/* disconnect old type */
-	switch (m_graphType) {
-	case None:
-		break;
-	case FastSimulation:
-		disconnect(&g_FASTSimulationStore, SIGNAL(objectListChanged(bool)), this, SLOT(updateGraph()));
-		disconnect(g_fastModule, SIGNAL(updateFastGraphs()), this, SLOT(updateGraph()));
-		break;
-	case BladeGraph:
-		disconnect(&g_FASTSimulationStore, SIGNAL(objectListChanged(bool)), this, SLOT(updateGraph()));
-		disconnect(g_fastModule, SIGNAL(updateBladeGraphs()), this, SLOT(updateGraph()));
-		break;
-    case QFEMSimulation:
-        disconnect(&g_bladeStructureStore, SIGNAL(objectListChanged(bool)), this, SLOT(updateGraph()));
-        break;
-    case QLLTSimulation:
-        disconnect(&g_QLLTHAWTSimulationStore, SIGNAL(objectListChanged(bool)), this, SLOT(updateGraph()));
-        break;
-    case NoiseSimulationGraph:
-        disconnect(&g_NoiseSimulationStore, SIGNAL(objectListChanged(bool)), this, SLOT(updateGraph()));
-        break;
-    }
+	/* store type */
+	m_formerAxisTitles[m_graphType] = QPair<QString,QString> (m_xAxisTitle, m_yAxisTitle);  // store the former axis titles
+	m_formerGraphTypeMulti[m_graphType] = m_graphTypeMulti;
 	
+	/* switch type */
 	m_graphType = graphType;
-	
-	/* connect new type */
-	switch (m_graphType) {
-	case None:
-		break;
-	case FastSimulation:
-		connect(&g_FASTSimulationStore, SIGNAL(objectListChanged(bool)), this, SLOT(updateGraph()));
-		connect(g_fastModule, SIGNAL(updateFastGraphs()), this, SLOT(updateGraph()));
-		break;
-	case BladeGraph:
-		connect(&g_FASTSimulationStore, SIGNAL(objectListChanged(bool)), this, SLOT(updateGraph()));
-		connect(g_fastModule, SIGNAL(updateBladeGraphs()), this, SLOT(updateGraph()));
-		break;
-    case QFEMSimulation:
-        connect(&g_bladeStructureStore, SIGNAL(objectListChanged(bool)), this, SLOT(updateGraph()));
-        break;
-    case QLLTSimulation:
-        connect(&g_QLLTHAWTSimulationStore, SIGNAL(objectListChanged(bool)), this, SLOT(updateGraph()));
-        break;
-    case NoiseSimulationGraph:
-        connect(&g_NoiseSimulationStore, SIGNAL(objectListChanged(bool)), this, SLOT(updateGraph()));
-        break;
-    }
+
+	/* prepare new type */
+	if (m_formerAxisTitles.contains(m_graphType)) {  // restore former axis titles for new type
+		m_xAxisTitle = m_formerAxisTitles[graphType].first;
+		m_yAxisTitle = m_formerAxisTitles[graphType].second;
+	} else {
+		m_xAxisTitle = "";
+		m_yAxisTitle = "";
+	}
+	if (graphType == TurbineRotor || graphType == RotorLegend) {  // force RotorAllSims
+		m_graphTypeMulti = RotorAllSimulations;
+	} else if (m_formerGraphTypeMulti.contains(graphType)) {
+		m_graphTypeMulti = static_cast<GraphType>(m_formerGraphTypeMulti[graphType]);
+	} else {
+		m_graphTypeMulti = None;
+	}
 }
 
-void NewGraph::drawGraph(QPainter &painter) {
+void NewGraph::drawGraph(QPainter &painter) {	
 	painter.setClipRect(m_drawingArea);
 	painter.fillRect(m_drawingArea, m_borderColor);
 	const int nettoBorder = m_borderWidth - m_borderGapWidth;
-	painter.fillRect(m_drawingArea.adjusted(nettoBorder, nettoBorder, -nettoBorder, -nettoBorder), m_backgroundColor);
+	const QRect inner (m_drawingArea.adjusted(nettoBorder, nettoBorder, -nettoBorder, -nettoBorder));
+	painter.fillRect(inner, m_backgroundColor);
 	
-	drawTicks (painter);
-	drawGrid (painter);
-	drawTitles (painter);
-	drawCurves (painter);
+	switch (m_graphType) {
+	case TurbineLegend:
+	{
+		painter.setClipRect(inner);
+		painter.setFont(QFont());
+		painter.setPen(QPen());
+		const int textHeight = QFontMetrics(QFont()).boundingRect("fg").height();
+		const int left = inner.left() + 20;
+		int yPosition = inner.top() + 5;
+		for (int i = 0; i < g_verttdataStore.size(); ++i) {
+			TData *turbine = g_verttdataStore.at(i);
+			TDMSData *simulation;
+			bool first = true;
+			for (int j = 0; turbine->getChild(j) != NULL; ++j) {
+				simulation = dynamic_cast<TDMSData*>(turbine->getChild(j));
+				if (simulation != NULL && simulation->isShownInGraph()) {
+					if (first) {
+						first = false;
+						yPosition += textHeight;
+						painter.drawText(left, yPosition, turbine->getName());
+					}
+					
+					yPosition += textHeight;
+					painter.setPen(simulation->getPen());
+					painter.drawLine(left+10, yPosition - textHeight/3, left + 110, yPosition - textHeight/3);
+					painter.setPen(QPen());
+					painter.drawText(left + 120, yPosition, simulation->getName());
+				}
+			}
+		}
+		break;
+	}
+	case RotorLegend:
+	{
+		painter.setClipRect(inner);
+		painter.setFont(QFont());
+		painter.setPen(QPen());
+		const int textHeight = QFontMetrics(QFont()).boundingRect("fg").height();
+		const int left = inner.left() + 20;
+		int yPosition = inner.top() + 5;
+		for (int i = 0; i < g_verticalRotorStore.size(); ++i) {
+			CBlade *rotor = g_verticalRotorStore.at(i);
+			DMSData *simulation;
+			bool first = true;
+			for (int j = 0; rotor->getChild(j) != NULL; ++j) {
+				simulation = dynamic_cast<DMSData*>(rotor->getChild(j));
+				if (simulation != NULL && simulation->isShownInGraph()) {
+					if (first) {
+						first = false;
+						yPosition += textHeight;
+						painter.drawText(left, yPosition, rotor->getName());
+					}
+
+					yPosition += textHeight;
+					painter.setPen(simulation->getPen());
+					painter.drawLine(left+10, yPosition - textHeight/3, left + 110, yPosition - textHeight/3);
+					painter.setPen(QPen());
+					painter.drawText(left + 120, yPosition, simulation->getName());
+				}
+			}
+		}
+		break;
+	}
+	default:
+		drawTicks (painter);
+		drawGrid (painter);
+		drawTitles (painter);
+		drawCurves (painter);
+	}
 }
 
-void NewGraph::exportGraph(QString fileName, int fileType) {
-
+void NewGraph::exportGraph(QString fileName, ExportType type) {
     QDate date = QDate::currentDate();
     QTime time = QTime::currentTime();
 
@@ -141,10 +188,14 @@ void NewGraph::exportGraph(QString fileName, int fileType) {
 
 		int numberOfPoints = 0;
 		QVector<QPointF> points[m_curves.size()];  // preparation of this array is of vital importance for performance
-        stream << "Export File Created with QBlade v0.8 on "<<date.toString("dd.MM.yyyy") << " at " << time.toString("hh:mm:ss") << endl;
+        stream << "Export File Created with "<< g_mainFrame->m_VersionName<<" on "<<date.toString("dd.MM.yyyy")
+			   << " at " << time.toString("hh:mm:ss") << endl;
 		for (int i = 0; i < m_curves.size(); ++i) {
 			if (m_curves[i]->getAssociatedObject()->isShownInGraph()) {
-				stream << QString("  %1").arg(m_curves[i]->getAssociatedObject()->getObjectName(), 30);
+				if (type == HumanReadable)
+					stream << QString("  %1").arg(m_curves[i]->getAssociatedObject()->getObjectName(), 30);
+                if (type == CSV)
+					stream << QString("%1;;").arg(m_curves[i]->getAssociatedObject()->getObjectName());
 				if (m_curves[i]->getNumberOfPoints() > numberOfPoints) {  // find maximal number of points
 					numberOfPoints = m_curves[i]->getNumberOfPoints();
 				}
@@ -152,10 +203,13 @@ void NewGraph::exportGraph(QString fileName, int fileType) {
 			}
 		}
 		stream << endl;
-		for (int i = 0; i < m_curves.size(); ++i) {
+		
+		for (int i = 0; i < m_curves.size(); ++i) {  // write axis titles
 			if (m_curves[i]->getAssociatedObject()->isShownInGraph()) {
-                if (fileType == 1) stream << QString(" %1 %2").arg(m_xAxisTitle, 15).arg(m_yAxisTitle, 15);
-                if (fileType == 2) stream << QString("%1;%2;").arg(m_xAxisTitle, 15).arg(m_yAxisTitle, 15);
+                if (type == HumanReadable)
+					stream << QString(" %1 %2").arg(m_xAxisTitle, 15).arg(m_yAxisTitle, 15);
+                if (type == CSV)
+					stream << QString("%1;%2;").arg(m_xAxisTitle).arg(m_yAxisTitle);
 			}
 		}
 		stream << endl;
@@ -164,15 +218,19 @@ void NewGraph::exportGraph(QString fileName, int fileType) {
 			for (int j = 0; j < m_curves.size(); ++j) {
 				if (m_curves[j]->getAssociatedObject()->isShownInGraph()) {				
 					if (i < m_curves[j]->getNumberOfPoints()) {
-	//					stream << QString(" %1").arg(m_curves[j]->getAllPoints()[i].x(), 15, 'e', 5) <<  // NM too bad performance
-	//							  QString(" %1").arg(m_curves[j]->getAllPoints()[i].y(), 15, 'e', 5);
-                        if (fileType == 1){ stream << QString(" %1").arg(points[j][i].x(), 15, 'e', 5) <<
-                                  QString(" %1").arg(points[j][i].y(), 15, 'e', 5);}
-                        if (fileType == 2){ stream << QString(" %1;").arg(points[j][i].x(), 15, 'e', 5) <<
-                                                      QString(" %1;").arg(points[j][i].y(), 15, 'e', 5);}
+                        if (type == HumanReadable) {
+							stream << QString(" %1").arg(points[j][i].x(), 15, 'e', 5)
+								   << QString(" %1").arg(points[j][i].y(), 15, 'e', 5);
+						}
+                        if (type == CSV) {
+                            stream << QString("%1;").arg(points[j][i].x(), 0, 'e', 5).replace(".",",")
+                                   << QString("%1;").arg(points[j][i].y(), 0, 'e', 5).replace(".",",");
+						}
 					} else {
-                        if (fileType == 1) stream << QString().fill(' ', 32);
-                        if (fileType == 2) stream << QString(";;");
+                        if (type == HumanReadable)
+							stream << QString().fill(' ', 32);
+                        if (type == CSV)
+							stream << QString(";;");
 					}
 				}
 			}
@@ -192,40 +250,32 @@ bool NewGraph::contains(QPoint point) {
 }
 
 void NewGraph::translate(QPoint from, QPoint to) {
-	const double dx = mapPixelToXCoordinate(from.x()) - mapPixelToXCoordinate(to.x());
-	const double dy = -1 * (mapPixelToYCoordinate(from.y()) - mapPixelToYCoordinate(to.y()));
-	m_xAxis.moveLimits(dx, dx);
-	m_yAxis.moveLimits(dy, dy);
+	m_xAxis.moveLimits(from.x() - to.x());
+	m_yAxis.moveLimits(to.y() - from.y());
 }
 
 void NewGraph::zoomX(double zoom) {
-	const double xMiddle = (m_xAxis.getLowLimit() + m_xAxis.getHighLimit()) / 2.0;
-	m_xAxis.setLimits(xMiddle + (m_xAxis.getLowLimit()-xMiddle)*zoom,
-					  xMiddle + (m_xAxis.getHighLimit()-xMiddle)*zoom);
-	
-	calculatePerPixel ();
+	m_xAxis.zoom(zoom);
 }
 
 void NewGraph::zoomY(double zoom) {
-	const double yMiddle = (m_yAxis.getLowLimit() + m_yAxis.getHighLimit()) / 2.0;
-	m_yAxis.setLimits(yMiddle + (m_yAxis.getLowLimit()-yMiddle)*zoom,
-					  yMiddle + (m_yAxis.getHighLimit()-yMiddle)*zoom);
-	
-	calculatePerPixel ();
+	m_yAxis.zoom(zoom);
 }
 
-void NewGraph::setOptimalLimits() {
-	setOptimalXLimits();
-	setOptimalYLimits();
+void NewGraph::setOptimalLimits(bool force) {
+	if (!m_noAutoResize || force) {
+		setOptimalXLimits();
+		setOptimalYLimits();
+	}
 }
 
 void NewGraph::setOptimalXLimits() {
 	double lowX = std::numeric_limits<double>::max();
-	double highX = -std::numeric_limits<double>::max();
+	double highX = std::numeric_limits<double>::lowest();
 	for (int i = 0; i < m_curves.size(); ++i) {
 		if (m_curves[i]->getAssociatedObject()->isShownInGraph()) {
-			if (m_curves[i]->getLowX() < lowX) {
-				lowX = m_curves[i]->getLowX();
+			if (m_curves[i]->getLowX(m_xAxis.getLogarithmic()) < lowX) {
+				lowX = m_curves[i]->getLowX(m_xAxis.getLogarithmic());
 			}
 			if (m_curves[i]->getHighX() > highX) {
 				highX = m_curves[i]->getHighX();
@@ -233,29 +283,16 @@ void NewGraph::setOptimalXLimits() {
 		}
 	}
 	
-	if (lowX == std::numeric_limits<double>::max()) {
-		lowX = -1;
-	}
-	if (highX == -std::numeric_limits<double>::max()) {
-		highX = 1;
-	}
-	
-	double bufferX = (highX - lowX) * 0.05;  // for a better look only
-	if (fabs(bufferX) < 0.000000001) {  // the limits must never be 0 and 0
-		bufferX = 1e-5;
-	}
-	m_xAxis.setLimits(lowX-bufferX, highX+bufferX);
-	
-	calculatePerPixel ();
+	m_xAxis.setOptimalLimits(lowX, highX);
 }
 
 void NewGraph::setOptimalYLimits() {
 	double lowY = std::numeric_limits<double>::max();
-	double highY = -std::numeric_limits<double>::max();
+	double highY = std::numeric_limits<double>::lowest();
 	for (int i = 0; i < m_curves.size(); ++i) {
 		if (m_curves[i]->getAssociatedObject()->isShownInGraph()) {
-			if (m_curves[i]->getLowY() < lowY) {
-				lowY = m_curves[i]->getLowY();
+			if (m_curves[i]->getLowY(m_yAxis.getLogarithmic()) < lowY) {
+				lowY = m_curves[i]->getLowY(m_yAxis.getLogarithmic());
 			}
 			if (m_curves[i]->getHighY() > highY) {
 				highY = m_curves[i]->getHighY();
@@ -263,20 +300,16 @@ void NewGraph::setOptimalYLimits() {
 		}
 	}
 	
-	if (lowY == std::numeric_limits<double>::max()) {
-		lowY = -1;
+	m_yAxis.setOptimalLimits(lowY, highY);
+}
+
+NewCurve* NewGraph::getCurve(ShowAsGraphInterface *object, int curveIndex /*= -1*/) {
+	for (int i = 0; i < m_curves.size(); ++i) {
+		if (m_curves[i]->getAssociatedObject() == object && curveIndex-- <= 0) {
+			return m_curves[i];
+		}
 	}
-	if (highY == -std::numeric_limits<double>::max()) {
-		highY = 1;
-	}
-	
-	double bufferY = (highY - lowY) * 0.05;  // for a better look only
-	if (fabs(bufferY) < 0.000000001) {  // the limits must never be 0 and 0
-		bufferY = 1e-5;
-	}
-	m_yAxis.setLimits(lowY-bufferY, highY+bufferY);
-	
-	calculatePerPixel ();
+	return NULL;
 }
 
 void NewGraph::removeAllCurves() {
@@ -287,18 +320,19 @@ void NewGraph::removeAllCurves() {
 }
 
 bool NewGraph::loadStylesFromSettings() {
-#ifdef Q_WS_MAC
-	QSettings settings(QSettings::NativeFormat,QSettings::UserScope,"QBLADE");
-#else
-	QSettings settings(QSettings::IniFormat,QSettings::UserScope,"QBLADE");
-#endif
-	
+	QSettings settings(QSettings::NativeFormat, QSettings::UserScope,"QBLADE");
+
 	if (settings.contains(QString("graphs/" + m_nameInSettings + "/type"))) {
 		settings.beginGroup(QString("graphs/" + m_nameInSettings));
 		
 		setGraphType(static_cast<GraphType> (settings.value("type").toInt()));
+		setGraphTypeMulti(static_cast<GraphType> (settings.value("typeMulti").toInt()));
 		m_xAxisTitle = settings.value("xAxis").toString();
 		m_yAxisTitle = settings.value("yAxis").toString();
+		m_formerAxisTitles = settings.value("formerAxT").value<GraphTypeMap>();
+		m_formerGraphTypeMulti = settings.value("formerMulti").value<GraphTypeMultiMap>();
+		m_xAxis.setLogarithmic(settings.value("xLog").toBool());
+		m_yAxis.setLogarithmic(settings.value("yLog").toBool());
 		m_backgroundColor = settings.value("bgCol").value<QColor>();
 		m_titleColor = settings.value("titCol").value<QColor>();
 		m_tickColor = settings.value("tickCol").value<QColor>();
@@ -320,17 +354,18 @@ bool NewGraph::loadStylesFromSettings() {
 
 void NewGraph::saveStylesToSettings() {
 	if (m_nameInSettings != "__default") {  // do not save a default graph
-#ifdef Q_WS_MAC
-		QSettings settings(QSettings::NativeFormat,QSettings::UserScope,"QBLADE");
-#else
-		QSettings settings(QSettings::IniFormat,QSettings::UserScope,"QBLADE");
-#endif
+		QSettings settings(QSettings::NativeFormat, QSettings::UserScope, "QBLADE");
 		
 		settings.beginGroup(QString("graphs/" + m_nameInSettings));
 
 		settings.setValue("type", m_graphType);
+		settings.setValue("typeMulti", m_graphTypeMulti);
 		settings.setValue("xAxis", m_xAxisTitle);
 		settings.setValue("yAxis", m_yAxisTitle);
+		settings.setValue("formerAxT", QVariant::fromValue(m_formerAxisTitles));
+		settings.setValue("formerMulti", QVariant::fromValue(m_formerGraphTypeMulti));
+		settings.setValue("xLog", m_xAxis.getLogarithmic());
+		settings.setValue("yLog", m_yAxis.getLogarithmic());
 		settings.setValue("bgCol", m_backgroundColor);
 		settings.setValue("titCol", m_titleColor);
 		settings.setValue("tickCol", m_tickColor);
@@ -348,64 +383,9 @@ void NewGraph::saveStylesToSettings() {
 }
 
 void NewGraph::reloadCurves() {
-	removeAllCurves();
-
-	NewCurve *curve;
-	switch (m_graphType) {
-    case None:
-		break;
-    case FastSimulation:
-		for (int i = 0; i < g_FASTSimulationStore.size(); ++i) {
-			curve = g_FASTSimulationStore.at(i)->newCurve(m_xAxisTitle, m_yAxisTitle, m_graphType);
-			if (curve) {
-				m_curves.append(curve);
-			}
-        }
-		break;
-    case BladeGraph:
-		for (int i = 0; i < g_FASTSimulationStore.size(); ++i) {
-			curve = g_FASTSimulationStore.at(i)->newCurve(m_xAxisTitle, m_yAxisTitle, m_graphType);
-			if (curve) {
-				m_curves.append(curve);
-			}
-        }		
-		break;
-    case QFEMSimulation:
-        for (int i = 0; i < g_bladeStructureStore.size(); ++i) {
-            curve = g_bladeStructureStore.at(i)->newCurve(m_xAxisTitle, m_yAxisTitle, m_graphType);
-            if (curve) {
-                m_curves.append(curve);
-            }
-		}		
-		break;
-    case QLLTSimulation:
-        for (int i = 0; i < g_QLLTHAWTSimulationStore.size(); ++i) {
-            curve = g_QLLTHAWTSimulationStore.at(i)->newCurve(m_xAxisTitle, m_yAxisTitle, m_graphType);
-            if (curve) {
-                m_curves.append(curve);
-            }
-        }
-        break;
-    case NoiseSimulationGraph:
-        for (int i = 0; i < g_NoiseSimulationStore.size(); ++i) {
-            for (int j = 0; j < g_NoiseSimulationStore.at(i)->Calculation()->NoiseParam()->OpPoints().size(); ++j) {
-                curve = g_NoiseSimulationStore.at(i)->newCurve(m_xAxisTitle, m_yAxisTitle, m_graphType,j);
-                if (curve) {
-                    m_curves.append(curve);
-                }
-            }
-        }
-
-        break;
-    }
-}
-
-void NewGraph::updateGraph() {
-	reloadCurves();
-	if (!m_noAutoResize) {
-		setOptimalLimits();
-	}
-	m_twoDInterface->update();
+    removeAllCurves();
+	m_curves = m_twoDInterface->prepareCurves(m_xAxisTitle, m_yAxisTitle, m_graphType, m_graphTypeMulti);
+	setOptimalLimits(false);
 }
 
 void NewGraph::setShownVariables(QString xVariable, QString yVariable) {
@@ -415,17 +395,17 @@ void NewGraph::setShownVariables(QString xVariable, QString yVariable) {
 	reloadCurves();
 }
 
-QStringList NewGraph::getAvailableVariables() {
-	return m_twoDInterface->getAvailableGraphVariables();
+QStringList NewGraph::getAvailableVariables(bool xAxis) {
+	return m_twoDInterface->getAvailableGraphVariables(xAxis);
 }
 
 void NewGraph::drawGrid(QPainter &painter) {
-	painter.setClipRect(m_graphArea.adjusted(0, -1, 1, 0));  // adjust the clip for that the highLimits can be drawn
+	painter.setClipRect(m_graphArea.adjusted(0, -1, 1, 0));  // adjust the clip so that the highLimits can be drawn
 	
 	/* draw main axes at zero or at the edge */
 	painter.setPen(m_mainAxesPen);
 	int axisPosition;
-	if (m_xAxis.getLowLimit() < 0 && m_xAxis.getHighLimit() > 0) {
+	if (m_xAxis.getLowLimit() <= 0 && m_xAxis.getHighLimit() >= 0) {
 		axisPosition = mapXCoordinateToPixel(0);
 	} else if (m_xAxis.getLowLimit() > 0) {
 		axisPosition = m_graphArea.left();
@@ -433,7 +413,7 @@ void NewGraph::drawGrid(QPainter &painter) {
 		axisPosition = m_graphArea.right();
 	}
 	painter.drawLine(axisPosition, m_graphArea.top(),axisPosition, m_graphArea.bottom());
-	if (m_yAxis.getLowLimit() < 0 && m_yAxis.getHighLimit() > 0) {
+	if (m_yAxis.getLowLimit() <= 0 && m_yAxis.getHighLimit() >= 0) {
 		axisPosition = mapYCoordinateToPixel(0);
 	} else if (m_yAxis.getLowLimit() > 0) {
 		axisPosition = m_graphArea.bottom();
@@ -468,11 +448,11 @@ void NewGraph::drawTicks(QPainter &painter) {
 	/* draw x ticks */
 	int stringWidth;
 	int stringXPosition;
-	const int exponentWidth = tickMetrics.width(m_xAxis.getExponentString());
-	const int stringYPosition = m_graphArea.bottom() + m_gapWidth + 1.25*tickMetrics.height();
-	const int exponentYPosition = m_graphArea.bottom() + m_gapWidth + tickMetrics.height();
+	const int stringYPosition = m_graphArea.bottom() + 1.25*tickMetrics.height();
+	const int exponentYPosition = m_graphArea.bottom() + tickMetrics.height();
 	QString currentString;
 	for (int i = 0; i < m_xAxis.getNumberOfTicks(); ++i) {
+		const int exponentWidth = tickMetrics.width(m_xAxis.getExponentString(i));
 		currentString = m_xAxis.getTickStringAt(i);
 		stringWidth = tickMetrics.width(currentString);
 		if (m_xAxis.getUseExponent()) {
@@ -480,7 +460,7 @@ void NewGraph::drawTicks(QPainter &painter) {
 			if (stringXPosition + stringWidth + exponentWidth < 
 									m_drawingArea.right() - m_borderWidth - tickMetrics.width(m_xAxisTitle)) {
 				painter.drawText(stringXPosition, stringYPosition, currentString);
-				painter.drawText(stringXPosition + stringWidth, exponentYPosition, m_xAxis.getExponentString());
+				painter.drawText(stringXPosition + stringWidth, exponentYPosition, m_xAxis.getExponentString(i));
 			}
 		} else {
 			stringXPosition = mapXCoordinateToPixel(m_xAxis.getTickValueAt(i)) - stringWidth / 2;
@@ -491,79 +471,91 @@ void NewGraph::drawTicks(QPainter &painter) {
 	}
 	
 	/* draw y ticks */
-	const int pointPosition = m_drawingArea.left() + m_borderWidth + tickMetrics.width("-8");
-	const int pointPositionNoExponent = m_drawingArea.left() + m_borderWidth + tickMetrics.width("-888");
+	const int pointPosition = (m_yAxis.getUseExponent() ?
+								   m_drawingArea.left() + m_borderWidth + tickMetrics.width("-8") :
+								   m_drawingArea.left() + m_borderWidth + tickMetrics.width("-888"));
 	const int integerRight = m_drawingArea.left() + m_borderWidth + tickMetrics.width("-888");
-	int pointIndex;
 	for (int i = 0; i < m_yAxis.getNumberOfTicks(); ++i) {
+		int position, positionExponent;
 		currentString = m_yAxis.getTickStringAt(i);
-		pointIndex = currentString.indexOf('.');
-		if (pointIndex != -1) {
-			if (m_yAxis.getUseExponent()) {
-				painter.drawText(pointPosition - tickMetrics.width(currentString, pointIndex),
-								 mapYCoordinateToPixel(m_yAxis.getTickValueAt(i)) + tickMetrics.height()/4,
-								 currentString);
-				painter.drawText(pointPosition + tickMetrics.width(currentString.mid(pointIndex)),
-								 mapYCoordinateToPixel(m_yAxis.getTickValueAt(i)),
-								 m_yAxis.getExponentString());
-			} else {
-				painter.drawText(pointPositionNoExponent - tickMetrics.width(currentString, pointIndex),
-								 mapYCoordinateToPixel(m_yAxis.getTickValueAt(i)) + tickMetrics.height()/4,
-								 currentString);
-			}
-		} else {
-			painter.drawText(integerRight - tickMetrics.width((currentString)),
-							 mapYCoordinateToPixel(m_yAxis.getTickValueAt(i)) + tickMetrics.height()/4,
-							 currentString);			
+		const int pointIndex = currentString.indexOf('.');
+		if (pointIndex != -1) {  // float or exponential value
+			position = pointPosition - tickMetrics.width(currentString, pointIndex);
+			positionExponent = pointPosition + tickMetrics.width(currentString.mid(pointIndex));
+		} else {  // integer value or logarithmic scale
+			position = integerRight - tickMetrics.width((currentString));
+			positionExponent = integerRight;
+		}
+		
+		painter.drawText(position,
+						 mapYCoordinateToPixel(m_yAxis.getTickValueAt(i)) + tickMetrics.height()/4,
+						 currentString);
+		if (m_yAxis.getUseExponent()) {
+			painter.drawText(positionExponent,
+							 mapYCoordinateToPixel(m_yAxis.getTickValueAt(i)),
+							 m_yAxis.getExponentString(i));
 		}
 	}
 }
 
 void NewGraph::drawCurves(QPainter &painter) {
 	painter.setClipRect(m_graphArea);
+//	painter.setRenderHint(QPainter::HighQualityAntialiasing);  // TODO think about this as an option?
 	QPen pen;
-	
 	const int pointRadius = 2;
 	
 	QVector<QPointF> points, mappedPoints;
 	for (int i = 0; i < m_curves.size(); ++i) {
+		/* By leaving the following condition in the code, the need to reload curves when the state switches to
+		 * notShown is not generated. */
 		if (m_curves[i]->getAssociatedObject()->isShownInGraph()) {
-			painter.setPen(m_curves[i]->getAssociatedObject()->getPen());
-			painter.setBrush(m_curves[i]->getAssociatedObject()->getPen().color());
+			pen = m_curves[i]->getAssociatedObject()->getPen(i, m_twoDInterface->getHighlightIndex(m_graphTypeMulti));
+			painter.setPen(pen);
+			painter.setBrush(pen.color());
 			
 			points = m_curves[i]->getAllPoints();
 			mappedPoints.resize(points.size());
-			for (int j = 0; j < points.size(); ++j) {
-				mappedPoints[j].setX(mapXCoordinateToPixel(points[j].x()));
-				mappedPoints[j].setY(mapYCoordinateToPixel(points[j].y()));
+            int skipped = 0;
+			for (int j = 0; j < points.size(); ++j) {  // some calculations here but no performance issues noticed yet
+				if ((m_xAxis.getLogarithmic() && points[j].x() <= 0) || (m_yAxis.getLogarithmic() && points[j].y() <= 0)) {
+					skipped++;  // don't take log of negativ values or zero
+				} else {
+                    mappedPoints[j-skipped].setX(mapXCoordinateToPixel(points[j].x()));
+                    mappedPoints[j-skipped].setY(mapYCoordinateToPixel(points[j].y()));
+				}
 			}
+			mappedPoints.resize(mappedPoints.size() - skipped);
 			
 			if (m_curves[i]->getAssociatedObject()->isDrawCurve()) {
 				painter.drawPolyline(mappedPoints.data(), mappedPoints.size());
 			}
 			if (m_curves[i]->getAssociatedObject()->isDrawPoints()) {
+//				pen = painter.pen();
+				pen.setStyle(Qt::SolidLine);
+				painter.setPen(pen);
 				for (int j = 0; j < mappedPoints.size(); ++j) {
 					painter.drawRect(QRect(mappedPoints[j].x()-pointRadius, mappedPoints[j].y()-pointRadius,
 										   2*pointRadius, 2*pointRadius));
 				}
 			}
-			
-			/* draw the bog dot which marks the time in a FastGraph */
-			if (m_graphType == FastSimulation &&
-				(m_xAxisTitle == "Time" || m_yAxisTitle == "Time") &&
-				g_fastModule->getShownFASTSimulation()->hasAeroDynResults() &&
-				m_curves[i]->getAssociatedObject() == g_fastModule->getShownFASTSimulation())
-			{
-				const float time = g_fastModule->getShownFASTSimulation()->getShownTime();
-				const bool onXAxis = (m_xAxisTitle == "Time");
-				for (int j = 0; j < points.size(); ++j) {
-					if ((onXAxis?points[j].x():points[j].y()) == time) {
-						painter.drawEllipse(QPointF(mapXCoordinateToPixel(points[j].x()),
-													mapYCoordinateToPixel(points[j].y())),
-											pen.width()+3, pen.width()+3);
-						break;
-					}
-				}
+		}
+	}
+	
+	/* draw the highlight dot */
+	QPair<ShowAsGraphInterface*,int> highlightDot = m_twoDInterface->getHighlightDot(m_graphType);
+	if (highlightDot.first != NULL && highlightDot.first->isShownInGraph()) {
+		NewCurve *curve = getCurve(highlightDot.first, m_twoDInterface->getHighlightIndex(m_graphTypeMulti));
+		if (curve) {  // an object might have no curve, e.g. when not yet simulated
+			points = curve->getAllPoints();
+			if (highlightDot.second >= 0 && highlightDot.second < points.size()) {
+				pen = highlightDot.first->getPen(m_curves.indexOf(curve),
+												 m_twoDInterface->getHighlightIndex(m_graphTypeMulti), true);
+				pen.setStyle(Qt::SolidLine);
+				painter.setPen(pen);
+				painter.setBrush(pen.color());
+				painter.drawEllipse(QPointF(mapXCoordinateToPixel(points[highlightDot.second].x()),
+											mapYCoordinateToPixel(points[highlightDot.second].y())),
+									pen.width()+3, pen.width()+3);
 			}
 		}
 	}
@@ -574,22 +566,24 @@ void NewGraph::drawTitles(QPainter &painter) {
 	QFontMetrics tickMetrics (m_tickFont);
 	QFontMetrics titleMetrics (m_titleFont);
 	
-	painter.setPen(m_titleColor);
-	painter.setFont(m_titleFont);
-	painter.drawText(m_drawingArea.left() + m_borderWidth + 0.35*m_drawingArea.width(),
-					 m_drawingArea.top() + m_borderWidth + titleMetrics.height(),
-					 m_title);
-	
 	painter.setPen(m_tickColor);
 	painter.setFont(m_tickFont);
 	painter.drawText(m_drawingArea.right() - m_borderWidth - tickMetrics.width(m_xAxisTitle),
-					 m_drawingArea.bottom() - m_borderWidth,
+					 m_drawingArea.bottom() - m_borderWidth - m_gapWidth,
 					 m_xAxisTitle);
 	int xPosition = std::max ((m_drawingArea.left() + m_graphArea.left() - tickMetrics.width(m_yAxisTitle)) / 2,
 							  m_drawingArea.left() + m_borderWidth);
 	painter.drawText(xPosition,
 					 m_drawingArea.top() + m_borderWidth + titleMetrics.height(),
 					 m_yAxisTitle);
+	
+	painter.setPen(m_titleColor);
+	painter.setFont(m_titleFont);
+	xPosition = std::max (double(xPosition + tickMetrics.width(m_yAxisTitle) + 10),
+						  m_drawingArea.left() + m_borderWidth + 0.35*m_drawingArea.width());
+	painter.drawText(xPosition,
+					 m_drawingArea.top() + m_borderWidth + titleMetrics.height(),
+					 m_title);
 }
 
 void NewGraph::calculateGraphArea() {
@@ -605,26 +599,22 @@ void NewGraph::calculateGraphArea() {
 						 m_drawingArea.width() - leftSpace - rightSpace,
 						 m_drawingArea.height() - topSpace - bottomSpace);
 	
-	calculatePerPixel ();
+	m_xAxis.setAvailablePixels(m_graphArea.width());
+	m_yAxis.setAvailablePixels(m_graphArea.height());
 }
 
 int NewGraph::mapXCoordinateToPixel(double xValue) {
-	return m_graphArea.left() + round ((xValue-m_xAxis.getLowLimit())/m_xPerPixel);
+	return m_graphArea.left() + m_xAxis.coordinateToPixel(xValue);
 }
 
 int NewGraph::mapYCoordinateToPixel(double yValue) {
-	return m_graphArea.bottom() - round ((yValue-m_yAxis.getLowLimit())/m_yPerPixel);
+	return m_graphArea.bottom() - m_yAxis.coordinateToPixel(yValue);
 }
 
 double NewGraph::mapPixelToXCoordinate(int xPixel) {
-	return (xPixel - m_graphArea.left()) * m_xPerPixel;
+	return m_xAxis.pixelToCoordinate(xPixel - m_graphArea.left());
 }
 
 double NewGraph::mapPixelToYCoordinate(int yPixel) {
-	return (yPixel + m_graphArea.bottom()) * m_yPerPixel;
-}
-
-void NewGraph::calculatePerPixel () {
-	m_xPerPixel = (m_xAxis.getHighLimit() - m_xAxis.getLowLimit()) / m_graphArea.width();
-	m_yPerPixel = (m_yAxis.getHighLimit() - m_yAxis.getLowLimit()) / m_graphArea.height();
+	return m_yAxis.pixelToCoordinate(m_graphArea.bottom() - yPixel);
 }

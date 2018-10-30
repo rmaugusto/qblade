@@ -2,8 +2,7 @@
 #include <QTextStream>
 #include <QDebug>
 
-NumberEdit::NumberEdit (OutputFormat format, int automaticPrecision, double minimum, double maximum)
-{
+NumberEdit::NumberEdit (OutputFormat format, int automaticPrecision, double minimum, double maximum) {
 	m_minimum = minimum;
 	m_maximum = maximum;
 	m_automaticPrecision = automaticPrecision;

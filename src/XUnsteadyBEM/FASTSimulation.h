@@ -31,37 +31,40 @@ public:
 	void serialize();
 	void restorePointers();
 	static FASTSimulation* newBySerialize ();
-	FASTSimulation(QString name,
-				   WindField *usedWindField,
-				   double totalRunTime,
-				   double timeStep,
-				   CBlade *usedRotor,
-				   int numberOfBlades,
-				   double rotorSpeed,
-				   double nacelleYaw,
-				   double gravity,
-				   double airDens,
-				   double kinVisc,
-				   FASTValue stallMod,
-				   FASTValue useCm,
-				   FASTValue infModel,
-				   FASTValue indModel,
-				   FASTValue tlModel,
-				   FASTValue hlModel,
-				   BladeStructure *usedBladeStructure,
-				   bool useFlapDof1,
-				   bool useFlapDof2,
-				   bool useEdgeDof,
-				   QVector<int> *strainGages,
-				   QBitArray *aeroDynOutput,
-				   double tStart,
-				   int decFact,
-				   QBitArray *rotorParameters,
-				   QVector<int> *bladeOutput,
+    FASTSimulation(QString name,
+                   WindField *usedWindField,
+                   double totalRunTime,
+                   double timeStep,
+                   CBlade *usedRotor,
+                   int numberOfBlades,
+                   double rotorSpeed,
+                   double nacelleYaw,
+                   double gravity,
+                   double airDens,
+                   double kinVisc,
+                   FASTValue stallMod,
+                   FASTValue useCm,
+                   FASTValue infModel,
+                   FASTValue indModel,
+                   FASTValue tlModel,
+                   FASTValue hlModel,
+                   BladeStructure *usedBladeStructure,
+                   bool useFlapDof1,
+                   bool useFlapDof2,
+                   bool useEdgeDof,
+                   QVector<int> *strainGages,
+                   QBitArray *aeroDynOutput,
+                   double tStart,
+                   int decFact,
+                   QBitArray *rotorParameters,
+                   QVector<int> *bladeOutput,
                    QBitArray *bladeParameters,
-                   double aeroTimeStep
-				   );
+                   double aeroTimeStep,
+                   QString windfieldFile,
+                   bool bFromQBlade,
+                   double hubheight);
 	~FASTSimulation ();
+	static QStringList prepareMissingObjectMessage();
 	void writeAllFiles(QDir &simulationDirectory);  // can throw exeption QString errorMessage
 	void readOutputFile(QString fileToRead);  // can throw exeption QString errorMessage; call only once!
 	NewCurve* newCurve(QString xAxis, QString yAxis, NewGraph::GraphType graphType);  // override of ShowAsGraphInterface
@@ -71,6 +74,7 @@ public:
 	
 	WindField* getUsedWindField () { return m_usedWindField; }
 	double getTotalRunTime () { return m_totalRunTime; }
+    double getHubHeight () { return m_hubHeight; }
     double getTimeStep () { return m_timeStep; }
     double getAeroTimeStep () { return m_aeroTimeStep; }
     CBlade* getUsedRotor () { return m_usedRotor; }
@@ -107,6 +111,8 @@ public:
 	void setShownTimeIndex (int shownTimeIndex) { m_shownTimeIndex = shownTimeIndex; }
 	float getShownTime () { return m_aeroDynResults[0]->data[m_shownTimeIndex]; }
 	void setShownTime (float shownTime);  // changes timeIndex only if shownTime is available
+    QString getWindFieldPath(){ return m_WindFieldPathName; }
+    bool getIsWindFromQBlade(){ return m_bWindFromQBlade; }
 	
 private:
 	FASTSimulation ();
@@ -115,15 +121,17 @@ private:
 	CBlade *m_usedRotor;
 	BladeStructure *m_usedBladeStructure;
 	FASTValue m_stallMod, m_useCm, m_infModel, m_indModel, m_tlModel, m_hlModel;
-    double m_totalRunTime, m_timeStep, m_rotorSpeed, m_nacelleYaw, m_gravity, m_airDens, m_kinVisc, m_tStart, m_aeroTimeStep;
+    double m_totalRunTime, m_timeStep, m_rotorSpeed, m_nacelleYaw, m_gravity, m_airDens, m_kinVisc, m_tStart, m_aeroTimeStep, m_hubHeight;
 	int m_numberOfBlades, m_decFact;
 	bool m_useFlapDof1, m_useFlapDof2, m_useEdgeDof;
 	QVector<int> m_strainGages, m_bladeOutput;
 	QBitArray m_aeroDynOutput, m_rotorParameters, m_bladeParameters;
 	QVector<FASTResult*> m_fastResults, m_aeroDynResults;
 	QStringList m_availableVariablesFastGraph, m_availableVariablesBladeGraph;
+    bool m_bWindFromQBlade;
+    QString m_WindFieldPathName;
 	
-	int m_shownBladeSection;  // which blade section is shown in the graps
+	int m_shownBladeSection;  // which blade section is shown in the graphs
 	int m_shownTimeIndex;  // which index in the time data is shown in the graph
 };
 

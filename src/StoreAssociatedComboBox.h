@@ -29,7 +29,7 @@ public:
 	 * automaticly as grand parent box.
 	 * @param parentBox The new parent box.
 	 */
-	void setParentBox (StoreAssociatedComboBoxBase *parentBox);
+    void setParentBox (StoreAssociatedComboBoxBase *parentBox);
 	
 	/**
 	 * @brief Returns the parent box or NULL if unused
@@ -37,12 +37,11 @@ public:
 	 */
 	StoreAssociatedComboBoxBase* getParentBox ();
 		
-	StorableObject* getCurrentObjectUncasted ();  // only needed in updateContent
+	virtual StorableObject* getCurrentObjectUncasted () = 0;
 	
 protected:
 	StoreAssociatedComboBoxBase ();
-	StoreAssociatedComboBoxBase *m_parentBox;  /**< The parent box or NULL if unused. */
-	QList<StorableObject*> m_shownObjects;  /**< All currently shown objects. Index matches with combo box index */
+    StoreAssociatedComboBoxBase *m_parentBox;  /**< The parent box or NULL if unused. */
 	
 protected slots:
 	/**
@@ -100,6 +99,35 @@ signals:
 	 * @param newText The newly shown text.
 	 */
 	void valueChanged (const QString newText);
+	
+	/**
+	 * @brief Is emited as soon as the ComboBox index is changed.
+	 * 
+	 * See valueChanged (int newIndex).
+	 * As QObject does not support class templates, each of this signals has to be declared manually!
+	 * @param newObject The newly shown object.
+	 */
+	void valueChanged(WindField* newObject);
+	void valueChanged(CBlade* newObject);
+	void valueChanged(BladeStructure* newObject);
+	void valueChanged(FASTSimulation* newObject);
+	void valueChanged(BEMData* newObject);
+	void valueChanged(TBEMData* newObject);
+	void valueChanged(CBEMData* newObject);
+	void valueChanged(TData* newObject);
+	void valueChanged(DMSData* newObject);
+	void valueChanged(TDMSData* newObject);
+	void valueChanged(CDMSData* newObject);
+	void valueChanged(CPolar* newObject);
+	void valueChanged(C360Polar* newObject);
+	void valueChanged(CFoil* newObject);
+	void valueChanged(OpPoint* newObject);
+	void valueChanged(BladeStructureLoading* newObject);
+	void valueChanged(QLLTSimulation* newObject);
+	void valueChanged(QLLTCutPlane* newObject);
+    void valueChanged(NoiseSimulation* newObject);
+    void valueChanged(Strut* newObject);
+
 };
 
 /**
@@ -121,6 +149,14 @@ public:
 	 * @return A pointer to the currently selected object.
 	 */
 	T* currentObject ();
+
+    /**
+     * @brief Returns the object at index i.
+     *
+     * Can be NULL if i out of array bounds.
+     * @return A pointer to the object at index i.
+     */
+    T* getObjectAt (int i);
 	
 	/**
 	 * @brief Selects the given object.
@@ -131,6 +167,7 @@ public:
 	void setCurrentObject (T* newObject);
 	
 private:
+	virtual StorableObject* getCurrentObjectUncasted () { return currentObject(); }
 	void onCurrentIndexChanged (int newIndex);  ///< @brief [slot]
 	void onCurrentIndexChanged (const QString newText);  ///< @brief [slot]
 	void onObjectRenamed (QString oldName, QString newName);  ///< @brief [slot]
@@ -140,7 +177,8 @@ private:
 	bool m_disableIfEmpty;  /**< Disable the combo box if it is empty. */
 	bool m_changeSignalEnabled;  /**< Disable valueChanged signals if neccessary. */
 	Store<T> *m_associatedStore;  /**< The store of which the content is shown. */
-//	QList<T*> m_shownObjects;  /**< All currently shown objects. Index matches with combo box index */
+    QList<T*> m_shownObjects;  /**< All currently shown objects. Index matches with combo box index */
+
 };
 
 #endif // STOREASSOCIATEDCOMBOBOX_H

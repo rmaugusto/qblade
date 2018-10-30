@@ -61,7 +61,6 @@ private:
 	QCheckBox *m_pctrlReverseZoom, *m_pctrlAlphaChannel;
 
 	QComboBox *m_pctrlStyles;
-	QString m_StyleName;
 	QPushButton *OK, *Cancel;
 
 	void *m_pMainFrame;

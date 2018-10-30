@@ -1,37 +1,50 @@
 #ifndef NEWGRAPH_H
 #define NEWGRAPH_H
 
-#include <QObject>
 #include <QRect>
-#include <QVector>
 #include <QFont>
 #include <QColor>
 #include <QPen>
-#include <QStringList>
-class QPainter;
-class QPoint;
+#include <QMap>
+#include <QPair>
 
 #include "Axis.h"
-//#include "ShowAsGraphInterface.h"
 class TwoDWidgetInterface;
-class TwoDWidgetEventInterface;
 class NewCurve;
+class ShowAsGraphInterface;
 
+
+/**
+ * @brief The class that visualizes data as a graph
+ *
+ * There are different types of graphs, that visualize different portions of data. Because some of them plot all data
+ * available in the according store, the functionallity is globally implemented in this class. The different types are:
+ * TurbineRotor: Used in TurDms and shows a graph for any TurDmsSimulation available in the store.
+ * TurbineBlade: Used in TurDms and shows a graph for any windspeed available in the currently shown TurDmsSimulation.
+ */
 
 class NewGraph : public QObject
 {
-	Q_OBJECT
+	Q_OBJECT	
 	
 public:
-    enum GraphType {None, FastSimulation, BladeGraph, QFEMSimulation, QLLTSimulation, NoiseSimulationGraph};
+	enum GraphType {None, FastSimulation, BladeGraph, QFEMSimulation, QLLTTimeGraph, QLLTBladeGraph, TurbineRotor,
+					TurbineBlade, TurbineAzimuthal, TurbineWeibull, TurbineLegend, MultiWindspeed, MultiRotational,
+					MultiPitch, Noise, RotorTipSpeed, RotorAllSimulations, RotorLegend};
+	enum ExportType {HumanReadable, CSV};
 	
-	NewGraph(QString nameInSettings, GraphType graphType, TwoDWidgetInterface *twoDInterface);
+	struct GraphDefaults { GraphType graphType; QString xTitle, yTitle; bool xLogarithmic, yLogarithmic; };
+	
+	NewGraph(QString nameInSettings, TwoDWidgetInterface *twoDInterface, const GraphDefaults &defaults);
 	~NewGraph();
 	
-	void setGraphType (GraphType graphType);
+	void setGraphType (GraphType graphType);  // NM TODO most of these setters could be replaced by a friend function
+	void setGraphTypeMulti (GraphType graphTypeMulti) { m_graphTypeMulti = graphTypeMulti; }
 	void setDrawingArea (QRect drawingArea);
 	void setTitle (QString title) { m_title = title; }
 	void setShownVariables (QString xVariable, QString yVariable);
+	void setXLogarithmic (bool logarithmic) { m_xAxis.setLogarithmic(logarithmic); }
+	void setYLogarithmic (bool logarithmic) { m_yAxis.setLogarithmic(logarithmic); }
 	void setBackgroundColor (QColor color) { m_backgroundColor = color; }
 	void setBorderColor (QColor color) { m_borderColor = color; }
 	void setTickFont (QFont font) { m_tickFont = font; calculateGraphArea(); }
@@ -42,17 +55,20 @@ public:
 	void setTitleColor (QColor color) { m_titleColor = color; }
 	void setTickColor (QColor color) { m_tickColor = color; }
 	void setBorderWidth (int width) { m_borderWidth = width + m_borderGapWidth; }
-	void setXLimits (double lowLimit, double highLimit)	{ m_xAxis.setLimits(lowLimit, highLimit); calculatePerPixel(); }
-	void setYLimits (double lowLimit, double highLimit) { m_yAxis.setLimits(lowLimit, highLimit); calculatePerPixel(); }
+	void setXLimits (double lowLimit, double highLimit)	{ m_xAxis.setLimits(lowLimit, highLimit); }
+	void setYLimits (double lowLimit, double highLimit) { m_yAxis.setLimits(lowLimit, highLimit); }
 	void setXTickSize (double tickSize) { m_xAxis.setTickSize(tickSize); }
 	void setYTickSize (double tickSize) { m_yAxis.setTickSize(tickSize); }
 	void setNoAutoResize (bool autoResize) { m_noAutoResize = autoResize; }
 	
 	GraphType getGraphType () { return m_graphType; }
-	QStringList getAvailableVariables ();
+	GraphType getGraphTypeMulti () { return m_graphTypeMulti; }
+	QStringList getAvailableVariables (bool xAxis);
 	QString getTitle () { return m_title; }
 	QString getShownXVariable () { return m_xAxisTitle; }
 	QString getShownYVariable () { return m_yAxisTitle; }
+	bool getXLogarithmic () { return m_xAxis.getLogarithmic(); }
+	bool getYLogarithmic () { return m_yAxis.getLogarithmic(); }
 	QColor getBackgroundColor () { return m_backgroundColor; }
 	QColor getBorderColor () { return m_borderColor; }
 	QFont getTickFont () { return m_tickFont; }
@@ -70,22 +86,20 @@ public:
 	double getXTickSize () { return m_xAxis.getTickSize(); }
 	double getYTickSize () { return m_yAxis.getTickSize(); }
 	bool getNoAutoResize () { return m_noAutoResize; }
-
-	void reloadCurves ();
-    void drawGraph (QPainter &painter);
-    void exportGraph (QString fileName, int fileType);
+	
+	void drawGraph (QPainter &painter);
+    void exportGraph (QString fileName, ExportType type);
 	bool contains (QPoint point);
 	void translate (QPoint from, QPoint to);
 	void zoomX (double zoom);
 	void zoomY (double zoom);
-	void setOptimalLimits();
+	void setOptimalLimits(bool force);
 	void setOptimalXLimits();
 	void setOptimalYLimits();
-	
-public slots:
-	void updateGraph ();
+	void reloadCurves ();
 
 private:
+	NewCurve* getCurve(ShowAsGraphInterface *object, int curveIndex = -1);
 	void drawGrid (QPainter &painter);
 	void drawTicks (QPainter &painter);
 	void drawCurves (QPainter &painter);
@@ -95,19 +109,20 @@ private:
 	int mapYCoordinateToPixel (double yValue);
 	double mapPixelToXCoordinate (int xPixel);
 	double mapPixelToYCoordinate (int yPixel);
-	void calculatePerPixel ();
 	void removeAllCurves ();
 	bool loadStylesFromSettings ();
 	void saveStylesToSettings ();
 	
 private:
 	GraphType m_graphType;
+	GraphType m_graphTypeMulti;  // for the MultiModule two graph types are required
 	TwoDWidgetInterface *m_twoDInterface;
 	QRect m_drawingArea;  // the area for title, tick, grid and graph
 	QRect m_graphArea;  // only grid and graph
 	QString m_title, m_xAxisTitle, m_yAxisTitle;
+	QMap<int, QPair<QString,QString> > m_formerAxisTitles;
+	QMap<int, int> m_formerGraphTypeMulti;
 	Axis m_xAxis, m_yAxis;
-	double m_xPerPixel, m_yPerPixel;
 	QList<NewCurve*> m_curves;
 	QString m_nameInSettings;
 	
@@ -120,5 +135,11 @@ private:
 	int m_gapWidth;  // gap between the graphArea and the labels
 	bool m_noAutoResize;  // if false the graph never performes the resize action automaticly
 };
+
+typedef QMap<int, QPair<QString,QString> > GraphTypeMap;  // needed to avoid the comma in the macro
+Q_DECLARE_METATYPE(GraphTypeMap)
+typedef QMap<int, int> GraphTypeMultiMap;
+Q_DECLARE_METATYPE(GraphTypeMultiMap)
+
 
 #endif // NEWGRAPH_H

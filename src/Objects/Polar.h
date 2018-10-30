@@ -53,7 +53,7 @@ public:
 	CPolar(QString name = "< no name >", StorableObject *parent = NULL);
 
 	void serialize();  // override from StorableObject
-	void Serialize(QDataStream &ar, bool bIsStoring);
+	static QStringList prepareMissingObjectMessage();	
 
 	void AddPoint(double Alpha, double Cd, double Cdp, double Cl, double Cm,
 				  double Xtr1, double Xtr2, double HMom, double Cpmn, double Reynolds, double XCp);

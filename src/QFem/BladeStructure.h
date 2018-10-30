@@ -35,7 +35,7 @@ public:
 	~BladeStructure();
     void serialize();        // override from StorableObject
     void restorePointers();  // override from StorableObject
-
+	static QStringList prepareMissingObjectMessage();	
 
 	void Duplicate(BladeStructure *pStructure);
 	void ReadSectionCoordinates();

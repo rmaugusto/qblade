@@ -1,7 +1,7 @@
 /****************************************************************************
 
     BladeDelegate Class
-        Copyright (C) 2010 David Marten qblade@web.de
+        Copyright (C) 2010 David Marten david.marten@tu-berlin.de
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -26,12 +26,15 @@
 #include <QItemDelegate>
 #include "../Misc/NumberEdit.h"
 
+class CBlade;
+
 class BladeDelegate : public QItemDelegate
 {
         Q_OBJECT
-        friend class QBEM;
 
 public:
+
+        BladeDelegate (CBlade *blade, void *pBEM, QObject *parent = NULL);
         QWidget *createEditor(QWidget *parent, const QStyleOptionViewItem &option, const QModelIndex &index) const;
         void setEditorData(QWidget *editor, const QModelIndex &index) const;
         void setModelData(QWidget *editor, QAbstractItemModel *model, const QModelIndex &index) const;
@@ -41,8 +44,12 @@ public:
 
 
 private:
+        CBlade *m_pBlade;
+        void *m_pBEM;
         int *m_pNPanels;
         int *m_Precision; ///table of float precisions for each column
+
+public:
         void *itemmodel;
 };
 

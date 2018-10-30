@@ -7,44 +7,30 @@
 #include <omp.h>
 #include <GL/gl.h>
 #include <QDebug>
+#include <QDate>
 
 #include "../Serializer.h"
 #include "../GlobalFunctions.h"
+#include "../Params.h"
+#include "../Store.h"
+#include "../MainFrame.h"
+#include "../ParameterViewer.h"
 
 
+WindField::WindField () {
 
-WindField::WindField ()
-	: StorableObject ("< no name >")
-{
-	
 }
 
-WindField::WindField (QString name, double rotorRadius, double hubHeight, double meanWindSpeed,
-					  double turbulenceIntensity, bool includeShear, double measurementHeigth,
-					  double roughnessLength, double simulationTime, double numberOfTimesteps,
-					  double pointsPerSide, bool *cancelCalculation)
-	: StorableObject (name)
-{
+WindField::WindField(ParameterViewer<Parameter::Windfield> *viewer, bool *cancelCalculation) {
+	viewer->storeObject(this);
+	
 	m_glListIndex = glGenLists(1);
 	m_shownTimestep = 0;  // allways shows first timestep first
-	m_minValue = std::numeric_limits<float>::max();
-	m_maxValue = - std::numeric_limits<float>::max();
+    m_minValueX = std::numeric_limits<float>::max();
+    m_maxValueX = std::numeric_limits<float>::lowest();
 	m_isValid = false;
 	
-	m_rotorRadius = static_cast<float>(rotorRadius);
 	m_fieldDimension = m_rotorRadius*2;
-	m_hubheight = static_cast<float>(hubHeight);	
-	
-	m_meanWindSpeed = static_cast<float>(meanWindSpeed);
-	m_turbulenceIntensity = static_cast<float>(turbulenceIntensity);
-	m_includeShear = includeShear;
-	m_roughnessLength = static_cast<float>(roughnessLength);
-	m_windSpeedMeasurementHeight = static_cast<float>(measurementHeigth);
-
-	m_simulationTime = static_cast<float>(simulationTime);
-	m_numberOfTimesteps = static_cast<int>(numberOfTimesteps);
-	m_pointsPerSide = static_cast<int>(pointsPerSide);
-	
 	m_cancelCalculation = cancelCalculation;
 	
 	/* m_zyCoordinates */
@@ -60,7 +46,6 @@ WindField::WindField (QString name, double rotorRadius, double hubHeight, double
 	m_zyCoordinatesNormalized = new float[m_pointsPerSide];
 	for (int i = 0; i < m_pointsPerSide; ++i) {
 		m_zyCoordinatesNormalized[i] = m_zyCoordinates[i] * 4 / m_fieldDimension;
-		//qDebug() << "m_zyCoordinatesNormalized: " << m_zyCoordinatesNormalized[i];
 	}	
 	
 	/* m_timeAtTimestep */
@@ -69,7 +54,6 @@ WindField::WindField (QString name, double rotorRadius, double hubHeight, double
 	m_timeAtTimestep = new float[m_numberOfTimesteps];
 	for (int i = 0; i < m_numberOfTimesteps; ++i) {
 		m_timeAtTimestep[i] = i * deltaT;
-		//qDebug () << "Timesteps: " << m_timeAtTimestep[j];
 	}
 
 	/* m_meanWindSpeedAtHeigth */
@@ -83,7 +67,6 @@ WindField::WindField (QString name, double rotorRadius, double hubHeight, double
 		} else {
 			m_meanWindSpeedAtHeigth[i] = m_meanWindSpeed;
 		}
-		//qDebug() << "Mean wind speed at " << m_zyCoordinates[j] << ": " << m_meanWindSpeedAtHeigth[j];
 	}
 	
 	/* m_meanWindSpeedAtHub */
@@ -100,12 +83,12 @@ WindField::WindField (QString name, double rotorRadius, double hubHeight, double
 	}
 	
 	/* m_resultantVelocity */
-	m_resultantVelocity = new float**[m_pointsPerSide];
+    m_resultantVelocity = new CVectorf**[m_pointsPerSide];
 	for (int z = 0; z < m_pointsPerSide; ++z) {
-		m_resultantVelocity[z] = new float*[m_pointsPerSide];
+        m_resultantVelocity[z] = new CVectorf*[m_pointsPerSide];
 		for (int y = 0; y < m_pointsPerSide; ++y) {
 			// empty paranthesis initialize the whole new array with 0
-			m_resultantVelocity[z][y] = new float[m_numberOfTimesteps] ();
+            m_resultantVelocity[z][y] = new CVectorf[m_numberOfTimesteps] ();
 		}
 	}
 }
@@ -126,142 +109,274 @@ WindField::~WindField() {
 	delete [] m_resultantVelocity;
 }
 
-void WindField::setShownTimestep(int shownTimestep) {
-	if (m_shownTimestep != shownTimestep) {
-		m_shownTimestep = shownTimestep;
+QStringList WindField::prepareMissingObjectMessage() {
+	if (g_windFieldStore.isEmpty()) {
+		QStringList message;
+		if (g_mainFrame->m_iApp == WINDFIELDMODULE) {
+			message = QStringList(">>> Click 'New' to create a new Windfield");
+		} else {
+			message = QStringList(">>> Create a new Windfield in the Windfield Module");
+		}
+		message.prepend("- No Windfield in Database");
+		return message;
+	} else {
+		return QStringList();
 	}
 }
 
 void WindField::render() {
-        const int grid = 1234, foot = 12345, field = 123456;
+	const int grid = 1234, foot = 12345, field = 123456;  // TODO this is incredibly dirty!
+	
+	if (glIsList(foot)) glDeleteLists(foot,1);
+	if (glIsList(field)) glDeleteLists(field,1);
+	if (glIsList(grid)) glDeleteLists(grid,1);
+	
+	int z, y;
+	
+	hsv hs;
+	hs.s = 1.0;
+	hs.v = 1.0;
+	
+	glDisable(GL_POLYGON_SMOOTH);  // NM TODO this probabely should not be here but in the module initialisation
+	glEnable(GL_POINT_SMOOTH);
+	glEnable(GL_LINE_SMOOTH);
+	glEnable (GL_BLEND);
+	glBlendFunc (GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+	glEnable(GL_DEPTH_TEST);
+	
+	glNewList(foot, GL_COMPILE);
+	
+	glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+	glEnable(GL_POLYGON_OFFSET_FILL);  // polygons get a reduced Z-value. Now the grid is drawn onto the WindField surface
+	glPolygonOffset(1.0, 0);
+	
+	/* ground grid with z = -0.1 to avoid zFighting with WindField */
+	glColor3f (0.5, 0.5, 0.5);
+	glBegin(GL_LINES);
+	
+	for (z = 0; z < m_pointsPerSide; z++) {
+		glVertex3f (m_zyCoordinatesNormalized[z], m_zyCoordinatesNormalized[0], -0.1);  // vertical
+		glVertex3f (m_zyCoordinatesNormalized[z], m_zyCoordinatesNormalized[m_pointsPerSide-1], -0.1);
+		glVertex3f (m_zyCoordinatesNormalized[0], m_zyCoordinatesNormalized[z], -0.1);  // horizontal
+		glVertex3f (m_zyCoordinatesNormalized[m_pointsPerSide-1], m_zyCoordinatesNormalized[z], -0.1);
+	}
+	glEnd();
+	
+	/* grid foot for signaling floor side of the field */
+	glBegin (GL_LINES);
+	for (z = -5; z <= 5; ++z) {
+		glVertex3f (m_zyCoordinatesNormalized[0], m_zyCoordinatesNormalized[0], z/40.0 - 0.1);
+		glVertex3f (m_zyCoordinatesNormalized[m_pointsPerSide-1], m_zyCoordinatesNormalized[0], z/40.0 - 0.1);
+	}
+	glEnd();
+	glEndList();
+	
+	glNewList(field, GL_COMPILE);
 
-        if (glIsList(foot)) glDeleteLists(foot,1);
-        if (glIsList(field)) glDeleteLists(field,1);
-        if (glIsList(grid)) glDeleteLists(grid,1);
+	/* the windfield */
+    const float difference = m_maxValueX - m_minValueX;
+	float normalized;
+	for (z = 0; z < m_pointsPerSide - 1; ++z) {
 
+		glBegin(GL_TRIANGLE_STRIP);  // the surface
+		glEnable(GL_POLYGON_OFFSET_FILL);  // polygons get a reduced Z-value. Now the grid is drawn onto the WindField surface
+		glPolygonOffset(1.0, 0);
+		for (y = 0; y < m_pointsPerSide; ++y) {
 
-        int z, y;
+			/* normalized to [0,1] */
+            normalized = (m_resultantVelocity[z][y][m_shownTimestep].x - m_minValueX) / difference;
+            normalized = (m_resultantVelocity[z][y][m_shownTimestep].x) / m_maxValueX;
+						
+			hs.h = (1-normalized)*225;
+			
+			
+			glColor3f (hsv2rgb(hs).r, hsv2rgb(hs).g, hsv2rgb(hs).b);
+			glVertex3f (m_zyCoordinatesNormalized[y], m_zyCoordinatesNormalized[z], 2*normalized);
+			
+			
+            normalized = (m_resultantVelocity[z+1][y][m_shownTimestep].x - m_minValueX) / difference;
+            normalized = (m_resultantVelocity[z+1][y][m_shownTimestep].x) / m_maxValueX;
 
-        hsv hs;
-        hs.s = 1.0;
-        hs.v = 1.0;
-
-        glDisable(GL_POLYGON_SMOOTH);  // NM TODO this probabely should not be here but in the module initialisation
-        glEnable(GL_POINT_SMOOTH);
-        glEnable(GL_LINE_SMOOTH);
-        glEnable (GL_BLEND);
-        glBlendFunc (GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-        glEnable(GL_DEPTH_TEST);
-
-        glNewList(foot, GL_COMPILE);
-
-        glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
-        glEnable(GL_POLYGON_OFFSET_FILL);  // polygons get a reduced Z-value. Now the grid is drawn onto the WindField surface
-        glPolygonOffset(1.0, 0);
-
-		/* ground grid with z = -0.1 to avoid zFighting with WindField */
-		glColor3f (0.5, 0.5, 0.5);
-		glBegin(GL_LINES);
-
-		for (z = 0; z < m_pointsPerSide; z++) {
-			glVertex3f (m_zyCoordinatesNormalized[z], m_zyCoordinatesNormalized[0], -0.1);  // vertical
-			glVertex3f (m_zyCoordinatesNormalized[z], m_zyCoordinatesNormalized[m_pointsPerSide-1], -0.1);
-			glVertex3f (m_zyCoordinatesNormalized[0], m_zyCoordinatesNormalized[z], -0.1);  // horizontal
-			glVertex3f (m_zyCoordinatesNormalized[m_pointsPerSide-1], m_zyCoordinatesNormalized[z], -0.1);
+			hs.h = (1-normalized)*225;
+			
+			glColor3f (hsv2rgb(hs).r, hsv2rgb(hs).g, hsv2rgb(hs).b);
+			glVertex3f (m_zyCoordinatesNormalized[y], m_zyCoordinatesNormalized[z+1], 2*normalized);
+		}
+		glEnd();
+	}
+	glEndList();
+	
+	glNewList(grid, GL_COMPILE);
+	
+	for (z = 0; z < m_pointsPerSide - 1; ++z) {
+		glColor3f (0, 0, 0);
+		glBegin(GL_LINE_STRIP);  // the zigzag lines on the surface
+		glEnable(GL_POLYGON_OFFSET_FILL);  // polygons get a reduced Z-value. Now the grid is drawn onto the WindField surface
+		glPolygonOffset(-2, -2);
+		for (y = 0; y < m_pointsPerSide; ++y) {
+            normalized = (m_resultantVelocity[z][y][m_shownTimestep].x - m_minValueX) / difference;
+            normalized = (m_resultantVelocity[z][y][m_shownTimestep].x) / m_maxValueX;
+			
+			glVertex3f (m_zyCoordinatesNormalized[y], m_zyCoordinatesNormalized[z], 2*normalized);
+            normalized = (m_resultantVelocity[z+1][y][m_shownTimestep].x - m_minValueX) / difference;
+            normalized = (m_resultantVelocity[z+1][y][m_shownTimestep].x) / m_maxValueX;
+			
+			glVertex3f (m_zyCoordinatesNormalized[y], m_zyCoordinatesNormalized[z+1], 2*normalized);
 		}
 		glEnd();
 		
-		/* grid foot for signaling floor side of the field */
-		glBegin (GL_LINES);
-		for (z = -5; z <= 5; ++z) {
-			glVertex3f (m_zyCoordinatesNormalized[0], m_zyCoordinatesNormalized[0], z/40.0 - 0.1);
-			glVertex3f (m_zyCoordinatesNormalized[m_pointsPerSide-1], m_zyCoordinatesNormalized[0], z/40.0 - 0.1);
-		}
-        glEnd();
-        glEndList();
-
-        glNewList(field, GL_COMPILE);
-
-
-		/* the windfield */
-		const float difference = m_maxValue - m_minValue;
-		float normalized;
-		for (z = 0; z < m_pointsPerSide - 1; ++z) {
-            glBegin(GL_TRIANGLE_STRIP);  // the surface
-            glEnable(GL_POLYGON_OFFSET_FILL);  // polygons get a reduced Z-value. Now the grid is drawn onto the WindField surface
-            glPolygonOffset(1.0, 0);
-            for (y = 0; y < m_pointsPerSide; ++y) {
-                /* normalized to [0,1] */
-                normalized = (m_resultantVelocity[z][y][m_shownTimestep] - m_minValue) / difference;
-                normalized = (m_resultantVelocity[z][y][m_shownTimestep]) / m_maxValue;
-
-
-                hs.h = (1-normalized)*225;
-
-
-                glColor3f (hsv2rgb(hs).r, hsv2rgb(hs).g, hsv2rgb(hs).b);
-                glVertex3f (m_zyCoordinatesNormalized[y], m_zyCoordinatesNormalized[z], 2*normalized);
-
-
-                normalized = (m_resultantVelocity[z+1][y][m_shownTimestep] - m_minValue) / difference;
-                normalized = (m_resultantVelocity[z+1][y][m_shownTimestep]) / m_maxValue;
-
-
-                hs.h = (1-normalized)*225;
-
-                glColor3f (hsv2rgb(hs).r, hsv2rgb(hs).g, hsv2rgb(hs).b);
-                glVertex3f (m_zyCoordinatesNormalized[y], m_zyCoordinatesNormalized[z+1], 2*normalized);
-            }
-            glEnd();
-			
-
-        }
-        glEndList();
-
-        glNewList(grid, GL_COMPILE);
-
-        for (z = 0; z < m_pointsPerSide - 1; ++z) {
-
-            glColor3f (0, 0, 0);
-            glBegin(GL_LINE_STRIP);  // the zigzag lines on the surface
-            glEnable(GL_POLYGON_OFFSET_FILL);  // polygons get a reduced Z-value. Now the grid is drawn onto the WindField surface
-            glPolygonOffset(-2, -2);
-            for (y = 0; y < m_pointsPerSide; ++y) {
-                normalized = (m_resultantVelocity[z][y][m_shownTimestep] - m_minValue) / difference;
-                normalized = (m_resultantVelocity[z][y][m_shownTimestep]) / m_maxValue;
-
-                glVertex3f (m_zyCoordinatesNormalized[y], m_zyCoordinatesNormalized[z], 2*normalized);
-                normalized = (m_resultantVelocity[z+1][y][m_shownTimestep] - m_minValue) / difference;
-                normalized = (m_resultantVelocity[z+1][y][m_shownTimestep]) / m_maxValue;
-
-                glVertex3f (m_zyCoordinatesNormalized[y], m_zyCoordinatesNormalized[z+1], 2*normalized);
-            }
-            glEnd();
-
-        }
-		
-		glColor3f (0, 0, 0);
-		for (z = 0; z < m_pointsPerSide; ++z) {
-			glBegin(GL_LINE_STRIP);  // the straigth lines 
-            glEnable(GL_POLYGON_OFFSET_FILL);  // polygons get a reduced Z-value. Now the grid is drawn onto the WindField surface
-            glPolygonOffset(-2, -2);
-			for (y = 0; y < m_pointsPerSide; ++y) {
-				/* normalized to [0,1] */
-                normalized = (m_resultantVelocity[z][y][m_shownTimestep] - m_minValue) / difference;
-                normalized = (m_resultantVelocity[z][y][m_shownTimestep]) / m_maxValue;
-
-                glVertex3f (m_zyCoordinatesNormalized[y], m_zyCoordinatesNormalized[z], 2*normalized);
-			}
-			glEnd ();
-		}
-		glEndList();
-		
+	}
 	
-    glCallList(foot);
-    glCallList(field);
-    glCallList(grid);
+	glColor3f (0, 0, 0);
+	for (z = 0; z < m_pointsPerSide; ++z) {
+		glBegin(GL_LINE_STRIP);  // the straigth lines 
+		glEnable(GL_POLYGON_OFFSET_FILL);  // polygons get a reduced Z-value. Now the grid is drawn onto the WindField surface
+		glPolygonOffset(-2, -2);
+		for (y = 0; y < m_pointsPerSide; ++y) {
+			/* normalized to [0,1] */
+            normalized = (m_resultantVelocity[z][y][m_shownTimestep].x - m_minValueX) / difference;
+            normalized = (m_resultantVelocity[z][y][m_shownTimestep].x) / m_maxValueX;
+			
+			glVertex3f (m_zyCoordinatesNormalized[y], m_zyCoordinatesNormalized[z], 2*normalized);
+		}
+		glEnd ();
+	}
+	glEndList();
+	
+	glCallList(foot);
+	glCallList(field);
+	glCallList(grid);
+
+}
+
+void WindField::renderForQLLTSim(double time, double dist, double mean, bool redblue) {
+    int z, y;
+
+    double depth = -dist / 3;
+
+    time += m_fieldDimension/2/m_meanWindSpeedAtHub;
+
+    if (time > m_simulationTime) time = m_simulationTime;
+
+    double deltaT = m_simulationTime/(m_numberOfTimesteps-1);
+    int t = floor(time/deltaT);
+    double c = (time - deltaT*t)/deltaT;
+
+    if (c < 10e-5) c = 0;
+
+    hsv hs;
+    hs.s = 1.0;
+    hs.v = 1.0;
+
+    glEnable(GL_POINT_SMOOTH);
+    glEnable(GL_LINE_SMOOTH);
+    glEnable (GL_BLEND);
+    glBlendFunc (GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+    glEnable(GL_DEPTH_TEST);
+
+    glNewList(GLWINDFIELD, GL_COMPILE);
+
+    glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+    glEnable(GL_POLYGON_OFFSET_FILL);  // polygons get a reduced Z-value. Now the grid is drawn onto the WindField surface
+    glPolygonOffset(1.0, 0);
+
+    /* ground grid with z = -0.1 to avoid zFighting with WindField */
+    glColor3f (0.5, 0.5, 0.5);
+    glBegin(GL_LINES);
+
+    for (z = 0; z < m_pointsPerSide; z++) {
+        glVertex3f (-0.1+dist,m_zyCoordinates[z], m_zyCoordinates[0]+m_hubheight);  // vertical
+        glVertex3f (-0.1+dist,m_zyCoordinates[z], m_zyCoordinates[m_pointsPerSide-1]+m_hubheight);
+        glVertex3f (-0.1+dist,m_zyCoordinates[0], m_zyCoordinates[z]+m_hubheight);  // horizontal
+        glVertex3f (-0.1+dist,m_zyCoordinates[m_pointsPerSide-1], m_zyCoordinates[z]+m_hubheight);
+    }
+    glEnd();
+
+    /* grid foot for signaling floor side of the field */
+    glBegin (GL_LINES);
+    for (z = -5; z <= 5; ++z) {
+        glVertex3f (z/40.0 - 0.1+dist, m_zyCoordinates[0], m_zyCoordinates[0]+m_hubheight);
+        glVertex3f (z/40.0 - 0.1+dist, m_zyCoordinates[m_pointsPerSide-1], m_zyCoordinates[0]+m_hubheight);
+    }
+    glEnd();
 
 
+    double fac = 1.3;
+
+    /* the windfield */
+    float normalized;
+    double vel;
+    for (z = 0; z < m_pointsPerSide - 1; ++z) {
+        glBegin(GL_TRIANGLE_STRIP);  // the surface
+        glEnable(GL_POLYGON_OFFSET_FILL);  // polygons get a reduced Z-value. Now the grid is drawn onto the WindField surface
+        glPolygonOffset(1.0, 0);
+        for (y = 0; y < m_pointsPerSide; ++y) {
+            /* normalized to [0,1] */
+
+            normalized = (1-c)*(m_resultantVelocity[z][y][t].x) / m_maxValueX  + (c)*(m_resultantVelocity[z][y][t+1].x) / m_maxValueX ;
+            vel = fabs((1-c)*(m_resultantVelocity[z][y][t].x) / mean + (c)*(m_resultantVelocity[z][y][t+1].x) / mean );
+            if (!redblue){
+            hs.h = (1-vel/fac)*225;
+            glColor4d (hsv2rgb(hs).r, hsv2rgb(hs).g, hsv2rgb(hs).b,0.7);
+            }
+            else{
+
+                if (vel > 1) glColor4d(1,0,0,vel-1);
+                else glColor4d(0,0,1,1-vel);
+            }
+            glVertex3f (depth*normalized+dist, m_zyCoordinates[y], m_zyCoordinates[z]+m_hubheight);
+
+            normalized = (1-c)*(m_resultantVelocity[z+1][y][t].x) / m_maxValueX  + (c)*(m_resultantVelocity[z+1][y][t+1].x) / m_maxValueX ;
+            vel = fabs((1-c)*(m_resultantVelocity[z+1][y][t].x) / mean  + (c)*(m_resultantVelocity[z+1][y][t+1].x) / mean );
+
+            if (!redblue){
+            hs.h = (1-vel/fac)*225;
+            glColor4d (hsv2rgb(hs).r, hsv2rgb(hs).g, hsv2rgb(hs).b,0.7);
+            }
+            else{
+
+                if (vel > 1) glColor4d(1,0,0,vel-1);
+                else glColor4d(0,0,1,1-vel);
+            }
+            glVertex3f (depth*normalized+dist, m_zyCoordinates[y], m_zyCoordinates[z+1]+m_hubheight);
+        }
+        glEnd();
+    }
+
+
+
+
+    for (z = 0; z < m_pointsPerSide - 1; ++z) {
+        glColor3f (0, 0, 0);
+        glBegin(GL_LINE_STRIP);  // the zigzag lines on the surface
+        glEnable(GL_POLYGON_OFFSET_FILL);  // polygons get a reduced Z-value. Now the grid is drawn onto the WindField surface
+        glPolygonOffset(-2, -2);
+        for (y = 0; y < m_pointsPerSide; ++y) {
+            normalized = (1-c)*(m_resultantVelocity[z][y][t].x) / m_maxValueX + (c)*(m_resultantVelocity[z][y][t+1].x) / m_maxValueX;
+
+            glVertex3f (depth*normalized+dist, m_zyCoordinates[y], m_zyCoordinates[z]+m_hubheight);
+            normalized = fabs((1-c)*(m_resultantVelocity[z+1][y][t].x) / m_maxValueX+(c) * (m_resultantVelocity[z+1][y][t+1].x) / m_maxValueX);
+
+            glVertex3f (depth*normalized+dist, m_zyCoordinates[y], m_zyCoordinates[z+1]+m_hubheight);
+        }
+        glEnd();
+
+    }
+
+    glColor3f (0, 0, 0);
+    for (z = 0; z < m_pointsPerSide; ++z) {
+        glBegin(GL_LINE_STRIP);  // the straigth lines
+        glEnable(GL_POLYGON_OFFSET_FILL);  // polygons get a reduced Z-value. Now the grid is drawn onto the WindField surface
+        glPolygonOffset(-2, -2);
+        for (y = 0; y < m_pointsPerSide; ++y) {
+            /* normalized to [0,1] */
+            normalized = (1-c)*(m_resultantVelocity[z][y][t].x) / m_maxValueX + (c)*(m_resultantVelocity[z][y][t+1].x) / m_maxValueX;
+
+            glVertex3f (depth*normalized+dist, m_zyCoordinates[y], m_zyCoordinates[z]+m_hubheight);
+        }
+        glEnd ();
+    }
+    glEndList();
 }
 
 void WindField::exportToBinary(QDataStream &dataStream) {
@@ -271,7 +386,7 @@ void WindField::exportToBinary(QDataStream &dataStream) {
 	dataStream << qint16(7) <<  // ID: Identifies the file as a TurbSim binary file
 				  qint32(m_pointsPerSide) <<  // NumGrid_Z: The number of grid points in the vertical direction
 				  qint32(m_pointsPerSide) <<  // NumGrid_Y: The number of grid points in the horizontal direction
-				  qint32(0) <<  // n_tower: The number of tower points below the grid (TODO ???)
+				  qint32(0) <<  // n_tower: The number of tower points below the grid
 				  qint32(m_numberOfTimesteps) <<  // n_t: The number of time steps
 				  qreal(m_fieldDimension / (m_pointsPerSide-1)) <<  // dz: The distance in meters between two adjacent points in the vertical direction
 				  qreal(m_fieldDimension / (m_pointsPerSide-1)) <<  // dy: The distance in meters between two adjacent points in the horizontal direction.
@@ -288,9 +403,9 @@ void WindField::exportToBinary(QDataStream &dataStream) {
 	 * UScl = IntRng/REAL( VMax(1) - VMin(1) , SiKi )
 	 * UOff = IntMin - UScl*REAL( VMin(1)    , SiKi )
 	 * */
-	const float valueRange = m_maxValue - m_minValue;
+    const float valueRange = m_maxValueX - m_minValueX;
 	const float V_slope = 65535 / valueRange;
-	const float V_intercept = -32768 - V_slope*m_minValue;
+    const float V_intercept = -32768 - V_slope*m_minValueX;
 	dataStream << qreal(V_slope) <<  // V_slope_X
 				  qreal(V_intercept) <<  // V-intercept_X
 				  qreal(1) <<  // V_slope_Y
@@ -310,16 +425,170 @@ void WindField::exportToBinary(QDataStream &dataStream) {
 	for (int timestep = 0; timestep < m_numberOfTimesteps; ++timestep) {
 		for (int zIndex = 0; zIndex < m_pointsPerSide; ++zIndex) {
 			for (int yIndex = 0; yIndex < m_pointsPerSide; ++yIndex) {
-				dataStream << qint16(m_resultantVelocity[zIndex][yIndex][timestep] * V_slope + V_intercept) <<
-							  qint16(0) <<
-							  qint16(0);
+                dataStream << qint16(m_resultantVelocity[zIndex][yIndex][timestep].x * V_slope + V_intercept) <<
+                              qint16(0) <<
+                              qint16(0);
 			}
 		}
 	}
 }
 
+void WindField::importFromBinary(QDataStream &dataStream) {
+    qint8 q8;
+    qint16 q16;
+    qint32 q32;
+    qreal qr;
+
+    dataStream.setFloatingPointPrecision(QDataStream::SinglePrecision);
+
+    dataStream >> q16; // placeholder for "7" identifier
+
+    dataStream >> q32;
+    m_pointsPerSide = q32;
+    qDebug() << "points1" << m_pointsPerSide;
+    dataStream >> q32;
+    m_pointsPerSide = q32;
+    qDebug() << "points2" << m_pointsPerSide;
+
+    dataStream >> q32; // placeholder for tower points
+    qDebug() << "tower" << q32;
+
+    dataStream >> q32;
+    m_numberOfTimesteps = q32;
+    dataStream >> qr;
+    qDebug() << "dim1" << qr;
+
+    m_fieldDimension = qr * (m_pointsPerSide-1);
+
+    dataStream >> qr;
+    qDebug() << "dim2" << qr;
+
+    m_fieldDimension = qr * (m_pointsPerSide-1);
+    dataStream >> qr;
+    m_simulationTime = qr * (m_numberOfTimesteps-1);
+    dataStream >> qr;
+    m_meanWindSpeedAtHub = qr;
+    dataStream >> qr;
+    m_hubheight = qr;
+    dataStream >> qr;
+    m_rotorRadius = m_hubheight - qr;
+
+    // initialize vector matrix
+    m_resultantVelocity = new CVectorf**[m_pointsPerSide];
+    for (int z = 0; z < m_pointsPerSide; ++z) {
+        m_resultantVelocity[z] = new CVectorf*[m_pointsPerSide];
+        for (int y = 0; y < m_pointsPerSide; ++y) {
+            m_resultantVelocity[z][y] = new CVectorf[m_numberOfTimesteps];
+        }
+    }
+
+    double vslopeX, vslopeY, vslopeZ, range;
+    double vinterceptX, vinterceptY, vinterceptZ;
+
+    dataStream >> qr;
+    vslopeX = qr;
+
+    dataStream >> qr;
+    vinterceptX = qr;
+
+    dataStream >> qr;
+    vslopeY = qr;
+
+    dataStream >> qr;
+    vinterceptY = qr;
+
+    dataStream >> qr;
+    vslopeZ = qr;
+
+    dataStream >> qr;
+    vinterceptZ = qr;
+
+
+    range = 65535/vslopeX;
+
+    m_minValueX = (-1)*(vinterceptX+32768)/vslopeX;
+
+    m_maxValueX = m_minValueX+range;
+
+
+    range = 65535/vslopeY;
+
+    m_minValueY = (-1)*(vinterceptY+32768)/vslopeY;
+
+    m_maxValueY = m_minValueY+range;
+
+    range = 65535/vslopeZ;
+
+    m_minValueZ = (-1)*(vinterceptZ+32768)/vslopeZ;
+
+    m_maxValueZ = m_minValueZ+range;
+
+
+    dataStream >> q32;
+    int size= q32;
+
+    for (int i=0; i<size; i++){
+        dataStream >> q8;
+    }
+
+    for (int timestep = 0; timestep < m_numberOfTimesteps; ++timestep) {
+        for (int zIndex = 0; zIndex < m_pointsPerSide; ++zIndex) {
+            for (int yIndex = 0; yIndex < m_pointsPerSide; ++yIndex) {
+                dataStream >> q16;
+                m_resultantVelocity[zIndex][yIndex][timestep].x = (q16 - vinterceptX)/vslopeX;
+                dataStream >> q16;
+                m_resultantVelocity[zIndex][yIndex][timestep].y = (q16 - vinterceptY)/vslopeY;
+                dataStream >> q16;
+                m_resultantVelocity[zIndex][yIndex][timestep].z = (q16 - vinterceptZ)/vslopeZ;
+            }
+        }
+    }
+
+    // initialize
+
+    /* m_zyCoordinates */
+    const float deltaYZ = m_fieldDimension / (m_pointsPerSide-1);
+    //qDebug() << "deltaYZ: " << deltaYZ;
+    m_zyCoordinates = new float[m_pointsPerSide];
+    for (int i = 0; i < m_pointsPerSide; ++i) {
+        m_zyCoordinates[i] = -m_fieldDimension/2 + i*deltaYZ;
+//        qDebug() << "yzCoordinates: " << m_zyCoordinates[i];
+    }
+
+    /* m_zyCoordinatesNormalize */
+    m_zyCoordinatesNormalized = new float[m_pointsPerSide];
+    for (int i = 0; i < m_pointsPerSide; ++i) {
+        m_zyCoordinatesNormalized[i] = m_zyCoordinates[i] * 4 / m_fieldDimension;
+//        qDebug() << "m_zyCoordinatesNormalized: " << m_zyCoordinatesNormalized[i];
+    }
+
+    /* m_timeAtTimestep */
+    const float deltaT = m_simulationTime/(m_numberOfTimesteps-1);
+    //qDebug() << "delta t: " << deltaT;
+    m_timeAtTimestep = new float[m_numberOfTimesteps];
+    for (int i = 0; i < m_numberOfTimesteps; ++i) {
+        m_timeAtTimestep[i] = i * deltaT;
+
+//        qDebug () << "Timesteps: " << m_timeAtTimestep[i];
+    }
+
+    /* m_meanWindSpeedAtHeigth */
+    m_meanWindSpeedAtHeigth = new float[m_pointsPerSide];
+    for (int i = 0; i < m_pointsPerSide; ++i) {
+            m_meanWindSpeedAtHeigth[i] = m_meanWindSpeed;
+    }
+
+    m_meanWindSpeed = m_meanWindSpeedAtHub;
+    m_windSpeedMeasurementHeight = m_hubheight;
+	m_turbulenceIntensity = 1;
+	m_includeShear = false;
+	m_roughnessLength = 0.1;
+
+    m_isValid = true;
+}
+
 void WindField::exportToTxt(QTextStream &stream) {
-	stream << "Windfield Export File Created with QBlade v0.8 on "<<QDate::currentDate().toString("dd.MM.yyyy") <<
+    stream << "Windfield Export File Created with " << g_mainFrame->m_VersionName << " on "<<QDate::currentDate().toString("dd.MM.yyyy") <<
 			  " at " << QTime::currentTime().toString("hh:mm:ss") << endl <<
 			  "Timesteps: " << m_numberOfTimesteps << endl <<
 			  "Temporal Stepwidth: " << m_simulationTime / (m_numberOfTimesteps-1) << " s" << endl <<
@@ -333,7 +602,7 @@ void WindField::exportToTxt(QTextStream &stream) {
 	for (int timestep = 0; timestep < m_numberOfTimesteps; ++timestep) {
 		for (int zIndex = 0; zIndex < m_pointsPerSide; ++zIndex) {
 			for (int yIndex = 0; yIndex < m_pointsPerSide; ++yIndex) {
-				stream << QString("%1 ").arg(m_resultantVelocity[zIndex][yIndex][timestep], 7, 'f', 3);
+                stream << QString("%1 ").arg(m_resultantVelocity[zIndex][yIndex][timestep].x, 7, 'f', 3);
 			}
 			stream << endl;
 		}
@@ -348,8 +617,8 @@ void WindField::serialize() {
 		m_glListIndex = glGenLists(1);
 	}
 	g_serializer.readOrWriteInt (&m_shownTimestep);
-	g_serializer.readOrWriteFloat (&m_minValue);
-	g_serializer.readOrWriteFloat (&m_maxValue);
+    g_serializer.readOrWriteFloat (&m_minValueX);
+    g_serializer.readOrWriteFloat (&m_maxValueX);
 	g_serializer.readOrWriteBool (&m_isValid);
 	
 	/* geometric parameters */
@@ -375,12 +644,40 @@ void WindField::serialize() {
 	g_serializer.readOrWriteFloatArray1D (&m_timeAtTimestep, m_numberOfTimesteps);
 	g_serializer.readOrWriteFloatArray1D (&m_meanWindSpeedAtHeigth, m_pointsPerSide);
 	g_serializer.readOrWriteFloat (&m_meanWindSpeedAtHub);
-	g_serializer.readOrWriteFloatArray3D (&m_resultantVelocity, m_pointsPerSide, m_pointsPerSide, m_numberOfTimesteps);
+
+    if ((g_serializer.isReadMode() && g_serializer.getArchiveFormat() >= 100028) || !g_serializer.isReadMode()){
+        g_serializer.readOrWriteCVectorfArray3D (&m_resultantVelocity, m_pointsPerSide, m_pointsPerSide, m_numberOfTimesteps);
+    }
+    else{
+        float ***m_bufferArray;
+        g_serializer.readOrWriteFloatArray3D (&m_bufferArray, m_pointsPerSide, m_pointsPerSide, m_numberOfTimesteps);
+
+            m_resultantVelocity = new CVectorf**[m_pointsPerSide];
+
+            for (int z = 0; z < m_pointsPerSide; ++z) {
+                m_resultantVelocity[z] = new CVectorf*[m_pointsPerSide];
+                for (int y = 0; y < m_pointsPerSide; ++y) {
+                    // empty paranthesis initialize the whole new array with 0
+                    m_resultantVelocity[z][y] = new CVectorf[m_numberOfTimesteps] ();
+                }
+            }
+
+            for (int i=0; i<m_pointsPerSide; i++){
+                for (int j=0;j<m_pointsPerSide;j++){
+                    for (int k=0;k<m_numberOfTimesteps;k++){
+                        m_resultantVelocity[i][j][k].x = m_bufferArray[i][j][k];
+                        m_resultantVelocity[i][j][k].y = 0;
+                        m_resultantVelocity[i][j][k].z = 0;
+                    }
+                }
+            }
+
+    }
 }
 
 void WindField::calculateWindField() {
 	/* The turbulent windfield calculation is based on the model of Veers. To understand the following code
-	 * it is essential to read the Sandia report "Three-Dimensional Wind Simulation", 1988, or revie
+     * it is essential to read the Sandia report "Three-Dimensional Wind Simulation", 1988, or review
 	 * Chapter 14 of "Aerodynamics of Wind Turbines 2nd edition" from M. O.L. Hansen.
 	 *
 	 * This functions creates a 3 dimensional matrix, where the first 2 dimensions refer to the points in
@@ -448,7 +745,6 @@ void WindField::calculateWindField() {
 	frequency = new float[numberOfFrequencies];
 	for (m = 0; m < numberOfFrequencies; ++m) {
 		frequency[m] = (m+1) / m_simulationTime;
-		//qDebug() << "Frequencies: " << frequency[m];
 	}
 	
 	amplitude = new float*[pointsInTotal];
@@ -494,24 +790,18 @@ void WindField::calculateWindField() {
 		float Re;
 		float Im;
 		
-		H = NULL;
-		try {  // allocation of especially matrix H consumes a lot of memory
-			S_j = new float[pointsInTotal] ();
-			S_diagonal = new float[pointsInTotal] ();
-			
-			H = new float*[pointsInTotal];
-			for (j = 0; j < pointsInTotal; ++j) {
-				H[j] = new float[j+1] ();  // lower triangular matrix
-			}
-		} catch (std::bad_alloc&) {  // will probably never happen
-			emit badAlloc();
+		S_j = new float[pointsInTotal] ();
+		S_diagonal = new float[pointsInTotal] ();
+		
+		H = new float*[pointsInTotal];
+		for (j = 0; j < pointsInTotal; ++j) {
+			H[j] = new float[j+1] ();  // lower triangular matrix
 		}
 		
 		
 		/* * * * * * calculation * * * * * */
         #pragma omp for
-        for (m = 0; m < numberOfFrequencies; ++m)  // independent loop, therefore parallelized
-		{
+		for (m = 0; m < numberOfFrequencies; ++m) {  // independent loop, therefore parallelized
 			j_z = 0; j_y = 0;
 			for (j = 0; j < pointsInTotal && ! *m_cancelCalculation; ++j) {
 				if (j_y == 0) {  // calculate new PSD only at new height
@@ -530,7 +820,6 @@ void WindField::calculateWindField() {
 					} else {  // calculate S_kk
 						S_j[k] = S_diagonal[k];
 					}
-
 					sum = 0;
 					if (j != k) {  // calculate H_jk
 						for (l = 0; l <= k-1; ++l) {
@@ -546,7 +835,6 @@ void WindField::calculateWindField() {
 					
 					Re = Re + (H[j][k]*cos(random[k][m]));
 					Im = Im + (H[j][k]*sin(random[k][m]));
-					
 					++k_y;
 					if (k_y == m_pointsPerSide) {
 						k_y = 0;
@@ -582,23 +870,22 @@ void WindField::calculateWindField() {
 		int z = 0;  // the row (or height) in the windfield
 		int y = 0;  // the column in the windfield
 		int t = 0;  // refers to the timesteps
-		for (j = 0; j < pointsInTotal && ! *m_cancelCalculation; ++j)  // for every point j
-		{
-			for (t = 0; t < m_numberOfTimesteps; ++t)  // for every timestep t
-			{
+		for (j = 0; j < pointsInTotal && ! *m_cancelCalculation; ++j) {  // for every point j
+			for (t = 0; t < m_numberOfTimesteps; ++t) {  // for every timestep t
 				sum = 0;
-				for (m = 0; m < numberOfFrequencies; ++m)  // for every frequency m
-				{
+				for (m = 0; m < numberOfFrequencies; ++m) {  // for every frequency m
 					sum = sum + (2*amplitude[j][m]*cos(2*M_PI*frequency[m]*m_timeAtTimestep[t]-phi[j][m]));
 				}
-				m_resultantVelocity[z][y][t] = m_meanWindSpeedAtHeigth[z] + sum;  // store final result
+                m_resultantVelocity[z][y][t].x = m_meanWindSpeedAtHeigth[z] + sum;  // store final result
+                m_resultantVelocity[z][y][t].y = 0;
+                m_resultantVelocity[z][y][t].z = 0;
 				
 				/* find the max and min value for the windfield */
-				if (m_resultantVelocity[z][y][t] < m_minValue) {
-					m_minValue = m_resultantVelocity[z][y][t];
+                if (m_resultantVelocity[z][y][t].x < m_minValueX) {
+                    m_minValueX = m_resultantVelocity[z][y][t].x;
 				}
-				if (m_resultantVelocity[z][y][t] > m_maxValue) {
-					m_maxValue = m_resultantVelocity[z][y][t];
+                if (m_resultantVelocity[z][y][t].x > m_maxValueX) {
+                    m_maxValueX = m_resultantVelocity[z][y][t].x;
 				}
 				emit updateProgress();						
 			}
@@ -639,53 +926,48 @@ void WindField::calculateWindField() {
 	}
 }
 
-
-
-CVector WindField::getWindspeed(CVector vec, double time){
+CVector WindField::getWindspeed(CVector vec, double time, double overhang){
     double z,y;
     z = vec.z;
     y = vec.y;
-    z += m_fieldDimension/2;
+    z += m_fieldDimension/2-m_hubheight;
     y += m_fieldDimension/2;
 
-    //here the windfield is marched trhough the domain with the hub height wind speed. initially it is marched through the domain for half a rotor diameter
+    //here the windfield is marched trhough the domain with the hub height wind speed. initially it is marched through the domain for half a windfield diameter
 
-    time += m_fieldDimension/2/m_meanWindSpeedAtHub - vec.x / m_meanWindSpeedAtHub;
+    time += m_fieldDimension/2/m_meanWindSpeedAtHub - (vec.x + overhang) / m_meanWindSpeedAtHub;
 
+    if (time > m_simulationTime) time = m_simulationTime;
+    if (time < 0) time = 0;
 
-
-    if (fabs(z) > m_fieldDimension || fabs(y) > m_fieldDimension || time > m_simulationTime || z < 0 || y < 0){
+    if (fabs(z) > m_fieldDimension || fabs(y) > m_fieldDimension || z < 0 || y < 0) {
 //        qDebug() << "::::::::::requested Velocity out of Windfield bounds::::::::: returned V_MeanAtHub";
         return CVector(m_meanWindSpeedAtHub,0,0);
-    }
-    else{
-
+    } else {
         // start interpolation
-        double spatialwidth = m_fieldDimension / (m_pointsPerSide-1);
-        double temporalwidth = m_simulationTime / (m_numberOfTimesteps-1);
+        const double spatialwidth = m_fieldDimension / (m_pointsPerSide-1);
+        const double temporalwidth = m_simulationTime / (m_numberOfTimesteps-1);
 
-        int zindex = floor(z / spatialwidth);
-        int yindex = floor(y / spatialwidth);
-        int tindex = floor(time / temporalwidth);
+        const int zindex = floor(z / spatialwidth);
+        const int yindex = floor(y / spatialwidth);
+        const int tindex = floor(time / temporalwidth);
 
-        double mZYfloorTfloor = m_resultantVelocity[zindex][yindex][tindex]+(m_resultantVelocity[zindex+1][yindex][tindex]-m_resultantVelocity[zindex][yindex][tindex])*(z-spatialwidth*zindex)/spatialwidth;
-        double mZYceiltTfloor = m_resultantVelocity[zindex][yindex+1][tindex]+(m_resultantVelocity[zindex+1][yindex+1][tindex]-m_resultantVelocity[zindex][yindex+1][tindex])*(z-spatialwidth*zindex)/spatialwidth;
-        double meanTfloor = mZYfloorTfloor+(mZYceiltTfloor-mZYfloorTfloor)*(y-spatialwidth*yindex)/spatialwidth;
+        CVectorf mZYfloorTfloor = m_resultantVelocity[zindex][yindex][tindex]+(m_resultantVelocity[zindex+1][yindex][tindex]-m_resultantVelocity[zindex][yindex][tindex])*(z-spatialwidth*zindex)/spatialwidth;
+        CVectorf mZYceiltTfloor = m_resultantVelocity[zindex][yindex+1][tindex]+(m_resultantVelocity[zindex+1][yindex+1][tindex]-m_resultantVelocity[zindex][yindex+1][tindex])*(z-spatialwidth*zindex)/spatialwidth;
+        CVectorf meanTfloor = mZYfloorTfloor+CVectorf(mZYceiltTfloor-mZYfloorTfloor)*(y-spatialwidth*yindex)/spatialwidth;
 
-        double mZYfloorTceil = m_resultantVelocity[zindex][yindex][tindex+1]+(m_resultantVelocity[zindex+1][yindex][tindex+1]-m_resultantVelocity[zindex][yindex][tindex+1])*(z-spatialwidth*zindex)/spatialwidth;
-        double mZYceiltTceil = m_resultantVelocity[zindex][yindex+1][tindex+1]+(m_resultantVelocity[zindex+1][yindex+1][tindex+1]-m_resultantVelocity[zindex][yindex+1][tindex+1])*(z-spatialwidth*zindex)/spatialwidth;
-        double meanTceil = mZYfloorTceil+(mZYceiltTceil-mZYfloorTceil)*(y-spatialwidth*yindex)/spatialwidth;
+        CVectorf mZYfloorTceil = m_resultantVelocity[zindex][yindex][tindex+1]+(m_resultantVelocity[zindex+1][yindex][tindex+1]-m_resultantVelocity[zindex][yindex][tindex+1])*(z-spatialwidth*zindex)/spatialwidth;
+        CVectorf mZYceiltTceil = m_resultantVelocity[zindex][yindex+1][tindex+1]+(m_resultantVelocity[zindex+1][yindex+1][tindex+1]-m_resultantVelocity[zindex][yindex+1][tindex+1])*(z-spatialwidth*zindex)/spatialwidth;
+        CVectorf meanTceil = mZYfloorTceil+CVectorf(mZYceiltTceil-mZYfloorTceil)*(y-spatialwidth*yindex)/spatialwidth;
 
-        double Vint = meanTfloor+(meanTceil-meanTfloor)*(time-temporalwidth*tindex)/temporalwidth;
 
-        return CVector(Vint,0,0);
+        CVectorf Vint = meanTfloor+CVectorf(meanTceil-meanTfloor)*(time-temporalwidth*tindex)/temporalwidth;
+
+        return CVector(Vint.x,Vint.y,Vint.z);
     }
-
 }
 
-
-float WindField::getDist (const float y1, const float z1, const float y2, const float z2)
-{
+float WindField::getDist (const float y1, const float z1, const float y2, const float z2) {
 	const float dy = (y1-y2);
 	const float dz = (z1-z2);
 	
@@ -700,17 +982,15 @@ float WindField::getDist (const float y1, const float z1, const float y2, const 
 	}
 }
 
-float WindField::getCoh(const float frequency, const float spatialDistance)
-{
+float WindField::getCoh(const float frequency, const float spatialDistance) {
 	/* Coherence function according to Frost.
 	 * The coherence decrement C is set to 12 as Hansen suggested.
 	 * */
 	return exp(-12 * frequency * spatialDistance / m_meanWindSpeed);  // meanWindSpeed not depending on height?
 }
 
-float WindField::getPSD (const float frequency, const int zIndexOfPoint)
-{
-	const int heigthAboveGround = m_hubheight + m_zyCoordinates[zIndexOfPoint];
+float WindField::getPSD (const float frequency, const int zIndexOfPoint) {
+	const float heigthAboveGround = m_hubheight + m_zyCoordinates[zIndexOfPoint];
 	float l;
 	if (heigthAboveGround <= 30) {
 		l = heigthAboveGround*20;
@@ -724,8 +1004,36 @@ float WindField::getPSD (const float frequency, const int zIndexOfPoint)
 			( pow((1 + frequency * 1.5 * l / m_meanWindSpeedAtHeigth[zIndexOfPoint]), (5.0/3)) );
 }
 
+QVariant WindField::accessParameter(Parameter::Windfield::Key key, QVariant value) {
+	typedef Parameter::Windfield P;
+	
+	const bool set = value.isValid();
+	switch (key) {
+	case P::Name: if(set) m_objectName = value.toString(); else value = m_objectName; break;
+	case P::Time: if(set) m_simulationTime = value.toFloat(); else value = m_simulationTime; break;
+	case P::Timesteps: if(set) m_numberOfTimesteps = value.toInt(); else value = m_numberOfTimesteps; break;
+	case P::Points: if(set) m_pointsPerSide = value.toInt(); else value = m_pointsPerSide; break;
+	case P::RotorRadius: if(set) m_rotorRadius = value.toFloat(); else value = m_rotorRadius; break;
+	case P::HubHeight: if(set) m_hubheight = value.toFloat(); else value = m_hubheight; break;
+	case P::WindSpeed: if(set) m_meanWindSpeed = value.toFloat(); else value = m_meanWindSpeed; break;
+	case P::Turbulence: if(set) m_turbulenceIntensity = value.toFloat(); else value = m_turbulenceIntensity; break;
+	case P::ShearLayer: if(set) m_includeShear = value.toBool(); else value = m_includeShear; break;
+	case P::MeasurementHeight: if(set) m_windSpeedMeasurementHeight = value.toFloat();
+							   else value = m_windSpeedMeasurementHeight; break;
+	case P::RoughnessLength: if(set) m_roughnessLength = value.toFloat(); else value = m_roughnessLength; break;
+	}
+
+	return (set ? QVariant() : value);
+}
+
 WindField* WindField::newBySerialize() {
 	WindField* windfield = new WindField ();
 	windfield->serialize();
+	return windfield;
+}
+
+WindField *WindField::newByImport(QDataStream &dataStream) {
+	WindField* windfield = new WindField;
+	windfield->importFromBinary(dataStream);
 	return windfield;
 }

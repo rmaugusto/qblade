@@ -51,7 +51,7 @@ public:
     void *m_pParent;
 
     QComboBox *FromPosChord, *ToPosChord;
-    QRadioButton *OptNone, *OptTroposk, *OptArcLine, *OptStraight, *OptHelix;
+    QRadioButton *OptNone, *OptTroposk, *OptArcLine, *ArcLine, *OptStraight, *OptHelix;
     QLabel *FromPosChordLabel, *ToPosChordLabel, *MaxDisplLabel, *LR1, *R0Label, *R1Label, *dRLabel, *StraightLabel, *CircAngleFromLabel, *CircAngleToLabel, *LR2;
     NumberEdit *MaxDispl, *R0, *R1, *dR, *Straight, *CircAngleFrom, *CircAngleTo;
     QPushButton *Optimize, *Done;

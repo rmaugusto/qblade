@@ -27,14 +27,22 @@
 #include <QColor>
 #include "../XBEM/Blade.h"
 #include "../XBEM/360Polar.h"
+#include "../Graph/ShowAsGraphInterface.h"
 
-class DData
-{
+
+class DData : public ShowAsGraphInterface {
     friend class QDMS;
     friend class MainFrame;
     friend class DMSData;
 
 public:
+	virtual NewCurve* newCurve (QString /*xAxis*/, QString /*yAxis*/, NewGraph::GraphType /*graphType*/) { return NULL; }
+	NewCurve* newCurve (QString xAxis, QString yAxis, NewGraph::GraphType graphType, int heightIndex);
+	static QStringList getAvailableVariables (NewGraph::GraphType graphType);
+	QString getObjectName () { return QString(m_DMSName + " " + windspeedStr); }
+	bool isDrawPoints ();
+	bool isDrawCurve ();
+
     double elements;
     double epsilon;
     double iterations;
@@ -54,17 +62,16 @@ public:
     bool m_bVariable;
     bool m_bAspectRatio;
 
-    DData();
+	DData(QString dmsName);
     virtual ~DData();
 
-    void Serialize(QDataStream &ar, bool bIsStoring);
 	void serialize();
 	static DData* newBySerialize();
 	void Init(CBlade *pWing, double lambda, double pitch);
-	void OnDMS();
+    void OnDMS(CBlade *pBlade);
 	C360Polar* Get360Polar(QString m_FoilName, QString PolarName);
 
-private:
+//private:
     QString m_WingName;
     QString m_DMSName;
     QString lambdaglobal;
@@ -84,6 +91,7 @@ private:
     double power, torque, thrust;//turbine power output and torque
     double ct, ct1, ct2; // thrust coefficient
     double blades;
+    bool m_bIsInverted;
 
     QList <double> deltas;
 
@@ -96,7 +104,6 @@ private:
     QList <double> m_radius_local;  //local radius
     QList <double> m_theta_local;   //local azi angle
     QList <double> m_eta;           //local relative radius
-    QList <double> m_between;       //the percentage of foils for foil interpolation
     QList <double> m_lambda_up;     //local upwind tip speed ratio
     QList <double> m_lambda_down;   //local downwind tip speed ratio
     QList <double> m_velocity_inf;  //local inflow velocity
@@ -157,6 +164,8 @@ private:
     QList<QList<double> > m_u;      //local interference factor
     QList<QList<double> > m_V;      //local induced velocity
     QList<QList<double> > m_Re;     //local Reynolds Number
+    QList<QList<double> > m_DeltaRe;     //delta Reynolds Number
+
     QList<QList<double> > m_vrel;   //local relative velocity
     QList<QList<double> > m_CD;     //drag coeff
     QList<QList<double> > m_CL;     //drag coeff
@@ -164,20 +173,15 @@ private:
     QList<QList<double> > m_Cn;     //normal force coefficient
     QList<QList<double> > m_Ct;     //tangential force coefficient
 
-    // polars
-    QStringList m_polar;        //list of polar at sections
-    QStringList m_foil;         //list of foils at sections
-    QStringList m_polarTO;      //list of polars at next sections for interpolation
-    QStringList m_foilTO;       //list of foils at next sections for interpolation
-	QVector <C360Polar *> m_PolarPointers;
-	QVector <C360Polar *> m_PolarPointersTO;
-
     bool m_bShowPoints;
     bool m_bIsVisible;
     bool m_bBackflow;
     int m_Style;
     int m_Width;
     QColor m_Color;
+
+private:
+	virtual QPen doGetPen (int curveIndex, int highlightedIndex, bool forTheDot);
 };
 
 #endif // DDATA_H

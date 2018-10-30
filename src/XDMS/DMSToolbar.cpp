@@ -1,7 +1,6 @@
 #include "DMSToolbar.h"
 
 #include <QGroupBox>
-#include "../XGlobals.h"
 #include <QVBoxLayout>
 #include "DMS.h"
 #include "../StoreAssociatedComboBox.h"
@@ -9,8 +8,11 @@
 
 DMSToolbar::DMSToolbar(QMainWindow *parent)
 {
-
-    setIconSize(QSize(36,36));
+	setObjectName("DMSToolbar");
+	
+    QRect rec = QApplication::desktop()->screenGeometry();
+    int width = rec.width();
+    setIconSize(QSize(width*0.025,width*0.025));
 
 	m_SingleGraphAct = new QAction(QIcon(":/images/single.png"), tr("Single Graph View"), this);
 	m_SingleGraphAct->setCheckable(true);
@@ -19,6 +21,7 @@ DMSToolbar::DMSToolbar(QMainWindow *parent)
 	m_HideWidgetsAct = new QAction(QIcon(":/images/hidden.png"), tr("Hide Widgets"), this);
 	m_HideWidgetsAct->setCheckable(true);
 	m_HideWidgetsAct->setStatusTip(tr("Hide Widgets"));
+
 
 	addAction(m_SingleGraphAct);
 	addAction(m_HideWidgetsAct);
@@ -125,11 +128,11 @@ DMSToolbar::DMSToolbar(QMainWindow *parent)
 
 		connect(m_SingleGraphAct, SIGNAL(triggered()), g_qdms, SLOT(OnSingleGraphs()));
 		connect(m_HideWidgetsAct, SIGNAL(triggered()), g_qdms, SLOT(OnHideWidgets()));
-		connect(m_rotorComboBox,SIGNAL(activated(int)), g_qdms, SLOT(OnSelChangeWing(int)));
-		connect(m_dmsdataComboBox,SIGNAL(activated(int)), g_qdms, SLOT(OnSelChangeRotorSimulation(int)));
-		connect(m_verttdataComboBox,SIGNAL(activated(int)), g_qdms, SLOT(OnSelChangeTurbine(int)));
-		connect(m_tdmsdataComboBox,SIGNAL(activated(int)), g_qdms, SLOT(OnSelChangeTurbineSimulation(int)));
-		connect(m_cdmsdataComboBox,SIGNAL(activated(int)), g_qdms, SLOT(OnSelChangeCharSimulation(int)));
+        connect(m_rotorComboBox,SIGNAL(valueChanged(int)), g_qdms, SLOT(OnSelChangeWing(int)));
+		connect(m_dmsdataComboBox,SIGNAL(valueChanged(int)), g_qdms, SLOT(OnSelChangeRotorSimulation()));
+        connect(m_verttdataComboBox,SIGNAL(valueChanged(int)), g_qdms, SLOT(OnSelChangeTurbine(int)));
+		connect(m_tdmsdataComboBox,SIGNAL(valueChanged(int)), g_qdms, SLOT(OnSelChangeTurbineSimulation()));
+		connect(m_cdmsdataComboBox,SIGNAL(valueChanged(int)), g_qdms, SLOT(OnSelChangeCharSimulation()));
 		connect(m_tsrComboBox,SIGNAL(activated(int)), g_qdms, SLOT(OnSelChangeBladeData(int)));
 		connect(m_windspeedComboBox,SIGNAL(activated(int)), g_qdms, SLOT(OnSelChangeWind(int)));
 		connect(m_pitchComboBox,SIGNAL(activated(int)), g_qdms, SLOT(OnSelChangePitch(int)));

@@ -1,63 +1,116 @@
 #include "WindFieldModule.h"
 
 #include <QMenuBar>
+#include <QFileDialog>
 
 #include "../MainFrame.h"
-#include "WindFieldCreatorDock.h"
+#include "WindFieldDock.h"
 #include "WindFieldToolBar.h"
 #include "WindFieldMenu.h"
 #include "../GlobalFunctions.h"
-
-extern MainFrame *g_mainFrame;
-extern WindFieldStore g_windFieldStore;
-
+#include "../GLWidget.h"
+#include "WindField.h"
+#include "../Store.h"
 
 WindFieldModule::WindFieldModule(QMainWindow *mainWindow, QToolBar *toolbar) {
 	m_globalModuleIndentifier = WINDFIELDMODULE;
-    m_DockWidth = 220;
 	
 	m_shownWindField = NULL;
 	m_windFieldMenu = new WindFieldMenu (mainWindow, this);
 	mainWindow->menuBar()->addMenu(m_windFieldMenu);
 	m_windFieldToolbar = new WindFieldToolBar (mainWindow, this);
-	m_windFieldCreatorDock = new WindFieldCreatorDock (tr("Wind Field Creator"), mainWindow, 0);
-	connect(&g_windFieldStore, SIGNAL(objectRenamed(QString,QString)),
-										m_windFieldCreatorDock, SLOT(onWindFieldRenamed(QString,QString)));
-    registrateAtToolbar(tr("Turbulent Windfield Generator"), tr("Create a Turbulent Windfield for a FAST Simulation"),
+	m_windFieldDock = new WindFieldDock ("Windfield", mainWindow, 0, this);
+
+	registrateAtToolbar(tr("Turbulent Windfield Generator"), tr("Create a Turbulent Windfield for a FAST Simulation"),
 																	":/images/WindFieldCreator.png", toolbar);
     g_mainFrame->BEMViewMenu->addAction(m_activationAction);
 
 }
 
 WindFieldModule::~WindFieldModule () {
+	
+}
+
+void WindFieldModule::OnImportBinaryWindField(){
+    QString fileName;
+
+    fileName = QFileDialog::getOpenFileName(g_mainFrame, "Open Binary Windfield File", g_mainFrame->m_LastDirName,
+											"Binary Wind Field File (*.bts)");
+    if(!fileName.length()) return;
+    int pos = fileName.lastIndexOf("/");
+    if(pos>0) g_mainFrame->m_LastDirName = fileName.left(pos);
+
+    QString windfieldname = g_mainFrame->m_LastDirName = fileName.right(pos);
+
+    pos = fileName.lastIndexOf(".");
+    if(pos>0) windfieldname = fileName.left(pos);
+
+    QFile windfieldFile (fileName);
+    if (windfieldFile.open(QIODevice::ReadOnly)) {
+        QDataStream fileStream (&windfieldFile);
+        fileStream.setByteOrder(QDataStream::LittleEndian);
+        fileStream.setFloatingPointPrecision(QDataStream::SinglePrecision);
+		WindField *importWindField = WindField::newByImport(fileStream);
+		
+        g_windFieldStore.add(importWindField);
+        setShownWindField(importWindField);
+        reportGLChange();
+		
+		windfieldFile.close();
+    }
 }
 
 void WindFieldModule::setShownWindField(WindField *newShownWindField) {
 	m_shownWindField = newShownWindField;
-	m_windFieldCreatorDock->useWindField(m_shownWindField);
+	m_windFieldDock->setShownObject(m_shownWindField);
 	m_windFieldToolbar->useWindField(m_shownWindField);
 	reportGLChange();
 }
 
-void WindFieldModule::onRedraw() {
-
-    if (GLscreenMessage(WINDFIELDMODULE,0,m_glWidget)) return;
-
+void WindFieldModule::drawGL() {
 	if (m_shownWindField && m_shownWindField->isValid()) {
 		m_shownWindField->render();
-		drawLegend();
 	}
 }
 
+void WindFieldModule::overpaint(QPainter &painter) {
+	if (m_shownWindField && m_shownWindField->isValid()) {
+		const int barWidth = 25;
+		const int barHeight = 100;
+		const int marginLeft = 15;
+		const int marginTop = 55;
+		
+		QLinearGradient gradient (QPointF(0, marginTop), QPointF(0, marginTop+barHeight));
+		for (int i = 0; i < 30; ++i) {
+			QColor color;
+			color.setHsv(225.0/29*i, 255, 255);
+			gradient.setColorAt(1.0/29*i, color);
+		}
+		
+		painter.setPen(QPen(QBrush("black"), 1));
+		painter.setBrush(gradient);
+		painter.drawRect(marginLeft, marginTop, barWidth, barHeight);
+		painter.setFont(QFont(g_mainFrame->m_TextFont.family(), 12));
+		painter.drawText(marginLeft+barWidth+5, marginTop+6,
+						 QString("%1 m/s").arg(m_shownWindField->maxValue(), 0, 'f', 2));
+		painter.drawText(marginLeft+barWidth+5, marginTop+barHeight+6,
+						 QString("%1 m/s").arg(/*m_shownWindField->minValue()*/0.0, 0, 'f', 2));
+		painter.setFont(QFont(g_mainFrame->m_TextFont.family(), 25));
+		painter.drawText(marginLeft, 35, QString("%1").number(m_shownWindField->getShownTimestep()+1));
+	}
+}
 
 void WindFieldModule::addMainMenuEntries() {
     g_mainFrame->menuBar()->addMenu(g_mainFrame->BEMViewMenu);
 	g_mainFrame->menuBar()->addMenu(m_windFieldMenu);
 }
 
+QStringList WindFieldModule::prepareMissingObjectMessage() {
+	return WindField::prepareMissingObjectMessage();
+}
+
 void WindFieldModule::initView() {
 	if (m_firstView) {
-		m_windFieldCreatorDock->initView();
 //        m_glWidget->setSceneCenter(qglviewer::Vec(0,0,0));
 //        m_glWidget->setSceneRadius(1.0);
 //        m_glWidget->showEntireScene();
@@ -86,69 +139,7 @@ void WindFieldModule::configureGL() {
     glEnable(GL_LINE_SMOOTH);
 	
 	glDisable(GL_LIGHTING);
-    glDisable(GL_LIGHT0);	
-}
-
-void WindFieldModule::drawLegend() {
-	glPushAttrib (GL_ALL_ATTRIB_BITS);  // save the openGL state
-	glMatrixMode(GL_PROJECTION);
-	glPushMatrix();
-	glLoadIdentity();
-	glMatrixMode(GL_MODELVIEW);
-	glPushMatrix();	
-	glLoadIdentity();
-	
-	const double width = m_glWidget->width();
-	const double height = m_glWidget->height();
-	glDisable(GL_DEPTH_TEST);
-    int num = 30;
-    double w = 50;  //height and width of the legend
-    double h = 200;
-    double h_incr = h / num;
-
-    hsv hs;         //the hue saturation value color struct
-    hs.s = 1.0;
-    hs.v = 1.0;
-    hs.h = 0;
-
-    for (int i = 1; i <= num;i++){
-    glBegin (GL_QUADS);  // the filling
-
-    glColor3f (hsv2rgb(hs).r, hsv2rgb(hs).g, hsv2rgb(hs).b);
-    glVertex2d((20.0)/width -1, 1- (100.0+h_incr*(i-1))/height);  // 20.0 is twice the distance to the edge
-    glVertex2d((20.0+w)/width -1, 1- (100.0+h_incr*(i-1))/height);
-
-    hs.h += 225/num;
-    glColor3f (hsv2rgb(hs).r, hsv2rgb(hs).g, hsv2rgb(hs).b);
-    glVertex2d((20.0+w)/width -1, 1- (100.0+h_incr*i)/height);
-    glVertex2d((20.0)/width -1, 1- (100.0+h_incr*i)/height);
-    glEnd ();
-    }
-
-
-    glBegin (GL_LINE_LOOP);  // the edges
-    glColor3d(0, 0, 0);
-    glVertex2d(20.0/width -1, 1- 100.0/height);
-    glVertex2d(70.0/width -1, 1- 100.0/height);
-    glVertex2d(70.0/width -1, 1- 300.0/height);
-    glVertex2d(20.0/width -1, 1- 300.0/height);
-    glEnd ();
-	
-	m_glWidget->renderText(20.0/width -1, 1- 70.0/height, 0,
-						   QString("%1").number(m_shownWindField->getShownTimestep()+1),  // index shift
-						   QFont("Arial", 25));
-	m_glWidget->renderText(80.0/width -1, 1- 112.0/height, 0,
-						   QString("%1 m/s").arg(m_shownWindField->maxValue(), 0, 'f', 2),
-						   QFont ("Arial", 12));
-	m_glWidget->renderText(80.0/width -1, 1- 312.0/height, 0,
-                           QString("%1 m/s").arg(/*m_shownWindField->minValue()*/0.0, 0, 'f', 2),
-						   QFont ("Arial", 12));
-	
-	glMatrixMode(GL_MODELVIEW);  // restore state
-	glPopMatrix();
-	glMatrixMode(GL_PROJECTION);
-	glPopMatrix();
-	glPopAttrib ();
+    glDisable(GL_LIGHT0);
 }
 
 void WindFieldModule::onShownWindFieldChanged(int newIndex) {
@@ -163,17 +154,18 @@ void WindFieldModule::onActivationActionTriggered() {
 	ModuleBase::onActivationActionTriggered();
 	GLModule::showModule();
 	g_mainFrame->switchToGlWidget();
-	m_windFieldCreatorDock->show();
+	m_windFieldDock->show();
 	m_windFieldToolbar->show();
-    m_windFieldCreatorDock->setMinimumWidth(m_DockWidth);
-    m_windFieldCreatorDock->setMaximumWidth(m_DockWidth);
+    configureGL();
 }
 
 void WindFieldModule::onModuleChanged() {
 	if (g_mainFrame->getCurrentModule() == this) {
 		ModuleBase::onModuleChanged();
 		GLModule::hideModule();
-		m_windFieldCreatorDock->hide();
+		m_windFieldDock->hide();
 		m_windFieldToolbar->hide();
 	}
 }
+
+WindFieldModule *g_windFieldModule;

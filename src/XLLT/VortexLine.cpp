@@ -2,36 +2,57 @@
 #include <QtCore>
 
 
-VortexLine::VortexLine()
-{
+VortexLine::VortexLine(){
     isTip = false;
     isHub = false;
+    deleteLater = false;
     isTrailing = false;
     isShed = false;
     isConcentrated = false;
     oldLength = 0;
+    stretchFactor = 1;
     Length = 0;
+    oldLengthPredCorr = 0;
     age = 0;
-    coreSize = 0;
+    coreSizeSquared = 0;
     Gamma = 0.0;
+    VizGamma = 0.0;
     pT = NULL;
     pL = NULL;
-    fromStation = -999;
-    fromTimestep = -999;
+    fromStation = -1;
+    fromTimestep = -1;
+    fromTime = -1;
+    fromRevolution = -1;
     m_Lines = NULL;
     m_Nodes = NULL;
+    includeStrain = true;
+    leftPanel = NULL;
+    rightPanel = NULL;
+    fromLine = NULL;
+    isStrut = false;
+}
+
+void VortexLine::InitVortexSize(){
+    double a = 1.25643;
+    coreSizeSquared = 4*a*m_TurbulentViscosity*m_KinViscosity*(m_VortexTimeOffset);
+}
+
+void VortexLine::InitLength(){
+    oldLengthPredCorr = Length;
+    Length = CVector(*pL-*pT).VAbs();
 }
 
 void VortexLine::Update(double dT){
    double a = 1.25643; // a factor from literature
    double strain;
+   Length = CVector(*pL-*pT).VAbs();
+   if (oldLength == 0 || !includeStrain) strain = 0;
+   else strain = (Length-oldLength) / oldLength;
+   stretchFactor *= (strain+1);
+   coreSizeSquared += 4*a*m_TurbulentViscosity*m_KinViscosity*dT;
+   coreSizeSquared *= 1/(1+strain);
    age += dT;
    oldLength = Length;
-   Length = CVector(*pL-*pT).VAbs();
-   if (oldLength == 0) strain = 0;
-   else strain = (Length-oldLength / oldLength);
-   coreSize = sqrt(4*a*m_TurbulentViscosity*m_KinViscosity*(age+m_VortexTimeOffset)/(1+strain));
-//   qDebug() << "coresize" << coreSize << "age" << age << strain << m_TurbulentViscosity;
 }
 
 void VortexLine::SetGamma(double gamma){
@@ -40,10 +61,6 @@ void VortexLine::SetGamma(double gamma){
 
 double VortexLine::GetGamma(){
     return Gamma;
-}
-
-double VortexLine::GetLength(){
-    return Length;
 }
 
 void VortexLine::Delete(){

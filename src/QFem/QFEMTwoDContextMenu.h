@@ -12,6 +12,7 @@ class QFEMTwoDContextMenu : public TwoDContextMenu
 
 public:
     QFEMTwoDContextMenu(QWidget *parent, QFEMModule *module);
+	void setCurrentGraphType (NewGraph::GraphType /*graphType*/, NewGraph::GraphType /*graphTypeMulti*/ = NewGraph::None) { }
 
 private:
     QFEMModule *m_module;

@@ -24,7 +24,6 @@
 #include <QTextEdit>
 #include <QDialog>
 #include "../Objects/Polar.h"
-#include "../Objects/WPolar.h"
 
 class ObjectPropsDlg : public QDialog
 {
@@ -32,7 +31,6 @@ class ObjectPropsDlg : public QDialog
 
 	friend class MainFrame;
 	friend class QXDirect;
-	friend class QMiarex;
 
 
 public:
@@ -44,13 +42,10 @@ private:
 
 	QTextEdit *m_pctrlDescription;
 	CPolar *m_pPolar;
-	CWPolar *m_pWPolar;
-	CWOpp *m_pWOpp;
 	OpPoint *m_pOpp;
 
 	static void *s_pMainFrame;
 	void *m_pXDirect;
-	void *m_pMiarex;
 
 };
 

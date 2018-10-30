@@ -3,7 +3,7 @@
 
 #include "../Module.h"
 class WindField;
-class WindFieldCreatorDock;
+class WindFieldDock;
 class WindFieldToolBar;
 class WindFieldMenu;
 
@@ -19,23 +19,23 @@ public:
 	WindField* getShownWindField () { return m_shownWindField; }
 	void setShownWindField (WindField *newShownWindField);
 	
-	virtual void onRedraw ();  // override from GLModule
+	virtual void drawGL ();  // override from GLModule
+	virtual void overpaint (QPainter &painter);
 	virtual void addMainMenuEntries();  // override from ModuleBase
+	virtual QStringList prepareMissingObjectMessage();
 	
 private:
 	WindFieldMenu *m_windFieldMenu;  // contains the menu with all actions
 	WindFieldToolBar *m_windFieldToolbar;  // where to set shown timestep and see information about the field
-	WindFieldCreatorDock *m_windFieldCreatorDock;  // where the parameters for WindField are set
+	WindFieldDock *m_windFieldDock;  // where the parameters for WindField are set
 	WindField *m_shownWindField;  // the currently shown windfield
 
-    int m_DockWidth;
-	
 	virtual void initView();  // override from Module
 	virtual void configureGL ();  // override from GLModule
-	void drawLegend ();  // draws the legend into the GLWidget
 	
 public slots:
 	void onShownWindFieldChanged (int newIndex);  // connected to the comboBox in the toolBar
+    void OnImportBinaryWindField();
 	virtual void onActivationActionTriggered();  // override from ModuleBase
 	virtual void onModuleChanged ();  // override from ModuleBase
 };

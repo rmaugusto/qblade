@@ -29,7 +29,6 @@
 #include "../Objects/Polar.h"
 #include "../MainFrame.h"
 #include "../Globals.h"
-#include "../XGlobals.h"
 
 
 OptimizeDlgVAWT::OptimizeDlgVAWT(void *pParent)
@@ -87,8 +86,13 @@ void OptimizeDlgVAWT::SetupLayout()
     LR1->setText(str);
     LR2 = new QLabel;
     LR2->setText(str);
+    QLabel *LR3 = new QLabel;
+    LR3->setText(str);
 
-    OptArcLine = new QRadioButton(tr("Arc/Straight Line"));
+
+    OptArcLine = new QRadioButton(tr("Arc/Line Opt"));
+    ArcLine = new QRadioButton(tr("Arc/Line"));
+
     R0Label = new QLabel(tr("R arc start"));
     R0 = new NumberEdit;
     R0->setMinimum(0.1);
@@ -101,10 +105,9 @@ void OptimizeDlgVAWT::SetupLayout()
     R1->setMaximum(0.9);
     R1->setAutomaticPrecision(2);
     R1->setValue(0.9);
-    dRLabel = new QLabel(tr("dR"));
+    dRLabel = new QLabel(tr("R min"));
     dR = new NumberEdit;
     dR->setMinimum(0.01);
-    dR->setMaximum(0.1);
     dR->setAutomaticPrecision(2);
     dR->setValue(0.01);
 
@@ -121,15 +124,18 @@ void OptimizeDlgVAWT::SetupLayout()
     OptRadiusLayout->addWidget(CircAngleTo,5,2);
     OptRadiusLayout->addWidget(OptTroposk,6,1);
     OptRadiusLayout->addWidget(OptArcLine,6,2);
-    OptRadiusLayout->addWidget(MaxDisplLabel,7,1);
-    OptRadiusLayout->addWidget(MaxDispl,7,2);
-    OptRadiusLayout->addWidget(LR1,7,3);
-    OptRadiusLayout->addWidget(R0Label,8,1);
-    OptRadiusLayout->addWidget(R0,8,2);
-    OptRadiusLayout->addWidget(R1Label,9,1);
-    OptRadiusLayout->addWidget(R1,9,2);
-    OptRadiusLayout->addWidget(dRLabel,10,1);
-    OptRadiusLayout->addWidget(dR,10,2);
+    OptRadiusLayout->addWidget(ArcLine,6,3);
+    OptRadiusLayout->addWidget(dRLabel,7,1);
+    OptRadiusLayout->addWidget(dR,7,2);
+    OptRadiusLayout->addWidget(LR3,7,3);
+    OptRadiusLayout->addWidget(MaxDisplLabel,8,1);
+    OptRadiusLayout->addWidget(MaxDispl,8,2);
+    OptRadiusLayout->addWidget(LR1,8,3);
+    OptRadiusLayout->addWidget(R0Label,9,1);
+    OptRadiusLayout->addWidget(R0,9,2);
+    OptRadiusLayout->addWidget(R1Label,10,1);
+    OptRadiusLayout->addWidget(R1,10,2);
+
 
     QGroupBox *RadiusGroup = new QGroupBox(tr("Optimize Blade Radius"));
     RadiusGroup->setLayout(OptRadiusLayout);
@@ -173,7 +179,7 @@ void OptimizeDlgVAWT::InitDialog()
     MaxDispl->setEnabled(false);
     MaxDispl->setValue(fabs(pDMS->m_pBlade->m_TPos[pDMS->m_pBlade->m_NPanel]-pDMS->m_pBlade->m_TPos[0])/2*g_mainFrame->m_mtoUnit);
     Straight->setEnabled(false);
-    Straight->setValue(pDMS->m_pBlade->m_TOffset[int( int(FromPosChord->currentText().toDouble()-1) + 0.5 * int(ToPosChord->currentText().toDouble()-1) - int(FromPosChord->currentText().toDouble()-1))]*g_mainFrame->m_mtoUnit);
+    Straight->setValue(pDMS->m_pBlade->m_TOffsetX[int( int(FromPosChord->currentText().toDouble()-1) + 0.5 * int(ToPosChord->currentText().toDouble()-1) - int(FromPosChord->currentText().toDouble()-1))]*g_mainFrame->m_mtoUnit);
     CircAngleFrom->setEnabled(false);
     CircAngleFrom->setValue(pDMS->m_pBlade->m_TCircAngle[int(FromPosChord->currentText().toDouble()-1)]);
     CircAngleTo->setEnabled(false);
@@ -209,7 +215,7 @@ void OptimizeDlgVAWT::CheckButtons()
 
     if (OptHelix->isChecked())
     {
-        Straight->setEnabled(true);
+        Straight->setEnabled(false);
         CircAngleFrom->setEnabled(true);
         CircAngleTo->setEnabled(true);
         R0->setEnabled(false);
@@ -220,16 +226,43 @@ void OptimizeDlgVAWT::CheckButtons()
 
     if (OptTroposk->isChecked())
     {
+        dRLabel->setText("R min");
+        MaxDisplLabel->setText(("R max"));
+        R0Label->setText(tr("R arc start"));
+        R1Label->setText(tr("R arc end"));
         Straight->setEnabled(false);
         CircAngleFrom->setEnabled(false);
         CircAngleTo->setEnabled(false);
         R0->setEnabled(false);
         R1->setEnabled(false);
-        dR->setEnabled(false);
+        dR->setEnabled(true);
         MaxDispl->setEnabled(true);
+        R0->setMinimum(0.1);
+        R0->setMaximum(0.9);
+        R1->setMinimum(0.1);
+        R1->setMaximum(0.9);
     }
 
     if (OptArcLine->isChecked())
+    {
+        dRLabel->setText("R min");
+        MaxDisplLabel->setText(("R max"));
+        R0Label->setText(tr("R arc start"));
+        R1Label->setText(tr("R arc end"));
+        Straight->setEnabled(false);
+        CircAngleFrom->setEnabled(false);
+        CircAngleTo->setEnabled(false);
+        R0->setEnabled(true);
+        R1->setEnabled(true);
+        dR->setEnabled(true);
+        MaxDispl->setEnabled(true);
+        R0->setMinimum(0.1);
+        R0->setMaximum(0.9);
+        R1->setMinimum(0.1);
+        R1->setMaximum(0.9);
+    }
+
+    if (ArcLine->isChecked())
     {
         Straight->setEnabled(false);
         CircAngleFrom->setEnabled(false);
@@ -238,6 +271,17 @@ void OptimizeDlgVAWT::CheckButtons()
         R1->setEnabled(true);
         dR->setEnabled(true);
         MaxDispl->setEnabled(true);
+
+        dRLabel->setText("R hub");
+        MaxDisplLabel->setText(("Length line"));
+        R0Label->setText(tr("Radius"));
+        R1Label->setText(tr("Segment"));
+
+        R0->setMinimum(0);
+        R0->setMaximum(10e6);
+        R1->setMinimum(0);
+        R1->setMaximum(10e6);
+
     }
 
 }
@@ -246,10 +290,10 @@ void OptimizeDlgVAWT::Connect()
 {
     connect(OptNone, SIGNAL(clicked()), SLOT(CheckButtons()));
     connect(OptArcLine, SIGNAL(clicked()), SLOT(CheckButtons()));
+    connect(ArcLine, SIGNAL(clicked()), SLOT(CheckButtons()));
     connect(OptTroposk, SIGNAL(clicked()), SLOT(CheckButtons()));
     connect(OptStraight, SIGNAL(clicked()), SLOT(CheckButtons()));
     connect(OptHelix, SIGNAL(clicked()), SLOT(CheckButtons()));
-
     connect(Optimize, SIGNAL(clicked()), SLOT(OnOptimize()));
     connect(Done, SIGNAL(clicked()), SLOT(accept()));
 
@@ -270,22 +314,26 @@ void OptimizeDlgVAWT::OnOptimize()
 
     if (OptStraight->isChecked() || OptHelix->isChecked())
     {
-        double radius/*, offset*/;
 
-        radius = Straight->getValue()/g_mainFrame->m_mtoUnit;
 
         // compute blade coordinates
 //        offset = fmax(pWing->m_TPos[0], pWing->m_TPos[pWing->m_NPanel])/a - 1;
 
-        for (int i=int(FromPosChord->currentText().toDouble()-1);i <= int(ToPosChord->currentText().toDouble()-1);i++)
-        {
-            pWing->m_TOffset[i] = radius;
-            pWing->m_TCircAngle[i] = 0;
+        if (OptStraight->isChecked()){
+            double radius/*, offset*/;
+
+            radius = Straight->getValue()/g_mainFrame->m_mtoUnit;
+            for (int i=int(FromPosChord->currentText().toDouble()-1);i <= int(ToPosChord->currentText().toDouble()-1);i++)
+            {
+                pWing->m_TOffsetX[i] = radius;
+                pWing->m_TCircAngle[i] = 0;
+            }
+            // calculate swept area S = 4 HR
+            // H - half height, R - max radius
+            pWing->m_sweptArea = 4*a*radius;
         }
 
-        // calculate swept area S = 4 HR
-        // H - half height, R - max radius
-        pWing->m_sweptArea = 4*a*radius;
+
 
         if (OptHelix->isChecked())
         {
@@ -319,15 +367,15 @@ void OptimizeDlgVAWT::OnOptimize()
         double b;
 
         // b - Maximum deflection of the troposkien from the axis of rotation
-        b = MaxDispl->getValue()/g_mainFrame->m_mtoUnit;
+        b = (MaxDispl->getValue()-dR->getValue())/g_mainFrame->m_mtoUnit;
         beta = b/a;
 
 
-        if (beta<0.8 || beta>1.2)
+        if (beta < 0.8 || beta > 1.2)
         {
             QString str, num1, num2;
-            num1.sprintf("%1.2f",double(0.8*a*g_mainFrame->m_mtoUnit));
-            num2.sprintf("%1.2f",double(1.2*a*g_mainFrame->m_mtoUnit));
+            num1.sprintf("%1.2f",double(0.8*a*g_mainFrame->m_mtoUnit+dR->getValue()));
+            num2.sprintf("%1.2f",double(1.2*a*g_mainFrame->m_mtoUnit+dR->getValue()));
             GetLengthUnit(str, g_mainFrame->m_LengthUnit);
             str = "Rmax is invalid!\nMust be between " + num1 + str + " and " + num2 + str + "!";
 
@@ -335,17 +383,30 @@ void OptimizeDlgVAWT::OnOptimize()
 
             if (beta<0.8)
             {
-                MaxDispl->setValue(0.8*a*g_mainFrame->m_mtoUnit);
-                b = MaxDispl->getValue()/g_mainFrame->m_mtoUnit;
+                MaxDispl->setValue(0.8*a*g_mainFrame->m_mtoUnit+dR->getValue());
+                b = (MaxDispl->getValue()-dR->getValue())/g_mainFrame->m_mtoUnit;
                 beta = b/a;
             }
             else if (beta>1.2)
             {
-                MaxDispl->setValue(1.2*a*g_mainFrame->m_mtoUnit);
-                b = MaxDispl->getValue()/g_mainFrame->m_mtoUnit;
+                MaxDispl->setValue(1.2*a*g_mainFrame->m_mtoUnit+dR->getValue());
+                b = (MaxDispl->getValue()-dR->getValue())/g_mainFrame->m_mtoUnit;
                 beta = b/a;
             }
             else return;
+        }
+
+        if (dR->getValue()>=MaxDispl->getValue())
+        {
+            QString str, num1, num2;
+            num1.sprintf("%1.2f",double(0.8*a*g_mainFrame->m_mtoUnit));
+            num2.sprintf("%1.2f",double(1.2*a*g_mainFrame->m_mtoUnit));
+            GetLengthUnit(str, g_mainFrame->m_LengthUnit);
+            str = "R min is invalid!\nMust be smaller than R max!";
+
+            QMessageBox::warning(this, tr("Warning"), str);
+
+            dR->setValue(MaxDispl->getValue()*0.2);
         }
 
         // complete elliptic integral Fc
@@ -450,7 +511,7 @@ void OptimizeDlgVAWT::OnOptimize()
             else
                 r = m_Rt.at(100);
 
-            pWing->m_TOffset[i]=r*a  + pWing->m_HubRadius;
+            pWing->m_TOffsetX[i]=r*a + dR->getValue();
 
         }
     }
@@ -479,7 +540,7 @@ void OptimizeDlgVAWT::OnOptimize()
         Rstart = R0->getValue();
         R = Rstart;
         Rstop = R1->getValue();
-        deltaR = dR->getValue();
+        deltaR = 0.01;
         error=1000;
         int count=0;
 
@@ -595,8 +656,48 @@ void OptimizeDlgVAWT::OnOptimize()
                 else
                     r = m_Rf.at(100);
 
-                pWing->m_TOffset[i]=r*a + pWing->m_HubRadius;
+                pWing->m_TOffsetX[i]=r*a + dR->getValue();
             }
+        }
+
+    }
+
+
+//    dRLabel->setText("R hub");
+//    MaxDispl->setText(("Length line"));
+//    R0Label->setText(tr("Radius"));
+//    R1Label->setText(tr("Segment"));
+    if (ArcLine->isChecked()){
+
+        double hub = dR->getValue();
+        double line = MaxDispl->getValue();
+        double radius = R0->getValue();
+        double seg = R1->getValue();
+        double segh = seg / 2 / 180 * PI;
+
+
+        //compute turbine height//
+        double hstraight = sin(PI/2-segh)*line;
+        double harc = sin(segh)*radius;
+        double height = hstraight*2+harc*2;
+        double inc = height/(pWing->m_NPanel);
+        double pos = 0;
+
+        for (int i=0;i<=pWing->m_NPanel;i++){
+            pWing->m_TPos[i] = pos;
+            double poshalf = pos;
+
+            if (poshalf > height/2) poshalf = height - poshalf;
+            qDebug() <<poshalf << pos << height << inc << i*inc;
+
+            if (poshalf < hstraight){
+                pWing->m_TOffsetX[i] = hub + poshalf/tan(PI/2-segh);
+            }
+            if (poshalf >= hstraight){
+                double alpha = asin((height/2-poshalf)/radius);
+                pWing->m_TOffsetX[i] = hub + line * cos(PI/2-segh)+radius*(cos(alpha)-cos(segh));
+            }
+            pos += inc;
         }
 
     }

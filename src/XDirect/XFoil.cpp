@@ -81,7 +81,7 @@ XFoil::XFoil()
 	minf1 = 0.0;
 
 	//---- drop tolerance for bl system solver
-	vaccel = 0.01;
+    vaccel = 0.001;
 
 	//---- default viscous parameters
 	retyp = 1;
@@ -3992,7 +3992,7 @@ bool XFoil::Initialize()
 	xpref2 = 1.0;
 
 	//---- drop tolerance for bl system solver
-	vaccel = 0.01;
+    vaccel = 0.001;
 
 
 
@@ -4639,6 +4639,8 @@ bool XFoil::mrchdu()
 
 			str = QString(QObject::tr("     mrchdu: convergence failed at %1 ,  side %2, res =%3\n")).arg(ibl).arg(is).arg(dmax, 4, 'f', 3);
 			WriteString(str, true);
+
+            if (std::isnan(dmax)) return false;
 
 			if (dmax<= 0.1) goto stop109;
 				//------ the current unconverged solution might still be reasonable...
@@ -7424,7 +7426,7 @@ bool XFoil::setbl()
 	}
 
 	//---- march bl with current ue and ds to establish transition
-	mrchdu();
+    if (!mrchdu()) return false;
 
 	for (is=1;is<= 2;is++){
 		for(ibl=2; ibl<=nbl[is];ibl++)
@@ -9918,18 +9920,18 @@ bool XFoil::update()
 	}
 
 	//      equivalence (va(1,1,1), unew(1,1)) , (vb(1,1,1), qnew(1)  )
-	//      equivalence (va(1,1,IVX), u_ac(1,1)) , (vb(1,1,ivx), q_ac(1)  )
-	for (int kk = 1; kk<250; kk++) {
-		vb[kk][1][1]   = qnew[kk];
-		vb[kk][1][IVX] = q_ac[kk];
-	}
+    //      equivalence (va(1,1,IVX), u_ac(1,1)) , (vb(1,1,ivx), q_ac(1)  )
+//    for (int kk = 1; kk<250; kk++) {
+//		vb[kk][1][1]   = qnew[kk];  // NM here is a bug! The definition is vb[4][3][IZX] but kk > 3
+//		vb[kk][1][IVX] = q_ac[kk];
+//	}
 
-	for (is=1; is<= 2; is++){
-		for(ibl=2;ibl<= nbl[is];ibl++){
-			va[ibl][is][1]   = unew[ibl][is];
-			va[ibl][is][IVX] = u_ac[ibl][is];
-		}
-	}
+//	for (is=1; is<= 2; is++){
+//		for(ibl=2;ibl<= nbl[is];ibl++){
+//			va[ibl][is][1]   = unew[ibl][is];
+//			va[ibl][is][IVX] = u_ac[ibl][is];
+//		}
+//	}
 	return true;
 }
 
@@ -10041,7 +10043,7 @@ bool XFoil::ViscousIter()
 	QString str;
 
 
-	setbl();//	------ fill newton system for bl variables
+    if (!setbl()) return false;//	------ fill newton system for bl variables
 
 	blsolve();//	------ solve newton system with custom solver	
 
@@ -13458,7 +13460,6 @@ void XFoil::FillRTheta(double ws[IVX][3], int nside1, int nside2)
 	}
 }
 
-
 void XFoil::CreateXBL(double xs[IVX][3],int &nside1, int &nside2)
 {
 //	double xxtr[3];
@@ -13480,4 +13481,4 @@ void XFoil::CreateXBL(double xs[IVX][3],int &nside1, int &nside2)
 		xs[iblte[1]+iblw][1] = xs[iblte[2]+iblw][2];
 }
 
-
+CFoil *g_pCurFoil;

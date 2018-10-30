@@ -26,7 +26,13 @@
 #include "CVector.h"
 #include "Quaternion.h"
 #include "../Globals.h"
+#include "../src/Serializer.h"
 
+void CVector::serialize(){
+    g_serializer.readOrWriteDouble(&x);
+    g_serializer.readOrWriteDouble(&y);
+    g_serializer.readOrWriteDouble(&z);
+}
 
 void CVector::Rotate(CVector const &R, double Angle)
 {
@@ -35,8 +41,6 @@ void CVector::Rotate(CVector const &R, double Angle)
 	Qt.Set(Angle, R);
 	Qt.Conjugate(x,y,z);
 }
-
-
 
 void CVector::Rotate(CVector &O, CVector const &R, double Angle)
 {
@@ -119,6 +123,17 @@ void CVector::RotZ(double ZTilt)
 
     x =  OP.x * cos(ZTilt) - OP.y * sin(ZTilt);
     y =  OP.x * sin(ZTilt) + OP.y * cos(ZTilt);
+}
+
+void CVector::RotY(double YTilt)
+{
+    //Rotate the vector around the Y-axis, by an angle ZTilt
+    CVector OP;
+    OP.x = x;
+    OP.z = z;
+
+    x =  OP.x * cos(YTilt) + OP.z * sin(YTilt);
+    z = -OP.x * sin(YTilt) + OP.z * cos(YTilt);
 }
 
 void  CVector::RotateY(double YTilt)

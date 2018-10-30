@@ -1,7 +1,7 @@
 /****************************************************************************
 
     TData Class
-        Copyright (C) 2010 David Marten qblade@web.de
+        Copyright (C) 2010 David Marten david.marten@tu-berlin.de
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -23,6 +23,9 @@
 #include "../Globals.h"
 #include "../Store.h"
 #include "../Serializer.h"
+#include "../MainFrame.h"
+#include "Blade.h"
+#include "../ParameterViewer.h"
 
 
 TData::TData()
@@ -37,7 +40,7 @@ TData::TData()
     CutOut = 0;
     Switch = 0;
     VariableLosses = 0;
-    FixedLosses = 0;
+    m_fixedLosses = 0;
     FixedPitch = 0;
     isPrescribedPitch=false;
     isPrescribedRot=false;
@@ -48,169 +51,84 @@ TData::TData()
     MaxRadius = 0;
     SweptArea = 0;
     //end new code JW//
-
+	
 }
 
-TData::~TData()
-{
-
+TData::TData(ParameterViewer<Parameter::TData> *viewer) {
+	viewer->storeObject(this);
+	
+	OuterRadius = 0;
+    Generator = 0;
+	FixedPitch = 0;
+	isPrescribedPitch = false;
+    isPrescribedRot = false;
+	turbtype = 1;
+	m_TurbineName = getName();
+	m_WingName = getParent()->getName();
+	
+	CBlade *blade = static_cast<CBlade*>(getParent());
+    RHeight = fabs(blade->getRotorRadius() - blade->m_TPos[0]);
+    THeight = fabs(blade->getRotorRadius());
+    MaxRadius = blade->m_MaxRadius;
+    SweptArea = blade->m_sweptArea;
 }
 
-void TData::Serialize(QDataStream &ar, bool bIsStoring, int ArchiveFormat)
-{
-    float f;
-    int n,m;
-
-    n = pitchwindspeeds.size();
-    m = rotwindspeeds.size();
-
-    if (bIsStoring)
-    {
-        WriteCString(ar,m_TurbineName);
-        WriteCString(ar,m_WingName);
-        //// new code JW ////
-        if (turbtype) ar << 1; else ar << 0;
-        //// end new code JW ////
-        if (isStall) ar << 1; else ar << 0;
-        if (isPitch) ar << 1; else ar << 0;
-        if (isFixed) ar << 1; else ar << 0;
-        if (is2Step) ar << 1; else ar << 0;
-        if (isVariable) ar << 1; else ar << 0;
-        if (isPrescribedPitch) ar << 1; else ar << 0;
-        if (isPrescribedRot) ar << 1; else ar << 0;
-
-        ar << (float) OuterRadius;
-        ar << (float) Generator;
-        ar << (float) Rot1;
-        ar << (float) Rot2;
-        ar << (float) Lambda0;
-        ar << (float) CutIn;
-        ar << (float) CutOut;
-        ar << (float) Switch;
-        ar << (float) FixedLosses;
-        ar << (float) VariableLosses;
-        ar << (float) FixedPitch;
-        // new code JW //
-        ar << (float) Offset;
-        ar << (float) RHeight;
-        ar << (float) THeight;
-        ar << (float) MaxRadius;
-        ar << (float) SweptArea;
-        // end new code JW //
-
-        ar << (int) n;
-
-        for (int i=0;i<n;i++)
-        {
-            ar << (float) pitchwindspeeds.at(i) << (float) pitchangles.at(i);
-        }
-
-        ar << (int) m;
-
-        for (int i=0;i<m;i++)
-        {
-            ar << (float) rotwindspeeds.at(i) << (float) rotspeeds.at(i);
-        }
-
-    }
-    else
-    {
-        ReadCString(ar,m_TurbineName);
-		setName(m_TurbineName);
-        ReadCString(ar,m_WingName);
-//        setParentName(m_WingName);  // NM REPLACE
-		setSingleParent(g_rotorStore.getObjectByNameOnly(m_WingName));  // NM needed for downwards compatibility
-        // new code JW //
-        if (ArchiveFormat>=100022)
-        {
-            ar >> f;
-            if (f) turbtype = true; else turbtype = false;
-        }
-        // end new code JW //
-        ar >> f;
-        if (f) isStall = true; else isStall = false;
-        ar >> f;
-        if (f) isPitch = true; else isPitch = false;
-        ar >> f;
-        if (f) isFixed = true; else isFixed = false;
-        ar >> f;
-        if (f) is2Step = true; else is2Step = false;
-        ar >> f;
-        if (f) isVariable = true; else isVariable = false;
-
-        if (ArchiveFormat >= 100019)
-        {
-        ar >> f;
-        if (f) isPrescribedPitch = true; else isPrescribedPitch = false;
-        ar >> f;
-        if (f) isPrescribedRot = true; else isPrescribedRot = false;
-        }
-
-        ar >> f;
-        OuterRadius = f;
-        ar >> f;
-        Generator = f;
-        ar >> f;
-        Rot1 = f;
-        ar >> f;
-        Rot2 = f;
-        ar >> f;
-        Lambda0 = f;
-        ar >> f;
-        CutIn = f;
-        ar >> f;
-        CutOut = f;
-        ar >> f;
-        Switch = f;
-        ar >> f;
-        FixedLosses = f;
-        ar >> f;
-        VariableLosses = f;
-        if (ArchiveFormat >= 100015)
-        {
-        ar >> f;
-        FixedPitch = f;
-        }
-
-        // new code JW //
-
-        if (ArchiveFormat>=100022)
-        {
-            ar >> f;
-            Offset = f;
-            ar >> f;
-            RHeight = f;
-            ar >> f;
-            THeight = f;
-            ar >> f;
-            MaxRadius = f;
-            ar >> f;
-            SweptArea = f;
-        }
-        // end new code JW //
-
-        if (ArchiveFormat >= 100020)
-        {
-            ar >> n;
-            for (int i=0;i<n;i++)
-            {
-                ar >> f;
-                pitchwindspeeds.append(f);
-                ar >> f;
-                pitchangles.append(f);
-            }
-            ar >> m;
-            for (int i=0;i<m;i++)
-            {
-                ar >> f;
-                rotwindspeeds.append(f);
-                ar >> f;
-                rotspeeds.append(f);
-            }
-        }
-
-
+QStringList TData::prepareMissingObjectMessage(bool forDMS) {
+	if (forDMS && g_verttdataStore.isEmpty()) {
+		QStringList message = CBlade::prepareMissingObjectMessage(true);
+		if (message.isEmpty()) {
+			if ((g_mainFrame->m_iApp == DMS && g_mainFrame->m_iView == TURBINEVIEW) || g_mainFrame->m_iApp == TURDMSMODULE) {
+				message = QStringList(">>> Click 'New' to define a new Turbine");
+			} else {
+				message = QStringList(">>> unknown hint");
+			}
+		}
+		message.prepend("- No Turbine Definition in Database");
+		return message;
+	} else if (!forDMS && g_tdataStore.isEmpty()) {
+		QStringList message = CBlade::prepareMissingObjectMessage(false);
+		if (message.isEmpty()) {
+			if (g_mainFrame->m_iApp == BEM && g_mainFrame->m_iView == TURBINEVIEW) {
+				message = QStringList(">>> Click 'New' to define a new Turbine");
+			} else {
+				message = QStringList(">>> unknown hint");
+			}
+		}
+		message.prepend("- No Turbine Definition in Database");
+		return message;
+	} else {
+		return QStringList();
 	}
+}
+
+TData::~TData() {
+	
+}
+
+QVariant TData::accessParameter(Parameter::TData::Key key, QVariant value) {
+	typedef Parameter::TData P;
+	
+	const bool set = value.isValid();
+	switch (key) {
+	case P::Name: if(set) setName(value.toString()); else value = getName(); break;
+	case P::Blade: if(set) setSingleParent(reinterpret_cast<CBlade*>(value.value<quintptr>()));
+				else value = reinterpret_cast<quintptr>(getParent()); break;
+	case P::VCutIn: if(set) CutIn = value.toDouble(); else value = CutIn; break;
+	case P::VCutOut: if(set) CutOut = value.toDouble(); else value = CutOut; break;
+	case P::TurbineOffset: if(set) Offset = value.toDouble(); else value = Offset; break;
+	case P::TurbineHeight: if(set) THeight = value.toDouble(); else value = THeight; break;
+	case P::RotorHeight: if(set) RHeight = value.toDouble(); else value = RHeight; break;
+	case P::RotorMaxRadius: if(set) MaxRadius = value.toDouble(); else value = MaxRadius; break;
+	case P::RotorSweptArea: if(set) SweptArea = value.toDouble(); else value = SweptArea; break;
+	case P::LossFactor: if(set) VariableLosses = value.toDouble(); else value = VariableLosses; break;
+	case P::FixedLosses: if(set) m_fixedLosses = value.toDouble(); else value = m_fixedLosses; break;
+	case P::RotationalSpeed: if(set) Rot1 = value.toDouble(); else value = Rot1; break;
+	case P::RotationalSpeedMin: if(set) Rot1 = value.toDouble(); else value = Rot1; break;
+	case P::RotationalSpeedMax: if(set) Rot2 = value.toDouble(); else value = Rot2; break;
+	case P::TSR: if(set) Lambda0 = value.toDouble(); else value = Lambda0; break;
+	}
+
+	return (set ? QVariant() : value);
 }
 
 double TData::getRotorRadius()
@@ -240,7 +158,7 @@ void TData::serialize() {
 	g_serializer.readOrWriteBool (&isPrescribedRot);
 	
 	g_serializer.readOrWriteDouble (&VariableLosses);
-	g_serializer.readOrWriteDouble (&FixedLosses);
+	g_serializer.readOrWriteDouble (&m_fixedLosses);
 	g_serializer.readOrWriteDouble (&OuterRadius);
 	g_serializer.readOrWriteDouble (&Generator);
 	g_serializer.readOrWriteDouble (&Rot1);

@@ -27,6 +27,7 @@
 #include <QTextStream>
 #include <QMessageBox>
 #include "../Serializer.h"
+#include "../Store.h"
 
 
 CFoil* CFoil::newBySerialize() {
@@ -134,7 +135,17 @@ void CFoil::serialize() {
 		memcpy (yb, y, sizeof(yb));
 	}	
 
-    InitFoil();
+	InitFoil();
+}
+
+QStringList CFoil::prepareMissingObjectMessage() {
+	if (g_foilStore.isEmpty()) {
+		QStringList message (">>> Create a new Airfoil in the Airfoil Design Module");
+		message.prepend("- No Airfoil in Database");
+		return message;
+	} else {
+		return QStringList();
+	}
 }
 
 bool CFoil::CompMidLine(bool bParams)
@@ -918,134 +929,6 @@ double CFoil::NormalizeGeometry()
 
 	return length;
 }
-
-
-void CFoil::Serialize(QDataStream &ar, bool bIsStoring, int ProjectFormat)
-{
-	// saves or loads the foil to the archive ar
-
-	int ArchiveFormat;
-	if(ProjectFormat>=5)      ArchiveFormat = 1006;
-	else if(ProjectFormat==4) ArchiveFormat = 1005;
-	// 1006 : QFLR5 v0.02 : added Foil description
-	// 1005 : added LE Flap data
-	// 1004 : added Points and Centerline property
-	// 1003 : added Visible property
-	// 1002 : added color and style save
-	// 1001 : initial format
-	int p, j;
-	float f,ff;
-
-	if(bIsStoring)
-	{
-		ar << ArchiveFormat;
-        WriteCString(ar, getName());
-		if(ProjectFormat>=5) WriteCString(ar, m_FoilDescription);
-		ar << m_nFoilStyle << m_nFoilWidth;
-		WriteCOLORREF(ar, m_FoilColor);
-		if (m_bVisible)		ar << 1; else ar << 0;
-		if (m_bPoints)		ar << 1; else ar << 0;//1004
-		if (m_bCenterLine)	ar << 1; else ar << 0;//1004
-		if (m_bLEFlap)		ar << 1; else ar << 0;
-		ar << (float)m_LEFlapAngle << (float)m_LEXHinge << (float)m_LEYHinge;
-		if (m_bTEFlap)		ar << 1; else ar << 0;
-		ar << (float)m_TEFlapAngle << (float)m_TEXHinge << (float)m_TEYHinge;
-		ar << 1.f << 1.f << 9.f;//formerly transition parameters
-		ar << nb;
-		for (j=0; j<nb; j++)
-		{
-			ar << (float)xb[j] << (float)yb[j];
-		}
-		ar << n;
-		for (j=0; j<n; j++)
-		{
-			ar << (float)x[j] << (float)y[j];
-		}
-	}
-	else 
-	{
-		ar >> ArchiveFormat;
-        QString strong;
-        ReadCString(ar, strong);
-        setName(strong);
-		if(ArchiveFormat>=1006)
-		{
-			ReadCString(ar, m_FoilDescription);
-		}
-		if(ArchiveFormat>=1002)
-		{
-			ar >> m_nFoilStyle >> m_nFoilWidth;
-			ReadCOLORREF(ar, m_FoilColor);
-
-		}
-		if(ArchiveFormat>=1003)
-		{
-			ar >> p;
-			if(p) m_bVisible = true; else m_bVisible = false;
-		}
-		if(ArchiveFormat>=1004)
-		{
-			ar >> p;
-			if(p) m_bPoints = true; else m_bPoints = false;
-			ar >> p;
-			if(p) m_bCenterLine = true; else m_bCenterLine = false;
-		}
-
-		if(ArchiveFormat>=1005)
-		{
-			ar >> p;
-			if (p) m_bLEFlap = true; else m_bLEFlap = false;
-			ar >> f; m_LEFlapAngle =f;
-			ar >> f; m_LEXHinge = f;
-			ar >> f; m_LEYHinge = f;
-		}
-		ar >> p;
-		if (p) m_bTEFlap = true; else m_bTEFlap = false;
-		ar >> f; m_TEFlapAngle =f;
-		ar >> f; m_TEXHinge = f;
-		ar >> f; m_TEYHinge = f;
-
-		ar >> f >> f >> f; //formerly transition parameters
-		ar >> nb;
-		if(nb>IBX)
-		{
-            setName("");
-			return;
-		}
-		for (j=0; j<nb; j++)
-		{
-			ar >> f >> ff;
-			xb[j]  = f;  yb[j]=ff;
-		}
-		if(ArchiveFormat>=1001)
-		{
-			ar >> n;
-			if(n>IBX)
-			{
-                setName("");
-				return;
-			}
-			for (j=0; j<n; j++)
-			{
-				ar >> f >> ff;
-				x[j]=f; y[j]=ff;
-			}
-			if(nb==0 && n!=0)
-			{
-				nb = n;
-				memcpy(xb,x, sizeof(xb));
-				memcpy(yb,y, sizeof(yb));
-			}
-		}
-		else
-		{
-			memcpy(x,xb, sizeof(xb));
-			memcpy(y,yb, sizeof(yb));
-			n=nb;
-		}
-	}
-}
-
 
 void CFoil::SetNaca009()
 {	

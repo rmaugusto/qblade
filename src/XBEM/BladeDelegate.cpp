@@ -1,7 +1,7 @@
 /****************************************************************************
 
     BladeDelegate Class
-        Copyright (C) 2010 David Marten qblade@web.de
+        Copyright (C) 2010 David Marten david.marten@tu-berlin.de
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -23,8 +23,15 @@
 #include "../Objects/Foil.h"
 #include "../Objects/Polar.h"
 #include "BladeDelegate.h"
-#include "BEM.h"
 #include "../Store.h"
+#include "BEM.h"
+#include "Blade.h"
+
+
+BladeDelegate::BladeDelegate (CBlade *blade, void *pBEM, QObject *parent) : QItemDelegate(parent){
+    m_pBlade = blade;
+    m_pBEM = pBEM;
+}
 
 
 QWidget *BladeDelegate::createEditor(QWidget *parent, const QStyleOptionViewItem &/*option*/,const QModelIndex & index ) const
@@ -41,7 +48,7 @@ QWidget *BladeDelegate::createEditor(QWidget *parent, const QStyleOptionViewItem
 
                 return editor;
         }
-        else
+        else if (!(index.column()==4 && !m_pBlade->m_bisSinglePolar))
         {
                 QString strong, strong2;
                 QModelIndex ind;
@@ -78,6 +85,14 @@ QWidget *BladeDelegate::createEditor(QWidget *parent, const QStyleOptionViewItem
                 }
                 return editor;
         }
+        else{
+                QBEM *pBEM = (QBEM *) m_pBEM;
+                QPushButton *editor = new QPushButton(tr("-----"), parent);
+                editor->setFlat(true);
+                editor->setStyleSheet("QPushButton { text-align: left; }");
+                connect (editor,SIGNAL(pressed()), pBEM, SLOT(OnPolarDialog()));
+                return editor;
+        }
         return NULL;
 }
 
@@ -91,13 +106,18 @@ void BladeDelegate::setEditorData(QWidget *editor, const QModelIndex &index) con
                 NumberEdit *floatEdit = static_cast<NumberEdit*>(editor);
                 floatEdit->setValue(value);
         }
-        else
+        else if (index.column()==3 || (index.column() == 4 && m_pBlade->m_bisSinglePolar))
         {
                 QString strong = index.model()->data(index, Qt::EditRole).toString();
                 QComboBox *pCbBox = static_cast<QComboBox*>(editor);
                 int pos = pCbBox->findText(strong);
                 if (pos>=0) pCbBox->setCurrentIndex(pos);
                 else        pCbBox->setCurrentIndex(0);
+        }
+        else if (index.column()==4 && !m_pBlade->m_bisSinglePolar){
+                QString strong = index.model()->data(index, Qt::EditRole).toString();
+                QPushButton *pButton =  static_cast<QPushButton*>(editor);
+                pButton->setText(strong);
         }
 }
 
@@ -110,12 +130,18 @@ void BladeDelegate::setModelData(QWidget *editor, QAbstractItemModel *model, con
                 model->setData(index, value, Qt::EditRole);
 
         }
-        else
+        else if (index.column()==3 || (index.column() == 4 && m_pBlade->m_bisSinglePolar))
         {
                 QString strong;
                 QComboBox *pCbBox = static_cast<QComboBox*>(editor);
                 int sel = pCbBox->currentIndex();
                 if (sel >=0) strong = pCbBox->itemText(sel);
+                model->setData(index, strong, Qt::EditRole);
+        }
+        else if (index.column()==4 && !m_pBlade->m_bisSinglePolar){
+                QString strong;
+                QPushButton *pButton = static_cast<QPushButton*>(editor);
+                strong = pButton->text();
                 model->setData(index, strong, Qt::EditRole);
         }
 }

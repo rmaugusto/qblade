@@ -26,6 +26,7 @@
 #include "../Params.h"
 #include "../Objects/CVector.h"
 #include <QColor>
+#include <QObject>
 
 class CCurve : public QObject
 {
@@ -77,8 +78,8 @@ public:
 
 	//	Curve Data
 	int n;
-	double x[1000];
-	double y[1000];
+    double x[1500];
+    double y[1500];
 	bool m_bShowPoints;
 
 	CCurve();

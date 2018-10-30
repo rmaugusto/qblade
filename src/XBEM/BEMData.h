@@ -1,7 +1,7 @@
 /****************************************************************************
 
     BEMData Class
-        Copyright (C) 2010 David Marten qblade@web.de
+        Copyright (C) 2010 David Marten david.marten@tu-berlin.de
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -35,9 +35,9 @@ class BEMData : public StorableObject
     friend class TBEMData;
 public:
 
-    virtual void Compute(BData *pBData, CBlade *pWing, double lambda, double pitch);
+    virtual void Compute(BData *pBData, CBlade *pWing, double lambda, double windspeed);
     virtual void Clear();
-    virtual void Serialize(QDataStream &ar, bool bIsStoring, int ArchiveFormat);
+	static QStringList prepareMissingObjectMessage();
 
 	static BEMData* newBySerialize ();
 	virtual void serialize ();  // override from StorableObject
@@ -56,6 +56,14 @@ private:
     QList <double> m_Lambda;
     QList <double> m_one_over_Lambda;
     QList <double> m_Kp;
+
+    QList <double> m_Omega;                 //rotational speed
+    QList <double> m_Bending;               //bending moment
+    QList <double> m_Torque;                //rotor torque
+    QList <double> m_P;                     //power
+    QList <double> m_S;                     //thrust
+    QList <double> m_V;                     //wind speed
+
 	QVector <BData *> m_BData;
 
     bool m_bShowPoints;

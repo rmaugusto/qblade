@@ -23,51 +23,48 @@
 #ifndef GLWIDGET_H
 #define GLWIDGET_H
 
-#include <QGLWidget>
-#include "Params.h"
-#include "Miarex/ArcBall.h"
-#include "Miarex/GLLightDlg.h"
-#include "QGLViewer/qglviewer.h"
+#include <qglviewer.h>
+class GLLightDlg;
 
+
+/* The implementation of this class is very similar to the overpaint example of QGLViewer. Since many problems 
+ * occured over the time, sticking to this concept seems reliable. Highly important seemed the separation of
+ * drawing gl content and overpainting with a QPainter. Especially the QGLWidget::renderText method caused trouble
+ * when used within the gl content.
+ * */
 class GLWidget : public QGLViewer
 {
 	Q_OBJECT
 	
-	friend class QMiarex;
-	friend class GL3dBodyDlg;
-	friend class GL3dWingDlg;
-	friend class MainFrame;
-	friend class ArcBall;
-	friend class QBEM;
-	friend class QDMS;
-	
 public:
 	GLWidget(QWidget *parent = 0);
-	void CreateArcballList(ArcBall &ArcBall, double GLScale);
-	void NormalVector(GLdouble p1[3], GLdouble p2[3],  GLdouble p3[3], GLdouble n[3]);
-	void GLRenderSphere(QColor cr, double radius, int NumLongitudes, int NumLatitudes);
-	void GLDrawAxes(double length, QColor AxisColor, int AxisStyle, int AxisWidth);
-	void GLSetupLight(GLLightDlg &glLightParams, double Offset_y, double LightFactor);
-	void ClientToGL(QPoint const &point, CVector &real);
-	void GLToClient(CVector const &real, QPoint &point);
 	
+	void GLSetupLight(GLLightDlg &glLightParams, double Offset_y, double LightFactor);  // NM TODO whole Dialog has to be refactored
+	
+	/**
+	 * @brief Draws a string within gl content.
+	 *
+	 * This function should be used only within gl content. It temporarily stores position and text. The text is drawn
+	 * in GLWidget::overpaint with QPainter::drawText. By this approach gl content and overpaint can be separated.
+	 * For convenience, it takes the position of the text in gl coordinates.
+	 * @param x The x coordinate of where to draw the text.
+	 * @param y The y coordinate of where to draw the text.
+	 * @param z The z coordinate of where to draw the text.
+	 * @param text The text that will be drawn.
+	 * @return True if the store is empty.
+	 */
+	void overpaintText (double x, double y, double z, QString text);
+	
+	void setOverpaintFont (QFont font);
 	
 private:
-	void initializeGL();
-	void draw();
+    void paintEvent (QPaintEvent *event);
+    void draw();
+	void overpaint (QPainter &painter);
 	
 private:
-	void *m_pParent;
-	static void *s_pMiarex;
-	static void *s_pMainFrame;
-	static void *s_pBEM;
-	static void *s_pDMS;
-	static void *s_pQFEM;
-	
-	QRect m_rCltRect;  // The client window rectangle
-	QRect m_GLViewRect;  // The OpenGl Viewport
-	
-	int m_iView;  // Wing=3 Body=5
+	QHash<int, QFont> m_overpaintFont;  // temporarily store fonts for a certain text range
+	QList<QPair<QPoint, QString> > m_overpaintText;  // temporarily store position and text for overpaint
 };
 
 #endif

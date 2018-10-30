@@ -30,10 +30,13 @@
 #include "TDMSData.h"
 #include "CDMSData.h"
 #include "DMSToolbar.h"
+#include "../StoreAssociatedComboBox_include.h"
+
 
 
 class QDMS : public QBEM
 {
+    Q_OBJECT
 
     friend class QBEM;
     friend class DData;
@@ -47,13 +50,16 @@ class QDMS : public QBEM
 public:
     QDMS(QWidget *parent = NULL);
 
+	QStringList prepareMissingObjectMessage();
+
+	
 private slots:
     void CheckButtons();
     void OnNewBlade();
-    void OnSaveWing();
-    void InitWingTable();
+    void OnSaveBlade();
+    void InitBladeTable();
     void OnDeleteBlade();
-    void OnEditWing();
+    void OnEditBlade();
     void OnInsertAfter();
     void OnInsertBefore();
     void OnCellChanged();
@@ -77,12 +83,9 @@ private slots:
     DData* GetTurbineBladeData(QString Windspeed);
     void UpdateBladeData();
     void UpdateTurbineBladeData();
-    DMSData* GetRotorSimulation(QString WingName, QString SimName);
-    TDMSData* GetTurbineSimulation(QString TurbineName, QString SimName);
-	CDMSData* GetCharSimulation(QString WingName, QString DMSName);
     void OnSelChangeBladeData(int i);
-    void OnSelChangeRotorSimulation(int i);
-    void OnSelChangeTurbineSimulation(int i);
+	void OnSelChangeRotorSimulation();
+	void OnSelChangeTurbineSimulation();
     void OnSelChangeTurbineBladeData(int i);
     void OnSelChangeHeightData(int i);
     void OnSelChangeTurbineHeightData(int i);
@@ -94,9 +97,8 @@ private slots:
 	void OnDeleteRotorSim();
 	void OnDeleteCharSim();
     void OnDeleteTurbineSim();
-	void OnHubChanged();
 	void UpdateCharacteristicsSimulation();
-	void OnSelChangeCharSimulation(int i);
+	void OnSelChangeCharSimulation();
 	void SetCharGraphTitles(Graph* pGraph);
     void OnCenterScene();
     void OnBladeColor();
@@ -106,12 +108,14 @@ private slots:
 
 public slots:
     void onModuleChanged ();  // NM will hide this module if no longer active
-    
-	void OnWingView();
+	
+	void drawGL ();  // NM new functions equal to the interface that GLModule offers
+    void OnResize();
+	void OnBladeView();
 	void OnRotorsimView();
 	void OnCharView();
-    void OnPowerView();
-    void UpdateWings();
+    void OnTurbineView();
+    void UpdateBlades();
     void OnSelChangeWing(int i);
     void FillComboBoxes(bool bEnable = true);
     void SetCurveParams();
@@ -135,9 +139,9 @@ public slots:
     void OnShowOpPoint();
 	void UpdateTurbines();
 	void OnSelChangeTurbine(int i);
-
-
-signals:
+    void InvertedClicked();
+    void OnLengthHeightChanged();
+    void OnHubValChanged();
 
 
 protected:
@@ -201,13 +205,17 @@ private:
     QLabel *TurbineHeightLabel, *TurbineHeight;
     QLabel *TurbineOffsetLabel, *TurbineOffset;
     QLabel *TurbineRadiusLabel, *TurbineRadius;
-    QLabel *TurbineSweptAreaLabel, *TurbineSweptArea, *m_pctrlWingNameLabel;
+    QLabel *TurbineSweptAreaLabel, *TurbineSweptArea;
     NumberEdit *m_pctrlOffset;
     QLabel *m_pctrlOffsetLabel;
 	QLabel *length0, *Area1, *Length0, *Length2, *Length3;
+    QCheckBox *m_pctrlInvertBox;
 
 	QDoubleSpinBox *m_pctrlWk2, *m_pctrlWA2;
 	QDoubleSpinBox *m_pctrlPMk2, *m_pctrlPMA2;
+
+    NumberEdit *hubEdit;
+    QButtonGroup *m_heightLengthGroup;
 
 
     // variables for the dialog default values //
@@ -219,7 +227,13 @@ private:
 
     int selected_height;
 	int same_height;
+
+    bool m_bisHeight;
+
+
 };
 
+
+extern QDMS *g_qdms;
 
 #endif // DMS_H

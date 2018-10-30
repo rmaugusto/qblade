@@ -1,14 +1,49 @@
+/****************************************************************************
+
+    QFEMDock Class
+        Copyright (C) 2014 David Marten david.marten@tu-berlin.de
+
+    This program is free software; you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation; either version 2 of the License, or
+    (at your option) any later version.
+
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with this program; if not, write to the Free Software
+    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+
+*****************************************************************************/
+
 #include "QFEMDock.h"
-#include "../Globals.h"
-#include "../XGlobals.h"
-#include "BladeStructureLoading.h"
+
+#include <QGroupBox>
+#include <QHBoxLayout>
+#include <QStackedWidget>
+#include <QLabel>
+#include <QComboBox>
+#include <QTableView>
+#include <QStandardItemModel>
 #include <QMessageBox>
+#include <QProgressDialog>
+
+#include "QFEMModule.h"
+#include "../Misc/LineButton.h"
+#include "../Misc/ColorButton.h"
+#include "../Misc/NumberEdit.h"
+#include "../Store.h"
 #include "../StoreAssociatedComboBox.h"
 #include "QFEMToolBar.h"
+#include "../XBEM/BData.h"
 #include "../XBEM/TBEMData.h"
+#include "../Globals.h"
+#include "../Misc/FloatEditDelegate.h"
+#include "StructDelegate.h"
 #include "../GlobalFunctions.h"
-#include <QColorDialog>
-#include "../Misc/LineButton.h"
 #include "../Misc/LinePickerDlg.h"
 
 
@@ -17,8 +52,6 @@ extern bool ObjectIsEdited;
 QFEMDock::QFEMDock(const QString & title, QMainWindow * parent, Qt::WindowFlags flags, QFEMModule *module)
 	: ScrolledDock (title, parent, flags)
 {
-
-
     setFeatures(QDockWidget::NoDockWidgetFeatures | QDockWidget::DockWidgetFloatable | QDockWidget::DockWidgetMovable);
     setAllowedAreas(Qt::LeftDockWidgetArea);
 
@@ -91,8 +124,6 @@ QFEMDock::QFEMDock(const QString & title, QMainWindow * parent, Qt::WindowFlags 
     m_pctrlTopSurface = new QCheckBox(tr("Top Surface"));
     m_pctrlOutline = new QCheckBox(tr("Outlines"));
     m_pctrlAxes = new QCheckBox(tr("Coordinates"));
-    m_pctrlPositions = new QCheckBox(tr("Foil Positions"));
-    m_pctrlFoilNames = new QCheckBox(tr("Foil Names"));
     m_pctrlRotor = new QCheckBox(tr("Show Rotor"));
     m_pctrlInternal = new QCheckBox(tr("Internal Structure"));
 
@@ -103,8 +134,6 @@ QFEMDock::QFEMDock(const QString & title, QMainWindow * parent, Qt::WindowFlags 
     connect(m_pctrlTopSurface, SIGNAL(clicked()), m_module, SLOT(UpdateGeomRerenderGL()));
     connect(m_pctrlOutline, SIGNAL(clicked()), m_module, SLOT(UpdateGeomRerenderGL()));
     connect(m_pctrlPerspective, SIGNAL(clicked()), m_module, SLOT(UpdateGeomRerenderGL()));
-    connect(m_pctrlPositions, SIGNAL(clicked()), m_module, SLOT(UpdateGeomRerenderGL()));
-    connect(m_pctrlFoilNames, SIGNAL(clicked()), m_module, SLOT(UpdateGeomRerenderGL()));
     connect(m_pctrlAxes, SIGNAL(clicked()), m_module, SLOT(UpdateGeomRerenderGL()));
     connect(m_pctrlRotor, SIGNAL(clicked()), m_module, SLOT(UpdateGeomRerenderGL()));
     connect(m_pctrlInternal, SIGNAL(clicked()), m_module, SLOT(UpdateGeomRerenderGL()));
@@ -117,8 +146,6 @@ QFEMDock::QFEMDock(const QString & title, QMainWindow * parent, Qt::WindowFlags 
     m_pctrlSurfaces->setChecked(true);
     m_pctrlTopSurface->setChecked(false);
     m_pctrlOutline->setChecked(true);
-    m_pctrlPositions->setChecked(false);
-    m_pctrlFoilNames->setChecked(false);
     m_pctrlPerspective->setChecked(false);
     m_pctrlAxes->setChecked(false);
     m_pctrlRotor->setChecked(false);
@@ -296,8 +323,8 @@ QFEMDock::QFEMDock(const QString & title, QMainWindow * parent, Qt::WindowFlags 
 
     m_pctrlStructureTableView->setSelectionMode(QAbstractItemView::NoSelection);
     m_pctrlStructureTableView->setEditTriggers(QAbstractItemView::NoEditTriggers);
-    m_pctrlStructureTableView->setFixedHeight(380);
-    m_pctrlStructureTableView->setFixedWidth(520);
+//    m_pctrlStructureTableView->setFixedHeight(380);
+//    m_pctrlStructureTableView->setFixedWidth(520);
 
     m_pctrlEdit = new QPushButton(tr("Edit"));
     m_pctrlNew = new QPushButton(tr("New"));
@@ -337,8 +364,8 @@ QFEMDock::QFEMDock(const QString & title, QMainWindow * parent, Qt::WindowFlags 
 
     m_LoadingTableView->setSelectionMode(QAbstractItemView::NoSelection);
     m_LoadingTableView->setEditTriggers(QAbstractItemView::NoEditTriggers);
-    m_LoadingTableView->setFixedHeight(550);
-    m_LoadingTableView->setFixedWidth(520);
+//    m_LoadingTableView->setFixedHeight(550);
+//    m_LoadingTableView->setFixedWidth(520);
 
     m_editLoading = new QPushButton(tr("Edit"));
     m_newLoading = new QPushButton(tr("New"));
@@ -393,7 +420,7 @@ QFEMDock::QFEMDock(const QString & title, QMainWindow * parent, Qt::WindowFlags 
 
 
 	m_pctrlInnerMaterial = new QComboBox;
-	m_pctrlInnerMaterial->setMaximumWidth(180);
+//	m_pctrlInnerMaterial->setMaximumWidth(180);
 	for (int i=0;i<MaterialsList.size();i++)
 	{
 		m_pctrlInnerMaterial->addItem(MaterialsList.at(i));
@@ -402,7 +429,7 @@ QFEMDock::QFEMDock(const QString & title, QMainWindow * parent, Qt::WindowFlags 
 
 
 	m_pctrlShellMaterial = new QComboBox;
-	m_pctrlShellMaterial->setMaximumWidth(180);
+//	m_pctrlShellMaterial->setMaximumWidth(180);
 	for (int i=0;i<MaterialsList.size();i++)
 	{
 		m_pctrlShellMaterial->addItem(MaterialsList.at(i));
@@ -512,7 +539,7 @@ QFEMDock::QFEMDock(const QString & title, QMainWindow * parent, Qt::WindowFlags 
 
     m_pctrlStructureTable = new QTableView(this);
 //    m_pctrlStructureTable->setWindowTitle(QObject::tr("Structure definition"));
-    m_pctrlStructureTable->setFixedWidth(520);
+//    m_pctrlStructureTable->setFixedWidth(520);
     m_pctrlStructureTable->setSelectionMode(QAbstractItemView::SingleSelection);
     m_pctrlStructureTable->setSelectionBehavior(QAbstractItemView::SelectRows);
     m_pctrlStructureTable->setEditTriggers(QAbstractItemView::CurrentChanged |
@@ -585,7 +612,7 @@ QFEMDock::QFEMDock(const QString & title, QMainWindow * parent, Qt::WindowFlags 
 
     m_LoadingTable = new QTableView(this);
 //    m_pctrlStructureTable->setWindowTitle(QObject::tr("Structure definition"));
-    m_LoadingTable->setFixedWidth(520);
+//    m_LoadingTable->setFixedWidth(520);
     m_LoadingTable->setSelectionMode(QAbstractItemView::SingleSelection);
     m_LoadingTable->setSelectionBehavior(QAbstractItemView::SelectRows);
     m_LoadingTable->setEditTriggers(QAbstractItemView::CurrentChanged |
@@ -611,32 +638,31 @@ QFEMDock::QFEMDock(const QString & title, QMainWindow * parent, Qt::WindowFlags 
 
     SetShownBladeStructure(NULL);
 
+    connect(this,SIGNAL(resized()),this,SLOT(OnResize()));
+
 }
 
-void QFEMDock::OnTabChanged(int i){
-
-    if (i==1){
+void QFEMDock::OnTabChanged (int i) {
+    if (i == 1) {
         m_LoadingShown = true;
         m_module->m_internalChecked = m_module->m_QFEMDock->m_pctrlInternal->isChecked();
         m_module->m_QFEMDock->m_pctrlInternal->setChecked(false);
         m_module->m_QFEMDock->m_pctrlInternal->hide();
 
-        g_mainFrame->m_iView = QFEMLOADINGVIEW;
+        if (!(g_mainFrame->m_iView == QFEMTWODVIEW)) g_mainFrame->m_iView = QFEMLOADINGVIEW;
         m_Loading = m_module->m_QFEMToolBar->m_BladeStructureLoadingComboBox->currentObject();
         InitLoadingTable();
-    }
-    else{
+    } else {
         m_LoadingShown = false;
         m_module->m_QFEMDock->m_pctrlInternal->setChecked(m_module->m_internalChecked);
         m_module->m_QFEMDock->m_pctrlInternal->show();
 
-
-        g_mainFrame->m_iView = QFEMSTRUCTVIEW;
+        if (!(g_mainFrame->m_iView == QFEMTWODVIEW)) g_mainFrame->m_iView = QFEMSTRUCTVIEW;
         m_module->m_structure = m_module->m_QFEMToolBar->m_BladeStructureComboBox->currentObject();
         InitStructureTable();
     }
     m_module->DeformBlade();
-    m_module->reportGLChange();
+    if (!(g_mainFrame->m_iView == QFEMTWODVIEW)) m_module->OnGLView();
 }
 
 void QFEMDock::OnImportLoading(){
@@ -728,10 +754,82 @@ void QFEMDock::OnFillWindspeeds(){
     else m_WindspeedBox->setEnabled(false);
 }
 
+void QFEMDock::OnResize(){
 
-void QFEMDock::initView()
-{
-	structureWidget->setCurrentIndex(0);
+    m_pctrlStructureTableView->setMaximumWidth(0.9*this->width());
+    m_pctrlStructureTableView->setMinimumWidth(0.9*this->width());
+
+    if (m_module->m_structure){
+        if (m_module->m_structure->StructType == 0)
+        {
+            int unitwidth = (int)((double)m_pctrlStructureTableView->width()/4.0);
+            m_pctrlStructureTableView->setColumnWidth(0,unitwidth);
+            m_pctrlStructureTableView->setColumnWidth(1,unitwidth);
+            m_pctrlStructureTableView->setColumnWidth(2,unitwidth);
+            m_pctrlStructureTableView->setColumnWidth(3,unitwidth);
+            m_pctrlStructureLabel->setText("Internal Structure: Hollow with Spar");
+        }
+        if (m_module->m_structure->StructType == 1)
+        {
+            int unitwidth = (int)((double)m_pctrlStructureTableView->width()/4.0);
+            m_pctrlStructureTableView->setColumnWidth(0,4*unitwidth);
+            m_pctrlStructureTableView->setColumnWidth(1,0);
+            m_pctrlStructureTableView->setColumnWidth(2,0);
+            m_pctrlStructureTableView->setColumnWidth(3,0);
+            m_pctrlStructureLabel->setText("Internal Structure: Hollow - No Spar");
+        }
+        if (m_module->m_structure->StructType == 2)
+        {
+            m_pctrlStructureTableView->setColumnWidth(0,0);
+            m_pctrlStructureTableView->setColumnWidth(1,0);
+            m_pctrlStructureTableView->setColumnWidth(2,0);
+            m_pctrlStructureTableView->setColumnWidth(3,0);
+            m_pctrlStructureLabel->setText("Internal Structure: Solid - No Spar");
+        }
+    }
+
+    m_LoadingTable->setMaximumWidth(0.9*this->width());
+    m_LoadingTable->setMinimumWidth(0.9*this->width());
+    int unitwidth = (int)((double)m_LoadingTable->width()/3.0);
+    m_LoadingTable->setColumnWidth(0,unitwidth);
+    m_LoadingTable->setColumnWidth(1,unitwidth);
+    m_LoadingTable->setColumnWidth(2,unitwidth);
+
+
+    m_pctrlStructureTable->setMaximumWidth(0.9*this->width());
+    m_pctrlStructureTable->setMinimumWidth(0.9*this->width());
+    if(m_module->m_structure){
+        if (m_module->m_structure->StructType == 0)
+        {
+            int unitwidth = (int)((double)m_pctrlStructureTable->width()/4.0);
+            m_pctrlStructureTable->setColumnWidth(0,unitwidth);
+            m_pctrlStructureTable->setColumnWidth(1,unitwidth);
+            m_pctrlStructureTable->setColumnWidth(2,unitwidth);
+            m_pctrlStructureTable->setColumnWidth(3,unitwidth);
+        }
+        if (m_module->m_structure->StructType == 1)
+        {
+            int unitwidth = (int)((double)m_pctrlStructureTable->width()/4.0);
+            m_pctrlStructureTable->setColumnWidth(0,4*unitwidth);
+            m_pctrlStructureTable->setColumnWidth(1,0);
+            m_pctrlStructureTable->setColumnWidth(2,0);
+            m_pctrlStructureTable->setColumnWidth(3,0);
+        }
+        if (m_module->m_structure->StructType == 2)
+        {
+        m_pctrlStructureTable->setColumnWidth(0,0);
+        m_pctrlStructureTable->setColumnWidth(1,0);
+        m_pctrlStructureTable->setColumnWidth(2,0);
+        m_pctrlStructureTable->setColumnWidth(3,0);
+        }
+    }
+
+    m_LoadingTableView->setMaximumWidth(0.9*this->width());
+    m_LoadingTableView->setMinimumWidth(0.9*this->width());
+    unitwidth = (int)((double)m_LoadingTableView->width()/3.0);
+    m_LoadingTableView->setColumnWidth(0,unitwidth);
+    m_LoadingTableView->setColumnWidth(1,unitwidth);
+    m_LoadingTableView->setColumnWidth(2,unitwidth);
 }
 
 void QFEMDock::InitStructureTable()
@@ -766,30 +864,9 @@ void QFEMDock::InitStructureTable()
 
 	m_pctrlStructureTableView->setModel(m_pStructModel);
 
-	if (m_module->m_structure->StructType == 0)
-	{
-        m_pctrlStructureTableView->setColumnWidth(0,117);
-        m_pctrlStructureTableView->setColumnWidth(1,117);
-		m_pctrlStructureTableView->setColumnWidth(2,100);
-		m_pctrlStructureTableView->setColumnWidth(3,100);
-        m_pctrlStructureLabel->setText("Internal Structure: Hollow with Spar");
-	}
-	if (m_module->m_structure->StructType == 1)
-	{
-        m_pctrlStructureTableView->setColumnWidth(0,117);
-		m_pctrlStructureTableView->setColumnWidth(1,0);
-		m_pctrlStructureTableView->setColumnWidth(2,0);
-		m_pctrlStructureTableView->setColumnWidth(3,0);
-        m_pctrlStructureLabel->setText("Internal Structure: Hollow - No Spar");
-	}
-	if (m_module->m_structure->StructType == 2)
-	{
-		m_pctrlStructureTableView->setColumnWidth(0,0);
-		m_pctrlStructureTableView->setColumnWidth(1,0);
-		m_pctrlStructureTableView->setColumnWidth(2,0);
-		m_pctrlStructureTableView->setColumnWidth(3,0);
-        m_pctrlStructureLabel->setText("Internal Structure: Solid - No Spar");
-	}
+
+
+    OnResize();
 
 
 	m_iSection = -1;
@@ -875,11 +952,7 @@ bool QFEMDock::InitLoadingDialog(BladeStructureLoading *pLoading){
 
     m_LoadingTable->setModel(m_pLoadingModel);
 
-
-    m_LoadingTable->setColumnWidth(0,145);
-    m_LoadingTable->setColumnWidth(1,145);
-    m_LoadingTable->setColumnWidth(2,145);
-
+    OnResize();
 
     QItemSelectionModel *selectionModel = new QItemSelectionModel(m_pLoadingModel);
     m_LoadingTable->setSelectionModel(selectionModel);
@@ -998,66 +1071,50 @@ void QFEMDock::CheckButtons()
 
 
 
-void QFEMDock::InitLoadingTable(){
+void QFEMDock::InitLoadingTable () {
+	if (m_Loading) {
+		if (m_pLoadingModel)
+			delete m_pLoadingModel;
+		
+		m_pctrlLoadingNameLabel->setText(m_Loading->getName());
+		
+		m_pLoadingModel = new QStandardItemModel;
+		m_pLoadingModel->setRowCount(100);//temporary
+		m_pLoadingModel->setColumnCount(3);
+		
+		QString str, str2;
+		
+		GetForceUnit(str, g_mainFrame->m_ForceUnit);
+		GetLengthUnit(str2, g_mainFrame->m_LengthUnit);
+		
+		m_pLoadingModel->setHeaderData(0, Qt::Horizontal, tr("Radial Position(")+str2+")");
+		m_pLoadingModel->setHeaderData(1, Qt::Horizontal, tr("Normal Loading(")+str+")");
+		m_pLoadingModel->setHeaderData(2, Qt::Horizontal, tr("Tangential Loading")+str+")");
+		m_LoadingTableView->setModel(m_pLoadingModel);
+		
+        OnResize();
 
-    if (m_Loading)
-    {
-    if (m_pLoadingModel) delete m_pLoadingModel;
-
-
-    m_pctrlLoadingNameLabel->setText(m_Loading->getName());
-
-    m_pLoadingModel = new QStandardItemModel;
-    m_pLoadingModel->setRowCount(100);//temporary
-    m_pLoadingModel->setColumnCount(3);
-
-    QString str, str2;
-
-    GetForceUnit(str, g_mainFrame->m_ForceUnit);
-    GetLengthUnit(str2, g_mainFrame->m_LengthUnit);
-
-
-    m_pLoadingModel->setHeaderData(0, Qt::Horizontal, tr("Radial Position(")+str2+")");
-
-    m_pLoadingModel->setHeaderData(1, Qt::Horizontal, tr("Normal Loading(")+str+")");
-
-    m_pLoadingModel->setHeaderData(2, Qt::Horizontal, tr("Tangential Loading")+str+")");
-
-    m_LoadingTableView->setModel(m_pLoadingModel);
-
-
-    m_LoadingTableView->setColumnWidth(0,145);
-    m_LoadingTableView->setColumnWidth(1,145);
-    m_LoadingTableView->setColumnWidth(2,145);
-
-
-    m_iSection = -1;
-    FillLoadingDataTable();
-    m_module->ComputeGeometry();
-    m_module->m_bResetglGeom = true;
-    m_module->m_needToRerender = true;
-    m_module->reportGLChange();
-
-
-
-    }
-    else
-    {
-        m_pctrlLoadingNameLabel->setText("-empty-");
-        if (m_pLoadingModel) delete m_pLoadingModel;
-        m_pLoadingModel = new QStandardItemModel;
-        m_pLoadingModel->setRowCount(0);
-        m_pLoadingModel->setColumnCount(0);
-        m_LoadingTableView->setModel(m_pLoadingModel);
-    }
-
+		m_iSection = -1;
+		FillLoadingDataTable();
+		m_module->ComputeGeometry();
+		m_module->m_bResetglGeom = true;
+		m_module->m_needToRerender = true;
+		m_module->reportGLChange();
+	} else {
+		m_pctrlLoadingNameLabel->setText("-empty-");
+		if (m_pLoadingModel) delete m_pLoadingModel;
+		m_pLoadingModel = new QStandardItemModel;
+		m_pLoadingModel->setRowCount(0);
+		m_pLoadingModel->setColumnCount(0);
+		m_LoadingTableView->setModel(m_pLoadingModel);
+	}
 }
 
 bool QFEMDock::InitStructureDialog(BladeStructure *pStructure)
 {
 		m_module->m_bStructEdited = true;
 
-		m_iSection = 0;
+        m_iSection = 0;
 
 		if (m_pStructModel) delete m_pStructModel;
 
@@ -1097,27 +1154,7 @@ bool QFEMDock::InitStructureDialog(BladeStructure *pStructure)
 
 		m_pctrlStructureTable->setModel(m_pStructModel);
 
-		if (m_module->m_structure->StructType == 0)
-		{
-        m_pctrlStructureTable->setColumnWidth(0,117);
-        m_pctrlStructureTable->setColumnWidth(1,117);
-		m_pctrlStructureTable->setColumnWidth(2,100);
-		m_pctrlStructureTable->setColumnWidth(3,100);
-		}
-		if (m_module->m_structure->StructType == 1)
-		{
-        m_pctrlStructureTable->setColumnWidth(0,117);
-		m_pctrlStructureTable->setColumnWidth(1,0);
-		m_pctrlStructureTable->setColumnWidth(2,0);
-		m_pctrlStructureTable->setColumnWidth(3,0);
-		}
-		if (m_module->m_structure->StructType == 2)
-		{
-		m_pctrlStructureTable->setColumnWidth(0,0);
-		m_pctrlStructureTable->setColumnWidth(1,0);
-		m_pctrlStructureTable->setColumnWidth(2,0);
-		m_pctrlStructureTable->setColumnWidth(3,0);
-		}
+        OnResize();
 
 		QItemSelectionModel *selectionModel = new QItemSelectionModel(m_pStructModel);
 		m_pctrlStructureTable->setSelectionModel(selectionModel);
@@ -1176,7 +1213,7 @@ void QFEMDock::OnNewLoading(){
     for (int i=0;i<g_bladestructureloadingStore.size();i++){
         if (newname == g_bladestructureloadingStore.at(i)->getName()){
             newname = makeNameWithHigherNumber(newname);
-            i=0;
+            i = 0;
         }
     }
 
@@ -1254,11 +1291,14 @@ void QFEMDock::OnSaveLoading(){
 
     m_Loading->setName(m_pctrlLoadingNameEdit->text());
 
-    if (!g_bladestructureloadingStore.add(m_Loading)){
-        m_Loading = NULL;
+    if (!g_bladestructureloadingStore.add(m_Loading)) m_Loading = NULL;
+
+    if (m_Loading) m_module->m_QFEMToolBar->m_BladeStructureLoadingComboBox->setCurrentObject(m_Loading);
+    else{
+        m_module->m_QFEMToolBar->m_BladeStructureLoadingComboBox->setCurrentIndex(0);
+        m_Loading = m_module->m_QFEMToolBar->m_BladeStructureLoadingComboBox->currentObject();
     }
 
-    m_module->m_QFEMToolBar->m_BladeStructureLoadingComboBox->setCurrentObject(m_Loading);
     InitLoadingTable();
 
     structureWidget->setCurrentIndex(0);
@@ -1267,7 +1307,7 @@ void QFEMDock::OnSaveLoading(){
 
     ObjectIsEdited = false;
 
-
+    m_module->OnGLView();
 }
 
 void QFEMDock::OnCancelLoading(){
@@ -1283,6 +1323,9 @@ void QFEMDock::OnCancelLoading(){
     }
     ObjectIsEdited = false;
 
+    delete m_Loading;
+    m_Loading = m_module->m_QFEMToolBar->m_BladeStructureLoadingComboBox->currentObject();
+
     structureWidget->setCurrentIndex(0);
 
     m_module->EnableAll();
@@ -1290,35 +1333,30 @@ void QFEMDock::OnCancelLoading(){
 
 }
 
-void QFEMDock::OnNew()
-{
-	if (m_module->m_rotor)
-	{
-    ObjectIsEdited = true;
-
-	structureWidget->setCurrentIndex(1);
-
-	BladeStructure *pStructure = new BladeStructure("New Structure",m_module->m_rotor);
-
-    QString newname(m_module->m_rotor->getName()+" Structural Model");
-    for (int i=0;i<g_bladeStructureStore.size();i++){
-        if (newname == g_bladeStructureStore.at(i)->getName()){
-            newname = makeNameWithHigherNumber(newname);
-            i=0;
-        }
-    }
-
-    pStructure->setName(newname);
-
-	m_pctrlShellMaterial->setCurrentIndex(0);
-	m_pctrlInnerMaterial->setCurrentIndex(0);
-	m_pctrlShellELineEdit->setValue(pStructure->ShellEMod);
-	m_pctrlShellRhoLineEdit->setValue(pStructure->ShellRho);
-	m_pctrlIntELineEdit->setValue(pStructure->SparEMod);
-	m_pctrlIntRhoLineEdit->setValue(pStructure->SparRho);
-
-
-    InitStructureDialog(pStructure);
+void QFEMDock::OnNew() {
+	if (m_module->m_rotor) {
+		ObjectIsEdited = true;
+		structureWidget->setCurrentIndex(1);
+		BladeStructure *pStructure = new BladeStructure("New Structure",m_module->m_rotor);
+		
+		QString newname(m_module->m_rotor->getName()+" Structural Model");
+		for (int i=0;i<g_bladeStructureStore.size();i++){
+			if (newname == g_bladeStructureStore.at(i)->getName()){
+				newname = makeNameWithHigherNumber(newname);
+                i = 0;
+			}
+		}
+		
+		pStructure->setName(newname);
+		
+		m_pctrlShellMaterial->setCurrentIndex(0);
+		m_pctrlInnerMaterial->setCurrentIndex(0);
+		m_pctrlShellELineEdit->setValue(pStructure->ShellEMod);
+		m_pctrlShellRhoLineEdit->setValue(pStructure->ShellRho);
+		m_pctrlIntELineEdit->setValue(pStructure->SparEMod);
+		m_pctrlIntRhoLineEdit->setValue(pStructure->SparRho);
+		
+		InitStructureDialog(pStructure);
 	}
 }
 
@@ -1431,7 +1469,13 @@ void QFEMDock::OnSave()
 		m_module->m_structure = NULL;
 	}
 
-    m_module->m_QFEMToolBar->m_BladeStructureComboBox->setCurrentObject(m_module->m_structure);
+    if (m_module->m_structure) m_module->m_QFEMToolBar->m_BladeStructureComboBox->setCurrentObject(m_module->m_structure);
+    else{
+        m_module->m_QFEMToolBar->m_BladeStructureComboBox->setCurrentIndex(0);
+        m_module->m_structure = m_module->m_QFEMToolBar->m_BladeStructureComboBox->currentObject();
+    }
+
+    m_modeSlider->setValue(0);
 
     InitStructureTable();
 
@@ -1442,6 +1486,8 @@ void QFEMDock::OnSave()
 	structureWidget->setCurrentIndex(0);
 
 	m_module->EnableAll();
+
+    m_module->DeformBlade();
 
 	m_pctrlInnerMaterial->setCurrentIndex(0);
 	m_pctrlShellMaterial->setCurrentIndex(0);
@@ -1474,9 +1520,11 @@ void QFEMDock::OnCancel()
 
 	delete m_module->m_structure;
 
-	structureWidget->setCurrentIndex(0);
+    structureWidget->setCurrentIndex(0);
 
     m_module->m_structure = m_module->m_QFEMToolBar->m_BladeStructureComboBox->currentObject();
+
+    InitStructureTable();
 
 	m_module->EnableAll();
 
@@ -1517,17 +1565,17 @@ void QFEMDock::onLineButtonClicked() {
 
 void QFEMDock::onShowCheckBoxCanged () {
     m_module->m_structure->setShownInGraph(m_showCheckBox->isChecked());
-    m_module->reportGraphChange();
+	m_module->reloadAllGraphCurves();
 }
 
 void QFEMDock::onShowPointsCheckBoxCanged () {
     m_module->m_structure->setDrawPoints(m_showPointsCheckBox->isChecked());
-    m_module->reportGraphChange();
+    m_module->update();
 }
 
 void QFEMDock::onShowCurveCheckBoxCanged () {
     m_module->m_structure->setDrawCurve(m_showCurveCheckBox->isChecked());
-    m_module->reportGraphChange();
+    m_module->update();
 }
 
 void QFEMDock::SetShownBladeStructure(BladeStructure *structure){

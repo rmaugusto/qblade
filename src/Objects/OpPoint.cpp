@@ -29,22 +29,78 @@
 #include "../Globals.h"
 #include "../MainFrame.h"
 #include "../Serializer.h"
+#include "../Store.h"
+#include "Foil.h"
+#include "Polar.h"
 
 
 OpPoint* OpPoint::newBySerialize() {
     OpPoint* oppoint = new OpPoint ();
     oppoint->serialize();
-    return oppoint;
+	return oppoint;
+}
+
+void OpPoint::writeData(QTextStream &stream, bool asCsv) {
+	QString sep = (asCsv ? ", " : " ");  // comma separator or not
+	
+	stream << "Alpha =" << sep << Alpha << ", "
+		   << "Re =" << sep << Reynolds << ", "
+		   << "Ma =" << sep << Mach << ", "
+		   << "ACrit =" << sep << ACrit << endl
+		   << endl;
+			  
+	if (!m_readyForNoise) {
+		stream << "This operational point does not contain the required data (available since QBlade v0.95). Please, "
+			   << "run the analysis again.";
+		return;
+	}
+		
+	stream << "Top Side" << endl
+		   << "       x" << sep << "      Hk" << sep << " Ue/Vinf" << sep << "      Cf" << sep << "      Cd" << sep
+		   << "    A/AO" << sep << "      D*" << sep << "   Theta" << sep << "     CTq" << endl;
+		
+	/* NM: in the OpPoint legacy code the arrays started at some offset which seemed to vary. But in this export
+	 * function the offset apparently is considered to always be 2. Therefore I make the same assumption and set the
+	 * offset to 2 as well, which might be incorrect, though.
+	 * Update: The offset is no longer removed from the YVectors, so it has to be applied here as usual!
+	 * For the x Vector no offset was added in the first place, so this must be adjusted here be adding the offset to i.
+	 * */
+	for (int i = 2; i < nSide1; ++i) {
+		stream << x1Values[i] << sep
+			   << kinShapeParaTop.second[i] << sep
+			   << edgeVelocityTop.second[i] << sep
+			   << skinFrictionTop.second[i] << sep
+			   << dissipationTop.second[i] << sep
+			   << topShear.second[i] << sep
+			   << topDStar.second[i] << sep
+			   << topTheta.second[i] << sep
+			   << topShearEq.second[i] << endl;
+	}
+	
+	stream << "Bottom Side" << endl
+		   << "       x" << sep << "      Hk" << sep << " Ue/Vinf" << sep << "      Cf" << sep << "      Cd" << sep
+		   << "    A/AO" << sep << "      D*" << sep << "   Theta" << sep << "     CTq" << endl;
+	
+	for (int i = 2; i < nSide2; ++i) {
+		stream << x2Values[i] << sep
+			   << kinShapeParaBot.second[i] << sep
+			   << edgeVelocityBot.second[i] << sep
+			   << skinFrictionBot.second[i] << sep
+			   << dissipationBot.second[i] << sep
+			   << botShear.second[i] << sep
+			   << botDStar.second[i] << sep
+			   << botTheta.second[i] << sep
+			   << botShearEq.second[i] << endl;
+	}
 }
 
 OpPoint::OpPoint(QString name, StorableObject *parent)
     : StorableObject (name, parent)
 {
-    m_bVisc     = false;//not a  viscous point a priori
+	m_bVisc     = false;//not a  viscous point a priori
 	m_bDispSurf = false;// no boundary layer surface either
 	m_bTEFlap   = false;
 	m_bLEFlap   = false;
-    m_Proc = false;
 
 	Xtr1   = 0.0;
 	Xtr2   = 0.0;
@@ -61,11 +117,6 @@ OpPoint::OpPoint(QString name, StorableObject *parent)
 	memset(x,  0, sizeof(y));
 	memset(y,  0, sizeof(x));
 
-    memset(iblte,  0, sizeof(iblte));
-    memset(ipan,  0, sizeof(ipan));
-    memset(nbl,  0, sizeof(nbl));
-    memset(dstr,  0, sizeof(dstr));
-
 	memset(xd1,  0, sizeof(xd1));
 	memset(xd2,  0, sizeof(xd2));
 	memset(xd3,  0, sizeof(xd3));
@@ -76,25 +127,21 @@ OpPoint::OpPoint(QString name, StorableObject *parent)
 	nd2 = 0;
 	nd3 = 0;
 //	Format = 1;
+	
+	// new vars for noise module
+	m_readyForNoise = false;
+	// end
 
 	m_bIsVisible  = true;
 	m_bShowPoints = false;
 	m_Style = 0;
 	m_Width = 1;
     m_Color = QColor(255,0,100,127);
-
 }
-
-//void OpPoint::serialize() {
-//    StorableObject::serialize();
-
-//}
-
 
 
 // This Object is  used to store the data issued from an XFoil Calculation
 // an array of OperatingPoints is a CPolar
-
 
 bool OpPoint::SerializeOp(QDataStream &ar, bool bIsStoring, int ArchiveFormat)
 {
@@ -103,39 +150,42 @@ bool OpPoint::SerializeOp(QDataStream &ar, bool bIsStoring, int ArchiveFormat)
 
     if(bIsStoring)
     {
-		ar << 100003;
-		//100003 : suppressed archiving of s coordinate
-		//100002 : first numbered archiveformat
-		//write variables
-		WriteCString(ar, m_strFoilName);
-		WriteCString(ar, m_strPlrName);
-		ar << (float)Reynolds << (float)Mach << (float)Alpha;
-		ar << n << nd1 << nd2 << nd3;
-		if(m_bVisc)     a=1; else a=0;
-		if(m_bDispSurf) b=1; else b=0;
+//		ar << 100003;
+//		//100003 : suppressed archiving of s coordinate
+//		//100002 : first numbered archiveformat
+//		//write variables
+//		WriteCString(ar, m_strFoilName);
+//		WriteCString(ar, m_strPlrName);
+//		ar << (float)Reynolds << (float)Mach << (float)Alpha;
+//		ar << n << nd1 << nd2 << nd3;
+//		if(m_bVisc)     a=1; else a=0;
+//		if(m_bDispSurf) b=1; else b=0;
 
-		ar << a << b;
-		ar << (float)Cl << (float)Cm << (float)Cd << (float)Cdp;
-		ar << (float)Xtr1 << (float)Xtr2 << (float)ACrit << (float)m_TEHMom << (float)Cpmn;
-		for (k=0; k<n; k++)	ar << (float)Cpv[k] << (float)Cpi[k];
-//		for (k=0; k<n; k++)	    ar << (float)s[k] << (float)Qv[k] << (float)Qi[k];
-		for (k=0; k<n; k++)	    ar << (float)Qv[k] << (float)Qi[k];
-		for (k=0; k<=nd1; k++)  ar << (float)xd1[k] << (float)yd1[k];
-		for (k=0; k<nd2; k++)	ar << (float)xd2[k] << (float)yd2[k];
-		for (k=0; k<nd3; k++)	ar << (float)xd3[k] << (float)yd3[k];
-		ar<<m_Style<<m_Width;
-		WriteCOLORREF(ar,m_Color);
-		if(m_bIsVisible)     ar<<1; else ar<<0;
-		if(m_bShowPoints)    ar<<1; else ar<<0;
+//		ar << a << b;
+//		ar << (float)Cl << (float)Cm << (float)Cd << (float)Cdp;
+//		ar << (float)Xtr1 << (float)Xtr2 << (float)ACrit << (float)m_TEHMom << (float)Cpmn;
+//		for (k=0; k<n; k++)	ar << (float)Cpv[k] << (float)Cpi[k];
+////		for (k=0; k<n; k++)	    ar << (float)s[k] << (float)Qv[k] << (float)Qi[k];
+//		for (k=0; k<n; k++)	    ar << (float)Qv[k] << (float)Qi[k];
+//		for (k=0; k<=nd1; k++)  ar << (float)xd1[k] << (float)yd1[k];
+//		for (k=0; k<nd2; k++)	ar << (float)xd2[k] << (float)yd2[k];
+//		for (k=0; k<nd3; k++)	ar << (float)xd3[k] << (float)yd3[k];
+//		ar<<m_Style<<m_Width;
+//		WriteCOLORREF(ar,m_Color);
+//		if(m_bIsVisible)     ar<<1; else ar<<0;
+//		if(m_bShowPoints)    ar<<1; else ar<<0;
 	}
 	else
 	{
-
         if(ArchiveFormat>=100002) ar>>Format;
         else Format = 0;
+
         //read variables
 		ReadCString(ar, m_strFoilName);
 		ReadCString(ar, m_strPlrName);
+        // NM the following line should fix the bug that occured when loading old files
+        setSingleParent(g_polarStore.getObjectByName(m_strPlrName, g_foilStore.getObjectByName(m_strFoilName, NULL)));
+
 
         ar >> f; Reynolds =f;
         ar >> f; Mach = f;
@@ -360,176 +410,60 @@ void OpPoint::serialize() {
     g_serializer.readOrWriteDoubleArray1D (yd2, IWX);
     g_serializer.readOrWriteDoubleArray1D (xd3, IWX);
     g_serializer.readOrWriteDoubleArray1D (yd3, IWX);
-
-
-    if(g_serializer.getArchiveFormat() >= 100026) {
-
-        g_serializer.readOrWriteDoubleArray1D (x2, IZX);
-        g_serializer.readOrWriteIntArray1D (iblte, ISX);
-        g_serializer.readOrWriteIntArray1D (nbl, ISX);
-        g_serializer.readOrWriteIntArray2D (reinterpret_cast<int*> (ipan), IVX,ISX);
-        g_serializer.readOrWriteDoubleArray2D (reinterpret_cast<double*> (dstr), IVX,ISX);
-        g_serializer.readOrWriteDouble (&gamm1);
-        g_serializer.readOrWriteDouble (&qinf);
-        g_serializer.readOrWriteDouble (&reinf1);
-        g_serializer.readOrWriteDouble (&minf1);
-        g_serializer.readOrWriteDouble (&tklam);
-        g_serializer.readOrWriteDoubleArray2D (reinterpret_cast<double*> (uedg), IVX,ISX);
-        g_serializer.readOrWriteDoubleArray2D (reinterpret_cast<double*> (tau), IVX,ISX);
-        g_serializer.readOrWriteDoubleArray2D (reinterpret_cast<double*> (dis), IVX,ISX);
-        g_serializer.readOrWriteDoubleArray2D (reinterpret_cast<double*> (ctau), IVX,ISX);
-        g_serializer.readOrWriteDoubleArray2D (reinterpret_cast<double*> (thet), IVX,ISX);
-        g_serializer.readOrWriteDoubleArray2D (reinterpret_cast<double*> (ctq), IVX,ISX);
-        g_serializer.readOrWriteBool(&m_Proc);
-
-    }
+	
+	if (g_serializer.getArchiveFormat() >= 100035) {
+		g_serializer.readOrWriteDoubleVector1D(&x1Values);
+		g_serializer.readOrWriteDoubleVector1D(&x2Values);
+		if (g_serializer.getArchiveFormat() >= 100042) {
+			g_serializer.readOrWriteInt(&nSide1);
+			g_serializer.readOrWriteInt(&nSide2);
+		}
+		g_serializer.readOrWritePairIntDoubleVector(&topShear);
+		g_serializer.readOrWritePairIntDoubleVector(&topShearEq);
+		g_serializer.readOrWritePairIntDoubleVector(&botShear);
+		g_serializer.readOrWritePairIntDoubleVector(&botShearEq);
+		g_serializer.readOrWritePairIntDoubleVector(&botDStar);
+		g_serializer.readOrWritePairIntDoubleVector(&botTheta);
+		g_serializer.readOrWritePairIntDoubleVector(&topDStar);
+		g_serializer.readOrWritePairIntDoubleVector(&topTheta);
+		g_serializer.readOrWritePairIntDoubleVector(&reThetaTop);
+		g_serializer.readOrWritePairIntDoubleVector(&reThetaBot);
+		g_serializer.readOrWritePairIntDoubleVector(&amplificationTop);
+		g_serializer.readOrWritePairIntDoubleVector(&amplificationBot);
+		g_serializer.readOrWritePairIntDoubleVector(&dissipationTop);
+		g_serializer.readOrWritePairIntDoubleVector(&dissipationBot);
+		g_serializer.readOrWritePairIntDoubleVector(&skinFrictionTop);
+		g_serializer.readOrWritePairIntDoubleVector(&skinFrictionBot);
+		g_serializer.readOrWritePairIntDoubleVector(&edgeVelocityTop);
+		g_serializer.readOrWritePairIntDoubleVector(&edgeVelocityBot);
+		g_serializer.readOrWritePairIntDoubleVector(&kinShapeParaTop);
+		g_serializer.readOrWritePairIntDoubleVector(&kinShapeParaBot);
+	}
+	
+	if (g_serializer.getArchiveFormat() >= 100040 && g_serializer.getArchiveFormat() < 100042) {
+		int nbl[ISX], ipan[IVX][ISX], iblte[ISX];  // NM these values are not needed anymore
+		double x2[IZX];
+		double dstr[IVX][ISX];
+		g_serializer.readOrWriteIntArray1D (nbl, ISX);
+		g_serializer.readOrWriteIntArray2D (reinterpret_cast<int*> (ipan), IVX, ISX);
+		g_serializer.readOrWriteDoubleArray1D (x2, IZX);
+		g_serializer.readOrWriteIntArray1D (iblte, ISX);
+		g_serializer.readOrWriteDoubleArray2D (reinterpret_cast<double*> (dstr), IVX, ISX);
+	}
+	
+	if (g_serializer.getArchiveFormat() >= 100041) {
+		g_serializer.readOrWriteBool(&m_readyForNoise);
+		if (g_serializer.getArchiveFormat() < 100042) {
+			m_readyForNoise = false;  // invalidate versions older than 42
+		}
+	} else if (g_serializer.isReadMode()) {
+		m_readyForNoise = false;
+	}
 
     g_serializer.readOrWriteString (&m_strFoilName);
     g_serializer.readOrWriteString (&m_strPlrName);
 
     g_serializer.readOrWriteColor (&m_Color);
 }
-
-void OpPoint::CreateXBL(double xs[IVX][3],int &nside1, int &nside2)
-{
-//	double xxtr[3];
-
-    int i;
-//---- set up cartesian bl x-arrays for plotting
-    for(int is=1; is<= 2; is++){
-        for (int ibl=2; ibl<= nbl[is]; ibl++){
-            i = ipan[ibl][is];
-            xs[ibl][is] = x2[i];
-            qDebug() << "Alpha: " << Alpha << ", Ipan: " << i << ", X: " << x2[i] << ", IDX: "<<ibl;
-//			xxtr[is] = xle + (xte-xle)*xoctr[is] - (yte-yle)*yoctr[is];
-        }
-    }
-
-    nside1 = nbl[2] + iblte[1] - iblte[2];
-    nside2 = nbl[2];
-
-    for( int iblw=1; iblw <= nbl[2]-iblte[2]; iblw++)
-        xs[iblte[1]+iblw][1] = xs[iblte[2]+iblw][2];
-}
-
-void OpPoint::FillHk(double ws[IVX][3], int nside1, int nside2)
-{
-    int nside[3];
-    nside[1] = nside1;
-    nside[2] = nside2;
-    double thi, dsi, uei, uc, amsq, dummy;
-    double hstinv = gamm1*(Mach/qinf)*(Mach/qinf) / (1.0 + 0.5*gamm1*Mach*Mach);
-
-    //---- fill kinematic shape parameter array
-    for (int is=1; is<=2; is++){
-        for(int ibl=2; ibl< nside[is]; ibl++){
-
-            thi = thet[ibl][is];
-            dsi = dstr[ibl][is];
-            uei = uedg[ibl][is];
-            uc = uei * (1.0-tklam) / (1.0 - tklam*(uei/qinf)*(uei/qinf));
-            amsq = uc*uc*hstinv / (gamm1*(1.0 - 0.5*uc*uc*hstinv));
-            hkin(dsi/thi, amsq, ws[ibl][is], dummy, dummy);
-        }
-    }
-}
-
-void OpPoint::FillRTheta(double ws[IVX][3], int nside1, int nside2)
-{
-    int nside[3];
-    nside[1] = nside1;
-    nside[2] = nside2;
-    double ue, herat, rhoe, amue, uei;
-//---- 1 / (total enthalpy)
-    double hstinv = gamm1*(Mach/qinf)*(Mach/qinf) / (1.0 + 0.5*gamm1*Mach*Mach);
-
-//---- Sutherland's const./to   (assumes stagnation conditions are at stp)
-    double hvrat = 0.35;
-
-//---- fill rtheta arrays
-    for (int is=1; is<=2; is++){
-        for(int ibl=2; ibl< nside[is]; ibl++){
-            uei = uedg[ibl][is];
-            ue  = uei * (1.0-tklam) / (1.0 - tklam*(uei/qinf)*(uei/qinf));
-            herat = (1.0 - 0.5*hstinv*ue  *ue)
-                / (1.0 - 0.5*hstinv*qinf*qinf);
-            rhoe = pow(herat, 1.0/gamm1);
-            amue = sqrt(herat*herat*herat) * (1.0+hvrat)/(herat+hvrat);
-            ws[ibl][is] = Reynolds * rhoe*ue*thet[ibl][is]/amue;
-        }
-    }
-}
-
-bool OpPoint::hkin(double h, double msq, double &hk, double &hk_h, double &hk_msq){
-    //---- calculate kinematic shape parameter (assuming air)
-    //     (from Whitfield )
-    hk     =    (h - 0.29*msq)   /(1.0 + 0.113*msq);
-    hk_h   =     1.0              /(1.0 + 0.113*msq);
-    hk_msq = (-.29 - 0.113*(hk))/(1.0 + 0.113*msq);
-
-    return true;
-}
-bool OpPoint::getProc() const
-{
-    return m_Proc;
-}
-
-void OpPoint::setProc(bool Lvconv)
-{
-    m_Proc = Lvconv;
-}
-
-
-
-double OpPoint::getReynolds() const
-{
-    return Reynolds;
-}
-
-double OpPoint::getMach() const
-{
-    return Mach;
-}
-
-double OpPoint::getAlpha() const
-{
-    return Alpha;
-}
-
-int OpPoint::getNblAt(int _x)
-{
-    return nbl[_x];
-}
-
-int OpPoint::getIblteAt(int _x)
-{
-    return iblte[_x];
-}
-
-int OpPoint::getIpanAt(int _x, int _y)
-{
-    return ipan[_x][_y];
-}
-
-double OpPoint::getX2At(int _x)
-{
-    return x2[_x];
-}
-
-void OpPoint::setReynolds(double value)
-{
-    Reynolds = value;
-}
-
-void OpPoint::setAlpha(double value)
-{
-    Alpha = value;
-}
-
-double OpPoint::getDstrAt(int _x, int _y)
-{
-    return dstr[_x][_y];
-}
-
 
 

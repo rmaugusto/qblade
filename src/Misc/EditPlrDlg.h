@@ -27,7 +27,6 @@
 #include <QListWidget>
 
 #include "../Objects/Polar.h"
-#include "../Objects/WPolar.h"
 
 
 class EditPlrDlg : public QDialog
@@ -35,7 +34,6 @@ class EditPlrDlg : public QDialog
 	Q_OBJECT
 
 	friend class QXDirect;
-	friend class QMiarex;
 
 public:
 	EditPlrDlg();
@@ -57,11 +55,8 @@ private:
 
 	QListWidget *m_pctrlAlphaList;
 	CPolar *m_pPolar;
-	CWPolar *m_pWPolar;
-
 
 	void *m_pXDirect;
-	void *m_pMiarex;
 };
 
 #endif // EDITPLRDLG_H

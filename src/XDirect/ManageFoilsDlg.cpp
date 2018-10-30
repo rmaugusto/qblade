@@ -28,7 +28,6 @@
 #include "XDirect.h"
 #include "../MainFrame.h"
 #include "ManageFoilsDlg.h"
-#include "../XGlobals.h"
 #include "../Store.h"
 
 

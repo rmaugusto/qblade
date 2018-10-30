@@ -3,6 +3,8 @@
 
 #include <QLineEdit>
 #include <cmath>
+#include <limits>
+
 
 /**
  * @brief A QLineEdit specialized for numerical values.
@@ -18,8 +20,8 @@ class NumberEdit : public QLineEdit
 public:
 	enum OutputFormat {Standard, Scientific};
 	
-	NumberEdit(OutputFormat format = Standard, int automaticPrecision = 8, double minimum = -INFINITY,
-																				double maximum = INFINITY);
+	NumberEdit(OutputFormat format = Standard, int automaticPrecision = 8,
+			   double minimum = std::numeric_limits<double>::lowest(), double maximum = std::numeric_limits<double>::max());
 	
 	/**
 	 * @brief Sets the value of the edit.

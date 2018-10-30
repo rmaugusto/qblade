@@ -14,64 +14,79 @@
 #include "FASTModule.h"
 #include "../Graph/NewCurve.h"
 #include "../Serializer.h"
+#include "../ColorManager.h"
+#include <iostream>
 
-
-const QString FASTSimulation::valueString[] = {"BEDDOES", "STEADY", "USE_CM", "NO_CM", "DYNIN", "EQUIL", "NONE", "WAKE", "SWIRL", "PRANDTL", "GTECH"};
-const QString FASTSimulation::fastRotorOutputParameters[16] = {"TotWindV", "WindVxi", "WindVyi", "WindVzi", "HorWindV", "HorWndDir", "VerWndDir", "RotPwr", "RotTorq", "RotThrust", "RotCp", "RotCq", "RotCt", "LSSTipPxa", "LSSTipVxa", "LSSTipAxa"};
-const QString FASTSimulation::fastBladeOutputParameters[28] = {"TipDxc", "TipDyc", "TipDzc", "TipDxb", "TipDyb", "TipALxb", "TipALyb", "TipALzb", "TipRDxb", "TipRDyb", "TipClrnc", "Spn%1ALxb", "Spn%1ALyb", "Spn%1ALzb", "PtchPMzc", "RootFxc", "RootFyc", "RootFzc", "RootFxb", "RootFyb", "RootMxc", "RootMyc", "RootMzc", "RootMxb", "RootMyb", "Spn%1MLxb", "Spn%1MLyb", "Spn%1MLzb"};
+const QString FASTSimulation::valueString[] = {
+	"BEDDOES", "STEADY", "USE_CM", "NO_CM", "DYNIN", "EQUIL", "NONE", "WAKE", "SWIRL", "PRANDTL", "GTECH"};
+const QString FASTSimulation::fastRotorOutputParameters[16] = {
+	"TotWindV", "WindVxi", "WindVyi", "WindVzi", "HorWindV", "HorWndDir", "VerWndDir", "RotPwr", "RotTorq", "RotThrust",
+	"RotCp", "RotCq", "RotCt", "LSSTipPxa", "LSSTipVxa", "LSSTipAxa"};
+const QString FASTSimulation::fastBladeOutputParameters[28] = {
+	"TipDxc", "TipDyc", "TipDzc", "TipDxb", "TipDyb", "TipALxb", "TipALyb", "TipALzb", "TipRDxb", "TipRDyb", "TipClrnc",
+	"Spn%1ALxb", "Spn%1ALyb", "Spn%1ALzb", "PtchPMzc", "RootFxc", "RootFyc", "RootFzc", "RootFxb", "RootFyb", "RootMxc",
+	"RootMyc", "RootMzc", "RootMxb", "RootMyb", "Spn%1MLxb", "Spn%1MLyb", "Spn%1MLzb"};
 const int FASTSimulation::numberOfFastRotorOutputParameters = 16;
 const int FASTSimulation::numberOfFastBladeOutputParameters = 28;
-const QString FASTSimulation::fastRotorOutputParametersTooltips[16] = {"Total hub-height wind speed magnitude [m/s]", //
-                                                                      "Nominally downwind component of the hub-height wind velocity [m/s]",   //
-                                                                      "Cross-wind component of the hub-height wind velocity [m/s]",   //
-                                                                      "Vertical component of the hub-height wind velocity [m/s]",   //
-                                                                      "Horizontal hub-height wind speed magnitude [m/s]",   //
-                                                                      "Horizontal hub-height wind direction [deg]",   //
-                                                                      "Vertical hub-height wind direction [deg]",   //
-                                                                      "Rotor power [kW]",   //
-                                                                      "Rotor torque [kNm]",   //
-                                                                      "Rotor thrust [kN]",   //
-                                                                      "Rotor power coefficient [-]",   //
-                                                                      "Rotor torque coefficient [-]",   //
-                                                                      "Rotor thrust coefficient [-]",   //
-                                                                      "Rotor azimuth angle (position) [deg]",   //
-                                                                      "Rotor azimuth angular speed [rpm]",   //
-                                                                      "Rotor azimuth angular acceleration [deg/s^2]"   //
-                                                                      };
-const QString FASTSimulation::fastBladeOutputParametersTooltips[28] = {"Blade out-of-plane tip deflection (relative to the pitch axis) [m]",  //
-                                                                       "Blade in-plane tip deflection (relative to the pitch axis) [m]",  //
-                                                                       "Blade axial tip deflection (relative to the pitch axis) [m]",  //
-                                                                       "Blade flapwise tip deflection (relative to the pitch axis) [m]",  //
-                                                                       "Blade edgewise tip deflection (relative to the pitch axis) [m]",  //
-                                                                       "Blade local flapwise tip acceleration (absolute) [m/s^2]",  //
-                                                                       "Blade local edgewise tip acceleration (absolute) [m/s^2]",  //
-                                                                       "Blade local axial tip acceleration (absolute) [m/s^2]",  //
-                                                                       "Blade roll (angular/rotational) tip deflection (relative to the undeflected position) [deg]",  //
-                                                                       "Blade pitch (angular/rotational) tip deflection (relative to the undeflected position) [deg]",  //
-                                                                       "Blade tip-to-tower clearance estimate [m]",  //
-                                                                       "Blade local flapwise acceleration from virtual strain gage [m/s^2]",  //
-                                                                       "Blade local edgewise acceleration from virtual strain gage [m/s^2]",  //
-                                                                       "Blade local axial acceleration from virtual strain gage [m/s^2]",  //
-                                                                       "Blade pitch angle (position) [deg]",  //
-                                                                       "Blade out-of-plane shear force at the blade root [kN]",  //
-                                                                       "Blade in-plane shear force at the blade root [kN]",  //
-                                                                       "Blade axial force at the blade root [kN]",  //
-                                                                       "Blade flapwise shear force at the blade root [kN]",  //
-                                                                       "Blade edgewise shear force at the blade root [kN]",  //
-                                                                       "Blade in-plane moment (i.e., the moment caused by in-plane forces) at the blade root [kNm]",  //
-                                                                       "Blade out-of-plane moment (i.e., the moment caused by out-of-plane forces) at the blade root [kNm]",  //
-                                                                       "Blade pitching moment at the blade root [kNm]",  //
-                                                                       "Blade edgewise moment (i.e., the moment caused by edgewise forces) at the blade root [kNm]",  //
-                                                                       "Blade flapwise moment (i.e., the moment caused by flapwise forces) at the blade root [kNm]",  //
-                                                                       "Blade local edgewise moment from virtual strain gage [kNm]",  //
-                                                                       "Blade local flapwise moment from virtual strain gage [kNm]",  //
-                                                                       "Blade local pitching moment from virtual strain gage [kNm]",  //
-                                                                      };
+const QString FASTSimulation::fastRotorOutputParametersTooltips[16] = {
+	"Total hub-height wind speed magnitude [m/s]", //
+	"Nominally downwind component of the hub-height wind velocity [m/s]",   //
+	"Cross-wind component of the hub-height wind velocity [m/s]",   //
+	"Vertical component of the hub-height wind velocity [m/s]",   //
+	"Horizontal hub-height wind speed magnitude [m/s]",   //
+	"Horizontal hub-height wind direction [deg]",   //
+	"Vertical hub-height wind direction [deg]",   //
+	"Rotor power [kW]",   //
+	"Rotor torque [kNm]",   //
+	"Rotor thrust [kN]",   //
+	"Rotor power coefficient [-]",   //
+	"Rotor torque coefficient [-]",   //
+	"Rotor thrust coefficient [-]",   //
+	"Rotor azimuth angle (position) [deg]",   //
+	"Rotor azimuth angular speed [rpm]",   //
+	"Rotor azimuth angular acceleration [deg/s^2]"   //
+};
+const QString FASTSimulation::fastBladeOutputParametersTooltips[28] = {
+	"Blade out-of-plane tip deflection (relative to the pitch axis) [m]",  //
+	"Blade in-plane tip deflection (relative to the pitch axis) [m]",  //
+	"Blade axial tip deflection (relative to the pitch axis) [m]",  //
+	"Blade flapwise tip deflection (relative to the pitch axis) [m]",  //
+	"Blade edgewise tip deflection (relative to the pitch axis) [m]",  //
+	"Blade local flapwise tip acceleration (absolute) [m/s^2]",  //
+	"Blade local edgewise tip acceleration (absolute) [m/s^2]",  //
+	"Blade local axial tip acceleration (absolute) [m/s^2]",  //
+	"Blade roll (angular/rotational) tip deflection (relative to the undeflected position) [deg]",  //
+	"Blade pitch (angular/rotational) tip deflection (relative to the undeflected position) [deg]",  //
+	"Blade tip-to-tower clearance estimate [m]",  //
+	"Blade local flapwise acceleration from virtual strain gage [m/s^2]",  //
+	"Blade local edgewise acceleration from virtual strain gage [m/s^2]",  //
+	"Blade local axial acceleration from virtual strain gage [m/s^2]",  //
+	"Blade pitch angle (position) [deg]",  //
+	"Blade out-of-plane shear force at the blade root [kN]",  //
+	"Blade in-plane shear force at the blade root [kN]",  //
+	"Blade axial force at the blade root [kN]",  //
+	"Blade flapwise shear force at the blade root [kN]",  //
+	"Blade edgewise shear force at the blade root [kN]",  //
+	"Blade in-plane moment (i.e., the moment caused by in-plane forces) at the blade root [kNm]",  //
+	"Blade out-of-plane moment (i.e., the moment caused by out-of-plane forces) at the blade root [kNm]",  //
+	"Blade pitching moment at the blade root [kNm]",  //
+	"Blade edgewise moment (i.e., the moment caused by edgewise forces) at the blade root [kNm]",  //
+	"Blade flapwise moment (i.e., the moment caused by flapwise forces) at the blade root [kNm]",  //
+	"Blade local edgewise moment from virtual strain gage [kNm]",  //
+	"Blade local flapwise moment from virtual strain gage [kNm]",  //
+	"Blade local pitching moment from virtual strain gage [kNm]",  //
+};
 
 
 void FASTSimulation::serialize() {
 	StorableObject::serialize();
 	ShowAsGraphInterface::serialize();
+
+    if (g_serializer.getArchiveFormat() >= 100031){
+        g_serializer.readOrWriteBool(&m_bWindFromQBlade);
+        g_serializer.readOrWriteString(&m_WindFieldPathName);
+        g_serializer.readOrWriteDouble(&m_hubHeight);
+    }
 	
 	g_serializer.readOrWriteStorableObject(&m_usedWindField);
 	g_serializer.readOrWriteStorableObject(&m_usedRotor);
@@ -154,6 +169,9 @@ FASTSimulation::FASTSimulation()
 {
 	m_shownBladeSection = 1;
 	m_shownTimeIndex = 0;
+    m_WindFieldPathName = "Open File";
+    m_bWindFromQBlade = true;
+    m_hubHeight = 0;
 }
 
 FASTSimulation::FASTSimulation(QString name,
@@ -183,14 +201,22 @@ FASTSimulation::FASTSimulation(QString name,
                                int decFact,
                                QBitArray *rotorParameters,
                                QVector<int> *bladeOutput,
-                               QBitArray *bladeParameters, double aeroTimeStep)
+                               QBitArray *bladeParameters,
+                               double aeroTimeStep,
+                               QString windfieldFile,
+                               bool bFromQBlade,
+                               double hubheight)
 	: StorableObject (name)
 {
-	m_pen.setColor(findColor (&g_FASTSimulationStore));
+	m_pen.setColor(g_colorManager.getLeastUsedColor(&g_FASTSimulationStore));
 	m_pen.setWidth(1);
 	m_pen.setStyle(Qt::SolidLine);
 	m_shownBladeSection = 1;
 	m_shownTimeIndex = 0;
+    m_hubHeight = hubheight;
+
+    m_bWindFromQBlade = bFromQBlade;
+    m_WindFieldPathName = windfieldFile;
 	
 	m_usedWindField = usedWindField;
 	addParent(m_usedWindField);
@@ -204,12 +230,12 @@ FASTSimulation::FASTSimulation(QString name,
 	m_gravity = gravity;
 	m_airDens = airDens;
 	m_kinVisc = kinVisc;
-	m_stallMod = static_cast<FASTValue> (stallMod);
-	m_useCm = static_cast<FASTValue> (useCm);
-	m_infModel = static_cast<FASTValue> (infModel);
-	m_indModel = static_cast<FASTValue> (indModel);
-	m_tlModel = static_cast<FASTValue> (tlModel);
-	m_hlModel = static_cast<FASTValue> (hlModel);
+	m_stallMod = stallMod;
+	m_useCm = useCm;
+	m_infModel = infModel;
+	m_indModel = indModel;
+	m_tlModel = tlModel;
+	m_hlModel = hlModel;
 	m_usedBladeStructure = usedBladeStructure;
 	addParent(m_usedBladeStructure);
 	m_useFlapDof1 = useFlapDof1;
@@ -231,6 +257,28 @@ FASTSimulation::~FASTSimulation() {
 	}
 	for (int i = 0; i < m_aeroDynResults.size(); ++i) {
 		delete m_aeroDynResults[i];
+	}
+}
+
+QStringList FASTSimulation::prepareMissingObjectMessage() {
+	if (g_FASTSimulationStore.isEmpty()) {
+		QStringList message1 = WindField::prepareMissingObjectMessage();
+		QStringList message2 = BladeStructureLoading::prepareMissingObjectMessage();
+		if (!message1.isEmpty() && !message2.isEmpty()) {
+			message1.removeLast();  // remove the "create WindField" hint
+		}
+		QStringList message = message1 + message2;
+		if (message.isEmpty()) {
+			if (g_mainFrame->m_iApp == FASTMODULE) {
+				message = QStringList(">>> Click 'New' to create a new FAST Simulation");
+			} else {
+				message = QStringList(">>> Create a new FAST Simulation in the FAST Simulation Module");
+			}
+		}
+		message.prepend("- No FAST Simulation in Database");
+		return message;
+	} else {
+		return QStringList();
 	}
 }
 
@@ -402,7 +450,7 @@ void FASTSimulation::writeAllFiles(QDir &simulationDirectory) {
 				  "NacCMyn      - Lateral  distance from the tower-top to the nacelle CM (meters)" << endl <<
                   QString("%1    ").arg(0.0, 8, 'f', 3) <<
 				  "NacCMzn      - Vertical distance from the tower-top to the nacelle CM (meters)" << endl <<
-                  QString("%1    ").arg(m_usedWindField->getHubheight(), 8, 'f', 3) <<
+                  QString("%1    ").arg(m_hubHeight, 8, 'f', 3) <<
 				  "TowerHt      - Height of tower above ground level [onshore] or MSL [offshore] (meters)" << endl <<
                   QString("%1    ").arg(0.0, 8, 'f', 3) <<
 				  "Twr2Shft     - Vertical distance from the tower-top to the rotor shaft (meters)" << endl <<
@@ -663,6 +711,10 @@ void FASTSimulation::writeAllFiles(QDir &simulationDirectory) {
 		
 		QTextStream stream (&file2);
 
+        QString WindFieldName;
+        if (m_bWindFromQBlade) WindFieldName = QString("\""+m_usedWindField->getName().replace(" ","_")+".bts\"");
+        else WindFieldName = QString("\""+m_WindFieldPathName+"\"");
+
 		/* write the whole file */
 		stream << m_usedRotor->getName() << " :: generated by QBlade" << endl <<
 				  QString("%1").arg("SI", -39) <<
@@ -681,7 +733,7 @@ void FASTSimulation::writeAllFiles(QDir &simulationDirectory) {
 				  "TLModel  - Tip-loss model (EQUIL only) [PRANDtl, GTECH, or NONE] (unquoted string)" << endl <<
 				  QString("%1").arg(valueString[m_hlModel], -39) <<
 				  "HLModel  - Hub-loss model (EQUIL only) [PRANdtl or NONE] (unquoted string)" << endl <<
-				  QString("%1").arg("\"windfieldfile.bts\"", -38) <<
+                  QString("%1").arg(WindFieldName, -38) <<
 				  " WindFile - Name of file containing wind data (quoted string)" << endl <<
 				  QString("%1                               ").arg(m_usedWindField->getHubheight(), 8, 'f', 3) <<
 				  "HH       - Wind reference (hub) height [TowerHt+Twr2Shft+OverHang*SIN(ShftTilt)] (m)" << endl <<
@@ -734,14 +786,16 @@ void FASTSimulation::writeAllFiles(QDir &simulationDirectory) {
 		throw QString(tr("Could not create file: ") + file2.fileName());
 	}
 	
-	QFile file3 (QString(simulationDirectory.absolutePath() + QDir::separator() + "windfieldfile.bts"));
-	if (file3.open(QIODevice::WriteOnly)) {
-		QDataStream btsStream (&file3);
-		m_usedWindField->exportToBinary(btsStream);
-		file3.close();
-	} else {
-		throw QString(tr("Could not create file: ") + file3.fileName());
-	}
+    if (m_bWindFromQBlade){
+        QFile file3 (QString(simulationDirectory.absolutePath() + QDir::separator() + m_usedWindField->getName().replace(" ","_")+".bts"));
+        if (file3.open(QIODevice::WriteOnly)) {
+            QDataStream btsStream (&file3);
+            m_usedWindField->exportToBinary(btsStream);
+            file3.close();
+        } else {
+            throw QString(tr("Could not create file: ") + file3.fileName());
+        }
+    }
 	
 	QFile file4 (QString(simulationDirectory.absolutePath() + QDir::separator() + "towerfile.dat"));
 	if (file4.open(QIODevice::WriteOnly | QIODevice::Text)) {
@@ -850,36 +904,37 @@ void FASTSimulation::writeAllFiles(QDir &simulationDirectory) {
 					  QString("%1").arg(0.0, 10, 'f', 1) <<
 					  QString("%1").arg(0.0, 10, 'f', 1) << endl;
 		}
-		stream << "---------------------- BLADE MODE SHAPES ---------------------------------------" << endl <<
-				  QString("%1   ").arg(m_usedBladeStructure->FlapwiseCoefficients[0][1], 9, 'f', 4) <<
+
+        stream << "---------------------- BLADE MODE SHAPES ---------------------------------------" << endl <<
+                  QString("%1   ").arg(m_usedBladeStructure->FlapwiseCoefficients[0][1], 9, 'f', 4) <<
 				  "BldFl1Sh(2) - Flap mode 1, coeff of x^2" << endl <<
-				  QString("%1   ").arg(m_usedBladeStructure->FlapwiseCoefficients[0][2], 9, 'f', 4) <<
+                  QString("%1   ").arg(m_usedBladeStructure->FlapwiseCoefficients[0][2], 9, 'f', 4) <<
 				  "BldFl1Sh(3) -            , coeff of x^3" << endl <<
-				  QString("%1   ").arg(m_usedBladeStructure->FlapwiseCoefficients[0][3], 9, 'f', 4) <<
+                  QString("%1   ").arg(m_usedBladeStructure->FlapwiseCoefficients[0][3], 9, 'f', 4) <<
 				  "BldFl1Sh(4) -            , coeff of x^4" << endl <<
-				  QString("%1   ").arg(m_usedBladeStructure->FlapwiseCoefficients[0][4], 9, 'f', 4) <<
+                  QString("%1   ").arg(m_usedBladeStructure->FlapwiseCoefficients[0][4], 9, 'f', 4) <<
 				  "BldFl1Sh(5) -            , coeff of x^5" << endl <<
-				  QString("%1   ").arg(m_usedBladeStructure->FlapwiseCoefficients[0][5], 9, 'f', 4) <<
+                  QString("%1   ").arg(m_usedBladeStructure->FlapwiseCoefficients[0][5], 9, 'f', 4) <<
 				  "BldFl1Sh(6) -            , coeff of x^6" << endl <<
-				  QString("%1   ").arg(m_usedBladeStructure->FlapwiseCoefficients[1][1], 9, 'f', 4) <<
+                  QString("%1   ").arg(m_usedBladeStructure->FlapwiseCoefficients[1][1], 9, 'f', 4) <<
 				  "BldFl2Sh(2) - Flap mode 2, coeff of x^2" << endl <<
-				  QString("%1   ").arg(m_usedBladeStructure->FlapwiseCoefficients[1][2], 9, 'f', 4) <<
+                  QString("%1   ").arg(m_usedBladeStructure->FlapwiseCoefficients[1][2], 9, 'f', 4) <<
 				  "BldFl2Sh(3) -            , coeff of x^3" << endl <<
-				  QString("%1   ").arg(m_usedBladeStructure->FlapwiseCoefficients[1][3], 9, 'f', 4) <<
+                  QString("%1   ").arg(m_usedBladeStructure->FlapwiseCoefficients[1][3], 9, 'f', 4) <<
 				  "BldFl2Sh(4) -            , coeff of x^4" << endl <<
-				  QString("%1   ").arg(m_usedBladeStructure->FlapwiseCoefficients[1][4], 9, 'f', 4) <<
+                  QString("%1   ").arg(m_usedBladeStructure->FlapwiseCoefficients[1][4], 9, 'f', 4) <<
 				  "BldFl2Sh(5) -            , coeff of x^5" << endl <<
-				  QString("%1   ").arg(m_usedBladeStructure->FlapwiseCoefficients[1][5], 9, 'f', 4) <<
+                  QString("%1   ").arg(m_usedBladeStructure->FlapwiseCoefficients[1][5], 9, 'f', 4) <<
 				  "BldFl2Sh(6) -            , coeff of x^6" << endl <<
-				  QString("%1   ").arg(m_usedBladeStructure->EdgewiseCoefficients[0][1], 9, 'f', 4) <<
+                  QString("%1   ").arg(m_usedBladeStructure->EdgewiseCoefficients[0][1], 9, 'f', 4) <<
 				  "BldEdgSh(2) - Edge mode 1, coeff of x^2" << endl <<
-				  QString("%1   ").arg(m_usedBladeStructure->EdgewiseCoefficients[0][2], 9, 'f', 4) <<
+                  QString("%1   ").arg(m_usedBladeStructure->EdgewiseCoefficients[0][2], 9, 'f', 4) <<
 				  "BldEdgSh(3) -            , coeff of x^3" << endl <<
-				  QString("%1   ").arg(m_usedBladeStructure->EdgewiseCoefficients[0][3], 9, 'f', 4) <<
+                  QString("%1   ").arg(m_usedBladeStructure->EdgewiseCoefficients[0][3], 9, 'f', 4) <<
 				  "BldEdgSh(4) -            , coeff of x^4" << endl <<
-				  QString("%1   ").arg(m_usedBladeStructure->EdgewiseCoefficients[0][4], 9, 'f', 4) <<
+                  QString("%1   ").arg(m_usedBladeStructure->EdgewiseCoefficients[0][4], 9, 'f', 4) <<
 				  "BldEdgSh(5) -            , coeff of x^5" << endl <<
-				  QString("%1   ").arg(m_usedBladeStructure->EdgewiseCoefficients[0][5], 9, 'f', 4) <<
+                  QString("%1   ").arg(m_usedBladeStructure->EdgewiseCoefficients[0][5], 9, 'f', 4) <<
 				  "BldEdgSh(6) -            , coeff of x^6" << endl;
 		/* end of file */
 		file5.close();
@@ -990,8 +1045,8 @@ NewCurve* FASTSimulation::newCurve(QString xAxis, QString yAxis, NewGraph::Graph
 	switch (graphType) {
 	case NewGraph::FastSimulation:
 	{
-		const bool rotorMatches = (g_fastModule->getShownFASTSimulation() &&
-								   g_fastModule->getShownFASTSimulation()->getUsedRotor() == m_usedRotor);
+        const bool rotorMatches = true; /*TODO DAVID TEST (g_fastModule->getShownFASTSimulation() &&
+                                   g_fastModule->getShownFASTSimulation()->getUsedRotor() == m_usedRotor);*/
 		int xAxisIndex = m_availableVariablesFastGraph.indexOf(xAxis);
 		int yAxisIndex = m_availableVariablesFastGraph.indexOf(yAxis);
 		const bool xAxisIsAeroDyn = xAxisIndex >= m_fastResults.size();
@@ -1027,7 +1082,7 @@ NewCurve* FASTSimulation::newCurve(QString xAxis, QString yAxis, NewGraph::Graph
 		
 		if (xAxisIndex == -1 || yAxisIndex == -1) {
 			curve = NULL;
-		} else if (!rotorMatches && ((xAxisIsAeroDyn && xAxisIndex > 3) || (yAxisIsAeroDyn && yAxisIndex > 3))) {
+        } else if (!rotorMatches && ((xAxisIsAeroDyn && xAxisIndex > 3) || (yAxisIsAeroDyn && yAxisIndex > 3))) {
 			curve = NULL;
 		} else if (xAxisIsAeroDyn && yAxisIsAeroDyn) {  // both aeroDyn
 			curve = new NewCurve (this);
@@ -1122,6 +1177,8 @@ QStringList FASTSimulation::getAvailableVariables(NewGraph::GraphType graphType)
 }
 
 void FASTSimulation::setShownTime(float shownTime) {
+
+    ////TODO NICO WHAT IS PAINTED IF SHOWNTIME OUT OF RANGE???
 	if (hasAeroDynResults()) {
 		int timeIndex = (shownTime - m_tStart) / m_aeroTimeStep;
 		

@@ -27,17 +27,13 @@
 #include <QHeaderView>
 
 #include "../XDirect/XDirect.h"
-#include "../Miarex/Miarex.h"
-
 
 
 EditPlrDlg::EditPlrDlg()
 {
 	setWindowTitle(tr("Polar Points Edition"));
-	m_pMiarex     = NULL;
 	m_pXDirect    = NULL;
 	m_pPolar      = NULL;
-	m_pWPolar     = NULL;
 
 	SetupLayout();
 }
@@ -70,26 +66,6 @@ void EditPlrDlg::FillTable()
 			for (int i=0; i<m_pPolar->m_Alpha.size(); i++)
 			{
 				strong = QString("%1").arg(m_pPolar->m_Re.at(i),8,'f',0);
-				m_pctrlAlphaList->addItem(strong);
-			}
-		}
-	}
-
-	else if(m_pMiarex && m_pWPolar)
-	{
-		if(m_pWPolar->m_WPolarType!=FIXEDAOAPOLAR)
-		{
-			for (int i=0; i<m_pWPolar->m_Alpha.size(); i++)
-			{
-				strong = QString("%1").arg(m_pWPolar->m_Alpha.at(i),8,'f',3);
-				m_pctrlAlphaList->addItem(strong);
-			}
-		}
-		else
-		{
-			for (int i=0; i<m_pWPolar->m_Alpha.size(); i++)
-			{
-				strong = QString("%1").arg(m_pWPolar->m_QInfinite.at(i),12,'f',3);
 				m_pctrlAlphaList->addItem(strong);
 			}
 		}
@@ -128,22 +104,14 @@ void EditPlrDlg::keyPressEvent(QKeyEvent *event)
 void EditPlrDlg::OnDeletePoint()
 {
 	QXDirect *pXDirect = (QXDirect*)m_pXDirect;
-	QMiarex *pMiarex = (QMiarex*)m_pMiarex;
 
 	int index = m_pctrlAlphaList->currentRow();
 	if(pXDirect)
 	{
 		m_pPolar->Remove(index);
 		FillTable();
-		pXDirect->CreatePolarCurves();
+        pXDirect->CreateSinglePolarCurve();
 		pXDirect->UpdateView();
-	}
-	else if(pMiarex)
-	{
-		m_pWPolar->Remove(index);
-		FillTable();
-		pMiarex->CreateWPolarCurves();
-		pMiarex->UpdateView();
 	}
 	if(index>=m_pctrlAlphaList->count()-1)
 	{
@@ -157,21 +125,13 @@ void EditPlrDlg::OnDeletePoint()
 void EditPlrDlg::OnDeleteAllPoints()
 {
 	QXDirect *pXDirect = (QXDirect*)m_pXDirect;
-	QMiarex *pMiarex = (QMiarex*)m_pMiarex;
 
 	if(pXDirect)
 	{
 		m_pPolar->ResetPolar();
 		FillTable();
-		pXDirect->CreatePolarCurves();
+        pXDirect->CreateSinglePolarCurve();
 		pXDirect->UpdateView();
-	}
-	else if(pMiarex)
-	{
-		m_pWPolar->ResetWPlr();
-		FillTable();
-		pMiarex->CreateWPolarCurves();
-		pMiarex->UpdateView();
 	}
 }
 

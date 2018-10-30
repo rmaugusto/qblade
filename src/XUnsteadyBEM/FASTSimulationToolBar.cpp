@@ -19,9 +19,15 @@
 
 
 FASTSimulationToolBar::FASTSimulationToolBar (QMainWindow *parent, FASTModule *module) {
+	setObjectName("FASTSimulationToolbar");
+	
 	m_module = module;
 	m_enableSectionChange = true;
 	m_enableTimeChange = true;
+
+    QRect rec = QApplication::desktop()->screenGeometry();
+    int width = rec.width();
+    setIconSize(QSize(width*0.025,width*0.025));
 	
 	QGroupBox *groupBox = new QGroupBox (tr("FAST Simulation"));
 	addWidget(groupBox);
@@ -30,8 +36,8 @@ FASTSimulationToolBar::FASTSimulationToolBar (QMainWindow *parent, FASTModule *m
 			m_FASTSimulationComboBox = new FASTSimulationComboBox (&g_FASTSimulationStore);
 			m_FASTSimulationComboBox->setSizeAdjustPolicy(QComboBox::AdjustToContents);
 			m_FASTSimulationComboBox->setMinimumWidth(170);
-			connect (m_FASTSimulationComboBox, SIGNAL(valueChanged(QString)),
-					 m_module, SLOT(onShownFASTSimulationChanged(QString)));
+			connect (m_FASTSimulationComboBox, SIGNAL(valueChanged(FASTSimulation*)),
+					 m_module, SLOT(setShownFASTSimulation(FASTSimulation*)));
 			vBox->addWidget(m_FASTSimulationComboBox);
 	groupBox = new QGroupBox (tr("Blade Section"));
 	addWidget(groupBox);
@@ -47,7 +53,7 @@ FASTSimulationToolBar::FASTSimulationToolBar (QMainWindow *parent, FASTModule *m
 		QHBoxLayout *hBox = new QHBoxLayout ();
 		groupBox->setLayout(hBox);
 			m_timeEdit = new NumberEdit (NumberEdit::Standard, 5);
-			m_timeEdit->setFixedWidth(60);
+//			m_timeEdit->setFixedWidth(60);
 			connect(m_timeEdit, SIGNAL(editingFinished()), this, SLOT(onTimeEditChange()));
 			hBox->addWidget(m_timeEdit);
 			m_timeSlider = new QSlider ();
@@ -104,7 +110,7 @@ void FASTSimulationToolBar::useFASTSimulation (FASTSimulation *newShownFASTSimul
 		m_timeEdit->setValue(0);
 		m_enableTimeChange = true;
 	}
-	m_module->emitUpdateBladeGraphs();
+	m_module->reloadBladeGraphs();
 }
 
 void FASTSimulationToolBar::onSectionBoxChanged() {
@@ -114,7 +120,7 @@ void FASTSimulationToolBar::onSectionBoxChanged() {
 				g_FASTSimulationStore.at(i)->setShownBladeSection(this->getCurrentBladeSection());
 			}
 		}
-		m_module->emitUpdateFastGraphs();
+		m_module->reloadFastGraphs();
 	}
 }
 
@@ -125,13 +131,13 @@ void FASTSimulationToolBar::onTimeSliderChange(int newValue) {
 		setShownTimeForAllSimulations();
 		m_timeEdit->setValue(m_FASTSimulationComboBox->currentObject()->getShownTime());
 		m_enableTimeChange = true;
-		m_module->emitUpdateBladeGraphs();
-		m_module->emitUpdateFastGraphs();  // for the time dot
+
+		m_module->reloadBladeGraphs();
 	}
 }
 
 void FASTSimulationToolBar::onTimeEditChange() {
-	if (m_enableTimeChange) {
+    if (m_enableTimeChange && m_FASTSimulationComboBox->currentObject()) {
 		double newValue = m_timeEdit->getValue();
 		m_enableTimeChange = false;
 		FASTSimulation *currentSim = m_FASTSimulationComboBox->currentObject();
@@ -155,8 +161,8 @@ void FASTSimulationToolBar::onTimeEditChange() {
 		m_timeEdit->setValue(timeArray[timeIndex]);
 		m_timeSlider->setValue(timeIndex);
 		m_enableTimeChange = true;
-		m_module->emitUpdateBladeGraphs();
-		m_module->emitUpdateFastGraphs();  // for the time dot
+		
+		m_module->reloadBladeGraphs();
 	}
 }
 

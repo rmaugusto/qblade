@@ -22,6 +22,7 @@
 #include "AboutQ5.h"
 #include "../MainFrame.h"
 #include <QBitmap>
+#include "QLayout"
 
 
 AboutQ5::AboutQ5(void *parent)
@@ -40,7 +41,7 @@ void AboutQ5::SetupLayout()
 	LabIconQ5->setObjectName("iconXFLR5"); 
 //	LabIconQ5->setGeometry(QRect(20, 0, 61, 71));
 	LabIconQ5->setPixmap(QPixmap(QString::fromUtf8(":/images/xflr5_64.png")));
-	QLabel *lab1  = new QLabel(pMainFrame->m_VersionName);
+    QLabel *lab1  = new QLabel(pMainFrame->m_VersionName+" on XFLR5 v6.06");
 	lab1->setAlignment(Qt::AlignVCenter| Qt::AlignLeft);
 	QLabel *XFLR5Link = new QLabel;
 	XFLR5Link->setText("<a href=http://www.xflr5.com>http://www.xflr5.com</a>");
@@ -63,10 +64,6 @@ void AboutQ5::SetupLayout()
 	QLabel *lab8  = new QLabel(tr("This program has been developed exclusively for the analysis of model aircraft"));
 	QLabel *lab9  = new QLabel(tr("Any other usage is strongly disapproved"));
 	QLabel *lab10 = new QLabel(tr("Program distributed  under the terms of the GNU General Public License"));
-	QLabel *lab11 = new QLabel(tr("German translation by Martin Willner (mjw@mjw.co.at)"));
-	QLabel *lab12 = new QLabel(tr("Japanese translation by IKUSU, Koichi Akabe, Misatus, dynamicsoar, hide253"));
-	QLabel *lab13 = new QLabel(tr("icchy_07, ina111, ohayo_cycling, ohisa_64, ozawa64."));
-	QLabel *lab14 = new QLabel(tr("French translation by Jean-Luc Coulon"));
 
 	QPushButton *OKButton = new QPushButton(tr("OK"));
 	connect(OKButton, SIGNAL(clicked()),this, SLOT(accept()));
@@ -81,11 +78,6 @@ void AboutQ5::SetupLayout()
 	MainLayout->addWidget(lab2);
 	MainLayout->addWidget(lab3);
 	MainLayout->addWidget(lab4);
-	MainLayout->addStretch(1);
-	MainLayout->addWidget(lab11);
-	MainLayout->addWidget(lab12);
-	MainLayout->addWidget(lab13);
-	MainLayout->addWidget(lab14);
 	MainLayout->addSpacing(20);
 	MainLayout->addStretch(1);
 	MainLayout->addWidget(lab5);

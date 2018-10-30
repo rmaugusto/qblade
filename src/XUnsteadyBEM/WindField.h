@@ -23,23 +23,27 @@
 #ifndef WINDFIELD_H
 #define WINDFIELD_H
 
-#include <QObject>
 #include <QTextStream>
 #include "../StorableObject.h"
+#include "../Objects/CVectorf.h"
 #include "../Objects/CVector.h"
+#include "../ParameterObject.h"
+#include "../ParameterKeys.h"
+template <class ParameterGroup>
+class ParameterViewer;
 
 
-class WindField : public StorableObject
+class WindField : public StorableObject, public ParameterObject<Parameter::Windfield>
 {
 	Q_OBJECT
 	
 public:
 	static WindField* newBySerialize ();
-	WindField (QString name,
-			   double rotorRadius, double hubHeight, double meanWindSpeed, double turbulenceIntensity,
-			   bool includeShear, double measurementHeigth, double roughnessLength, double simulationTime,
-			   double numberOfTimesteps, double pointsPerSide, bool *cancelCalculation);
+	static WindField* newByImport (QDataStream &dataStream);
+	WindField (ParameterViewer<Parameter::Windfield> *viewer, bool *cancelCalculation);
+
 	~WindField();
+	static QStringList prepareMissingObjectMessage();
 	
 	float getRotorRadius () { return m_rotorRadius; }
 	float getHubheight () { return m_hubheight; }
@@ -55,38 +59,42 @@ public:
 	int getPointsPerSide () { return m_pointsPerSide; }
     float getFieldDimensions () { return m_fieldDimension; }
 
-
-    CVector getWindspeed(CVector vec, double time);
-
+    CVector getWindspeed(CVector vec, double time, double overhang = 0);
 	
-	void setShownTimestep (int shownTimestep);
+	void setShownTimestep (int shownTimestep) { m_shownTimestep = shownTimestep; }
 	int getShownTimestep () { return m_shownTimestep; }
-	float minValue () { return m_minValue; }
-	float maxValue () { return m_maxValue; }
+	float minValue () { return m_minValueX; }
+	float maxValue () { return m_maxValueX; }
 	bool isValid () { return m_isValid; }
 	
-	void calculateWindField();  // core method. Calculates a valid windfield
-	void render ();  // renders WindField with openGL
+	void calculateWindField();  // core method; calculates a valid windfield
+	void render ();  // renders WindField with OpenGL
+    void renderForQLLTSim(double time, double dist, double mean, bool redblue);
 	void exportToBinary (QDataStream &dataStream);  // exports as "FF TurbSim Binary File Grid Format"
+    void importFromBinary(QDataStream &dataStream);  // imports from "FF TurbSim Binary File Grid Format"
 	void exportToTxt (QTextStream &stream);
 	void serialize();  // override of StorableObject
 	
 private:
 	WindField ();
+	
+	QVariant accessParameter(Parameter::Windfield::Key key, QVariant value = QVariant());
 	float getDist(const float x1, const float y1, const float x2, const float y2);
 	float getCoh(const float frequency, const float spatialDistance);
 	float getPSD(const float frequency, const int zIndexOfPoint);
 	
-signals:
-	void updateProgress ();  // emited to increase progress dialog
-	void badAlloc ();  // emited if allocation fails
-	
-private:
 	/* control variables */
 	int m_glListIndex;  // openGL manages global lists. This list belongs to this windfield
 	int m_shownTimestep;  // which timestep will be rendered
-	float m_minValue;  // the minimal velocity value that occures in the windfield over the whole time
-	float m_maxValue;  // the maximal value ~
+    float m_minValueX;  // the minimal velocity value that occures in the windfield over the whole time (X)
+    float m_maxValueX;  // the maximal value ~ (X)
+
+    float m_minValueY;  // the minimal velocity value that occures in the windfield over the whole time (X)
+    float m_maxValueY;  // the maximal value ~ (X)
+
+    float m_minValueZ;  // the minimal velocity value that occures in the windfield over the whole time (X)
+    float m_maxValueZ;  // the maximal value ~ (X)
+
 	bool m_isValid;  // set true, as soon as calculation is succsessfully finished
 	bool *m_cancelCalculation;  // a pointer to a bool that reacts on the progress dialog cancelation
 	
@@ -114,7 +122,10 @@ private:
 	float* m_timeAtTimestep;  // the discrete resolution of time
 	float* m_meanWindSpeedAtHeigth;  // the windspeed for each point in heigth
 	float m_meanWindSpeedAtHub;  // ~ for the hub heigth that might not be covered by a grid point
-	float*** m_resultantVelocity;  // 3D array of velocity values at yz-position. Indizes: [z][y][time]
+    CVectorf*** m_resultantVelocity;  // 3D array of velocity values at yz-position. Indizes: [z][y][time]
+	
+signals:
+	void updateProgress ();  // emited to increase progress dialog	
 };
 
 #endif // WINDFIELD_H

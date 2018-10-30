@@ -23,14 +23,138 @@
 #include <math.h>
 #include "../Objects/Polar.h"
 #include "../Globals.h"
-#include "../XGlobals.h"
 #include "../MainFrame.h"
 #include "QDebug"
 #include "../Store.h"
 #include "../Serializer.h"
+#include "../Graph/NewCurve.h"
+#include "TurDmsModule.h"
 
 
-DData::DData()
+NewCurve *DData::newCurve(QString xAxis, QString yAxis, NewGraph::GraphType graphType, int heightIndex) {
+	if (xAxis == "" || yAxis == "")
+		return NULL;
+	
+	QList<double> xList, yList;
+	for (int i = 0; i < 2; ++i) {  // for both axes
+		const int index = getAvailableVariables(graphType).indexOf(i == 0 ? xAxis : yAxis);
+		QList<double>* list = (i == 0 ? &xList : &yList);
+		
+		switch (graphType) {
+		case NewGraph::TurbineBlade:
+			switch (index) {
+			case  0: *list = m_zeta; break;
+			case  1: *list = m_eta; break;
+			case  2: *list = m_c_local; break;
+			case  3: *list = m_delta; break;
+			case  4: *list = m_u_up; break;
+			case  5: *list = m_u_down; break;
+			case  6: *list = m_a_up; break;
+			case  7: *list = m_a_down; break;
+			case  8: *list = m_velocity_inf; break;
+			case  9: *list = m_velocity_up; break;
+			case 10: *list = m_velocity_equil; break;
+			case 11: *list = m_velocity_down; break;
+			case 12: *list = m_velocity_wake; break;
+			case 13: *list = m_lambda_up; break;
+			case 14: *list = m_lambda_down; break;
+			case 15: *list = m_area; break;
+			case 16: *list = m_Ftip_up; break;
+			case 17: *list = m_Ftip_dw; break;
+			case 18: *list = m_it_up; break;
+			case 19: *list = m_it_dw; break;
+			default: return NULL;
+			}
+			break;
+		case NewGraph::TurbineAzimuthal:
+			if (heightIndex == -1) {  // can happen when windspeed is set but not yet height
+				return NULL;
+			} else {
+				switch (index) {
+				case  0: *list = m_theta_plot; break;
+				case  1: *list = m_iterations[heightIndex]; break;
+				case  2: *list = m_u[heightIndex]; break;
+				case  3: *list = m_V[heightIndex]; break;
+				case  4: *list = m_vrel[heightIndex]; break;
+				case  5: *list = m_Re[heightIndex]; break;
+				case  6: *list = m_DeltaRe[heightIndex]; break;
+				case  7: *list = m_Ftip[heightIndex]; break;
+				case  8: *list = m_alpha_deg[heightIndex]; break;
+				case  9: *list = m_CL[heightIndex]; break;
+				case 10: *list = m_CD[heightIndex]; break;
+				case 11: *list = m_LD[heightIndex]; break;
+				case 12: *list = m_Cn[heightIndex]; break;
+				case 13: *list = m_Ct[heightIndex]; break;
+				case 14: *list = m_FT; break;
+				case 15: *list = m_CF_length; break;
+				case 16: *list = m_CF_cross; break;
+				case 17: *list = m_T; break;
+				case 18: *list = m_F_length; break;
+				case 19: *list = m_F_cross; break;
+				case 20: *list = m_FT_tot; break;
+				case 21: *list = m_CF_length_tot; break;
+				case 22: *list = m_CF_cross_tot; break;
+				case 23: *list = m_T_tot; break;
+				case 24: *list = m_F_length_tot; break;
+				case 25: *list = m_F_cross_tot; break;
+				default: return NULL;
+				}
+				break;
+			}
+		default:
+			return NULL;
+		}
+	}
+	
+	NewCurve *curve = new NewCurve(this);
+	// dimension can be taken from any list, it's all the same
+	curve->setAllPoints(xList.toVector().data(), yList.toVector().data(), xList.size());
+	return curve;
+}
+
+QStringList DData::getAvailableVariables(NewGraph::GraphType graphType) {
+	QStringList variables;
+	
+	switch (graphType) {  // WARNING: when changing any variables list, change newCurve as well!
+	case NewGraph::TurbineBlade:
+		variables << "relative height h/H" << "relative radius r/R" << "chord c" << "inclination angle delta" <<
+					 "interference factor u_up" <<
+					 "interference factor u_dw" << "induction factor a_up" << "induction factor a_dw" <<
+					 "inflow velocity V_inf" << "induced velocity V_up" << "equilibrium velocity V_e" <<
+					 "induced velocity V_dw" << "wake velocity V_wake" << "tipspeed ratio TSR_up" <<
+					 "tipspeed ratio TSR_dw" << "swept area S" << "tiploss factor F_up" << "tiploss factor F_dw" <<
+					 "upwind iterations" << "downwind iterations";
+		break;
+	case NewGraph::TurbineAzimuthal:
+		variables << "azimuthal angle theta" << "iterations" << "interference factor u" << "induced velocity V" <<
+					 "relative velocity W" << "Reynolds number Re" << "Delta Re (Re Blade - Re Polar)" <<
+					 "tiploss factor F" << "angle of attack alpha" << "lift coefficient Cl" << "drag coefficient Cd" <<
+					 "lift/drag ratio (Cl/Cd)" << "normal force coefficient Cn" << "tangential force coefficient Ct" <<
+					 "blade tangential force coefficient CF_t_bla" << "blade lengthwise force coefficient CF_x_bla" <<
+					 "blade crosswise force coefficient CF_y_bla" << "blade torque Tq_bla" <<
+					 "blade lengthwise force F_x_bla" << "blade crosswise force F_y_bla" <<
+					 "rotor tangential force coefficient CF_t_rot" << "rotor lengthwise force coefficient CF_x_rot" <<
+					 "rotor crosswise force coefficient CF_y_rot" << "rotor torque Tq_rot" <<
+					 "rotor lengthwise force F_x_rot" << "rotor crosswise force F_y_rot";
+	default:
+		break;
+	}
+
+	return variables;
+}
+
+bool DData::isDrawPoints() {
+	DMSData *simulation = g_dmsdataStore.getObjectByNameOnly(m_DMSName);
+	return (simulation ? simulation->isDrawPoints() : false);
+}
+
+bool DData::isDrawCurve() {
+	DMSData *simulation = g_dmsdataStore.getObjectByNameOnly(m_DMSName);
+	return (simulation ? simulation->isDrawCurve() : true);
+}
+
+DData::DData(QString dmsName)
+	: m_DMSName(dmsName)
 {
     m_bShowPoints   =   false;
     m_bIsVisible    =   true;
@@ -41,6 +165,7 @@ DData::DData()
     m_bTipLoss = false;
     m_bVariable = false;
     m_bAspectRatio = false;
+    m_bIsInverted = false;
 
 
     /*
@@ -78,7 +203,17 @@ C360Polar* DData::Get360Polar(QString m_FoilName, QString PolarName)
 
             }
     }
-    return NULL;
+	return NULL;
+}
+
+QPen DData::doGetPen(int /*curveIndex*/, int highlightedIndex, bool /*forTheDot*/) {
+	if (highlightedIndex == -1) {
+		DMSData *simulation = g_dmsdataStore.getObjectByNameOnly(m_DMSName);  // TODO add reference to simulation to DData
+		if (simulation) {
+			return simulation->getPen();
+		}
+	}
+	return m_pen;
 }
 
 
@@ -88,6 +223,8 @@ void DData::Init(CBlade *pWing, double lambda, double pitch)
     m_WingName = pWing->getName();
     lambda_global=lambda;
     m_sections = pWing->m_NPanel;
+
+    m_bIsInverted = pWing->m_bIsInverted;
 
     //calc blade height
     h_bottom = pWing->m_TPos[0];
@@ -161,7 +298,7 @@ void DData::Init(CBlade *pWing, double lambda, double pitch)
 		CFoil *pFoil1 = g_mainFrame->GetFoil(pWing->m_Airfoils[to]);
         thickness = chord*(pFoil0->m_fThickness+between*(pFoil1->m_fThickness-pFoil0->m_fThickness));
         // element radius
-        radius = pWing->m_TOffset[from]+between*(pWing->m_TOffset[to]-pWing->m_TOffset[from]);
+        radius = pWing->m_TOffsetX[from]+between*(pWing->m_TOffsetX[to]-pWing->m_TOffsetX[from]);
 
         if (radius > max_radius)
         {
@@ -172,9 +309,8 @@ void DData::Init(CBlade *pWing, double lambda, double pitch)
 
         // element circular angle
         circ = pWing->m_TCircAngle[from]+between*(pWing->m_TCircAngle[to]-pWing->m_TCircAngle[from]) - pWing->m_TCircAngle[0];
-		twist = (pWing->m_TTwist[from]+between*(pWing->m_TTwist[to]-pWing->m_TTwist[from]))+pitch;
+        twist = (pWing->m_TTwist[from]+between*(pWing->m_TTwist[to]-pWing->m_TTwist[from]))-pitch;
 
-        m_between.append(double(1)-between);
         m_pos.append(position);
         m_c_local.append(chord);
         m_t_local.append(thickness);
@@ -182,16 +318,6 @@ void DData::Init(CBlade *pWing, double lambda, double pitch)
         m_theta_local.append(circ);
         m_twist.append(90-twist);
         m_area.append(radius * 2 * deltas[i]);
-
-
-        // polar of previous section
-        m_polar.append(pWing->m_Polar[from]);
-        // polar of next section
-        m_polarTO.append(pWing->m_Polar[to]);
-        // foil of previous section
-		m_foil.append(pWing->m_Airfoils[from]);
-        // foil of next section
-		m_foilTO.append(pWing->m_Airfoils[to]);
 
         position=position+deltas[i]/2;
 
@@ -250,10 +376,7 @@ void DData::Init(CBlade *pWing, double lambda, double pitch)
 
     else
     {
-        if (windspeed!=0)
-            velocitylocal = windspeed;
-        else
-            velocitylocal = 1;
+        velocitylocal = windspeed;
 
         for (int i=0;i<elements;i++)
         {
@@ -301,16 +424,16 @@ void DData::Init(CBlade *pWing, double lambda, double pitch)
 }
 
 
-void DData::OnDMS()
+void DData::OnDMS(CBlade *pBlade)
 {
-    double alpha = 0, alpha_deg, delta, theta, F;
-    double u, u_old/*, u_older*/, u2, u2_old/*, u2_older*/, delta_u;
-    double omega, X, V, W = 0, CL = 0, CD = 0, CL2, CD2, DeltaAlpha;
+    double alpha = 0, alpha_deg, delta, theta, F, RE = 0, REBlade = 0;
+    double u, u_old, u2, u2_old, delta_u;
+    double omega, X, V, W = 0, CL = 0, CD = 0;
     QList <double> it_loc;
     QList <double> alpha_loc, alpha_deg_loc;
-    QList <double> Ftip_loc, u_loc, V_loc, Re_loc, vrel_loc;
+    QList <double> Ftip_loc, u_loc, V_loc, Re_loc, vrel_loc, DeltaRe_loc;
 	QList <double> CD_loc, CL_loc, LD_loc, Cn_loc, Ct_loc;
-    double Cn = 0, Ct = 0, f, zeta, eta/*, h_tower*/;
+    double Cn = 0, Ct = 0, f, zeta, eta;
 	QList <double> tempCFN, tempCFT, tempT, CFN, CFT, T, tempFN, tempFT;
 	QList<QList<double> > tempCFNlist, tempCFTlist, tempTlist, tempFNlist, tempFTlist;
     QList <double> bladepos;
@@ -320,7 +443,6 @@ void DData::OnDMS()
     int stop;
 
     windspeedStr.sprintf("%.2f",windspeed);
-    m_PolarPointers.clear();
 
     // initilization of local variables for blade loads, torque and power
     for (int l=0; l<72; l++)
@@ -346,6 +468,7 @@ void DData::OnDMS()
         u_loc.append(0);
         V_loc.append(0);
         Re_loc.append(0);
+        DeltaRe_loc.append(0);
         alpha_loc.append(0);
         alpha_deg_loc.append(0);
         Ftip_loc.append(0);
@@ -362,13 +485,6 @@ void DData::OnDMS()
     // rotational speed
     omega = lambda_global*m_velocity_inf.at(max_r_pos)/max_radius;
     w=omega;
-
-    // polar at previous section (m_PolarPointers) and next section (m_PolarPointersTO)
-    for (int i=0;i<m_polar.size();i++)
-    {
-        m_PolarPointers.append(Get360Polar(m_foil.at(i),m_polar.at(i)));
-        m_PolarPointersTO.append(Get360Polar(m_foilTO.at(i),m_polarTO.at(i)));
-    }
 
     stop=0;
     // tower height
@@ -476,55 +592,24 @@ void DData::OnDMS()
 						alpha_deg = 180.0-asin(F * cos(theta) * cos(delta) * V/W)*180/PI+m_twist[i]*cos(delta);
 					}
 
-                    // lift/drag coefficients
-                    // extract polar data from polar at previous section
-                    bool found=false;
-
                     double alpha_corrected;
                     alpha_corrected = alpha_deg;
                     if (alpha_corrected > 180) alpha_corrected-=360;
-                    int j=0;
-                    while (j < m_PolarPointers.at(i)->m_Alpha.size() && !found)
-                    {
-                        if (m_PolarPointers.at(i)->m_Alpha.at(j) >= alpha_corrected)
-                        {
-                            DeltaAlpha = m_PolarPointers.at(i)->m_Alpha.at(j)-m_PolarPointers.at(i)->m_Alpha.at(j-1);
+                    if (m_bIsInverted) alpha_corrected *= -1;
 
-                            CL = m_PolarPointers.at(i)->m_Cl.at(j-1)+(m_PolarPointers.at(i)->m_Cl.at(j)-m_PolarPointers.at(i)->m_Cl.at(j-1))/DeltaAlpha*(alpha_corrected-m_PolarPointers.at(i)->m_Alpha.at(j-1));
-                            CD = m_PolarPointers.at(i)->m_Cd.at(j-1)+(m_PolarPointers.at(i)->m_Cd.at(j)-m_PolarPointers.at(i)->m_Cd.at(j-1))/DeltaAlpha*(alpha_corrected-m_PolarPointers.at(i)->m_Alpha.at(j-1));
+                    QList<double> ClCd;
 
-                            found = true;
-                        }
-                        j++;
-                    }
+                    //getting lift and drag coefficients
 
-                    // extract polar data from polar at next section
-                    found=false;
+                    RE = W * m_c_local.at(i)/visc;
 
-					//if (m_bInterpolation && m_PolarPointers.at(i)->getName() != m_PolarPointersTO.at(i)->getName())
-					if (m_PolarPointers.at(i)->getName() != m_PolarPointersTO.at(i)->getName())
-                    {
-                        int k=0;
-                        while (k< m_PolarPointersTO.at(i)->m_Alpha.size() && !found)
-                        {
-                            if (m_PolarPointersTO.at(i)->m_Alpha.at(k) >= alpha_corrected)
-                            {
-                                DeltaAlpha = m_PolarPointersTO.at(i)->m_Alpha.at(k)-m_PolarPointersTO.at(i)->m_Alpha.at(k-1);
+                    ClCd = pBlade->getBladeParameters(m_pos[i], alpha_corrected, true, RE, false, 0, pBlade->m_bisSinglePolar);
+                    CL = ClCd.at(0);
+                    CD = ClCd.at(1);
+                    REBlade = ClCd.at(2);
 
-                                CL2 = m_PolarPointersTO.at(i)->m_Cl.at(k-1)+(m_PolarPointersTO.at(i)->m_Cl.at(k)-m_PolarPointersTO.at(i)->m_Cl.at(k-1))/DeltaAlpha*(alpha_corrected-m_PolarPointersTO.at(i)->m_Alpha.at(k-1));
-                                CD2 = m_PolarPointersTO.at(i)->m_Cd.at(k-1)+(m_PolarPointersTO.at(i)->m_Cd.at(k)-m_PolarPointersTO.at(i)->m_Cd.at(k-1))/DeltaAlpha*(alpha_corrected-m_PolarPointersTO.at(i)->m_Alpha.at(k-1));
-
-                                double newCL = CL*m_between.at(i)+(1.0-m_between.at(i))*CL2;
-                                double newCD = CD*m_between.at(i)+(1.0-m_between.at(i))*CD2;
-
-                                // blade element lift and drag coefficients
-                                CL = newCL;
-                                CD = newCD;
-
-                                found = true;
-                            }
-                            k++;
-                        }
+                    if (m_bIsInverted){
+                        CL *= -1;
                     }
                     // implementation of the tiploss correction
                     // (Willmer modification of Prandtl method)
@@ -550,49 +635,17 @@ void DData::OnDMS()
                     // normal iteration
                     if (save==0)
                     {
-//                        // iteration final upwind function
-//                        double K,K0;
-//                        K=8*PI*m_radius_local.at(i)/blades/m_c_local.at(i);
-//                        K0=sin(theta+PI/72.0)-sin(theta-PI/72.0);
-//                        f = pow((W/V),2)*(Cn*cos(theta)+Ct*sin(theta)/cos(delta));
-
-//                        // update interference factor
-//                        u_older = u_old;
-//                        u_old   = u;
-//                        u = K*K0*m_radius_local.at(i)/max_radius/(K*K0*m_radius_local.at(i)/max_radius+f*PI/36.0);
-
-
-
-////						//// glauert correction for highly loaded rotors
-////						double CTT;
-////						CTT = 4*u*(1-u);
-
-
-////						if (CTT>0.96*F)
-////						{
-
-////							u = 1 - (18*F-20-3*pow(fabs(CTT*(50-36*F)+12*F*(3*F-4)),0.5))/(36*F-50);
-////						}
-
-
-
-//                        //implementation of the relaxation factor
-//                        u       = relax*u+(1-relax)*u_old;
-//                        delta_u = fabs(u_old-u);
 
 						double Fx;
 
 						Fx = blades*m_c_local.at(i)/8/PI/m_radius_local.at(i)*pow(W/m_velocity_inf.at(i),2)*((Cn*cos(theta)+Ct*sin(theta)/cos(delta)));
 
-
-//						u_older = u_old;
 						u_old   = u;
 						u = pow(u,2)+Fx;
 
 
 												double CTT;
 												CTT = 4*u*(1-u);
-
 
 												if (CTT>0.96*F)
 												{
@@ -605,26 +658,19 @@ void DData::OnDMS()
 
 						delta_u = fabs(u_old-u);
 
-
                     }
 
 				}// convergence
 
 				u = (1-u);
 
-
-//                    if (u <= 0.5)
-//                    {
-//                        m_bBackflow = true;
-//                        return;
-//                    }
-
                 // save final azi results
                 it_loc[l] = count-1;
                 vrel_loc[l] = W;
                 u_loc[l] = u;
                 V_loc[l] = V;
-                Re_loc[l]= W * m_c_local.at(i)/visc;
+                Re_loc[l]= RE;
+                DeltaRe_loc[l]= RE - REBlade;
                 alpha_loc[l] = alpha;
                 Ftip_loc[l] = F;
                 CD_loc[l]=CD;
@@ -672,6 +718,7 @@ void DData::OnDMS()
             m_u.append(u_loc);
             m_V.append(V_loc);
             m_Re.append(Re_loc);
+            m_DeltaRe.append(DeltaRe_loc);
             m_alpha.append(alpha_loc);
             m_Ftip.append(Ftip_loc);
             m_CL.append(CL_loc);
@@ -785,55 +832,25 @@ void DData::OnDMS()
                         alpha_deg = -180.0-asin(F * cos(theta) * cos(delta) * V/W)*180/PI+m_twist[i]*cos(delta);
 					}
 
-                    // lift/drag coefficients
-                    // extract polar data from polar at previous section
-                    bool found=false;
-
                     double alpha_corrected;
                     alpha_corrected = alpha_deg;
-                    if (alpha_corrected <= -180) alpha_corrected+=360;
-                    int j=0;
-                    while (j < m_PolarPointers.at(i)->m_Alpha.size() && !found)
-                    {
-                        if (m_PolarPointers.at(i)->m_Alpha.at(j) >= alpha_corrected)
-                        {
-                            DeltaAlpha = m_PolarPointers.at(i)->m_Alpha.at(j)-m_PolarPointers.at(i)->m_Alpha.at(j-1);
+                    if (alpha_corrected > 180) alpha_corrected-=360;
+                    if (m_bIsInverted) alpha_corrected *= -1;
 
-                            CL = m_PolarPointers.at(i)->m_Cl.at(j-1)+(m_PolarPointers.at(i)->m_Cl.at(j)-m_PolarPointers.at(i)->m_Cl.at(j-1))/DeltaAlpha*(alpha_corrected-m_PolarPointers.at(i)->m_Alpha.at(j-1));
-                            CD = m_PolarPointers.at(i)->m_Cd.at(j-1)+(m_PolarPointers.at(i)->m_Cd.at(j)-m_PolarPointers.at(i)->m_Cd.at(j-1))/DeltaAlpha*(alpha_corrected-m_PolarPointers.at(i)->m_Alpha.at(j-1));
+                    QList<double> ClCd;
 
-                            found = true;
-                        }
-                        j++;
-                    }
+                    //getting lift and drag coefficients
 
-                    // extract polar data from polar at next section
-                    found=false;
+                    RE = W * m_c_local.at(i)/visc;
 
-					//if (m_bInterpolation && m_PolarPointers.at(i)->getName() != m_PolarPointersTO.at(i)->getName())
-					if (m_PolarPointers.at(i)->getName() != m_PolarPointersTO.at(i)->getName())
-                    {
-                        int k=0;
-                        while (k< m_PolarPointersTO.at(i)->m_Alpha.size() && !found)
-                        {
-                            if (m_PolarPointersTO.at(i)->m_Alpha.at(k) >= alpha_corrected)
-                            {
-                                DeltaAlpha = m_PolarPointersTO.at(i)->m_Alpha.at(k)-m_PolarPointersTO.at(i)->m_Alpha.at(k-1);
+                    ClCd = pBlade->getBladeParameters(m_pos[i], alpha_corrected, true, RE, false, 0, pBlade->m_bisSinglePolar);
+                    CL = ClCd.at(0);
+                    CD = ClCd.at(1);
+                    REBlade = ClCd.at(2);
 
-                                CL2 = m_PolarPointersTO.at(i)->m_Cl.at(k-1)+(m_PolarPointersTO.at(i)->m_Cl.at(k)-m_PolarPointersTO.at(i)->m_Cl.at(k-1))/DeltaAlpha*(alpha_corrected-m_PolarPointersTO.at(i)->m_Alpha.at(k-1));
-                                CD2 = m_PolarPointersTO.at(i)->m_Cd.at(k-1)+(m_PolarPointersTO.at(i)->m_Cd.at(k)-m_PolarPointersTO.at(i)->m_Cd.at(k-1))/DeltaAlpha*(alpha_corrected-m_PolarPointersTO.at(i)->m_Alpha.at(k-1));
 
-                                double newCL = CL*m_between.at(i)+(1.0-m_between.at(i))*CL2;
-                                double newCD = CD*m_between.at(i)+(1.0-m_between.at(i))*CD2;
-
-                                // blade element lift and drag coefficients
-                                CL = newCL;
-                                CD = newCD;
-
-                                found = true;
-                            }
-                            k++;
-                        }
+                    if (m_bIsInverted){
+                        CL *= -1;
                     }
 
                     // implementation of the tiploss correction
@@ -860,28 +877,11 @@ void DData::OnDMS()
                     //normal iteration
                     if (save==0)
                     {
-//                        // iteration final downwind function
-//                        double K,K0;
-//                        K=8*PI*m_radius_local.at(i)/blades/m_c_local.at(i);
-//                        K0=sin(theta+PI/72.0)-sin(theta-PI/72.0);
-//                        f = pow((W/V),2)*(Cn*cos(theta)+Ct*sin(theta)/cos(delta));
-
-//                        // update interference factor
-//                        u2_old   = u2;
-//                        u2       = PI*m_radius_local.at(i)/max_radius / (f + PI*m_radius_local.at(i)/max_radius);
-
-//                        u2 = -K*K0*m_radius_local.at(i)/max_radius/(-K*K0*m_radius_local.at(i)/max_radius+f*PI/36.0);
-
-//                        //implementation of the relaxation factor
-//                        u2       = relax*u2+(1-relax)*u2_old;
-//                        delta_u = fabs(u2_old-u2);
 
 						double Fx;
 
 						Fx = blades*m_c_local.at(i)/8/PI/m_radius_local.at(i)*pow(W/m_velocity_equil.at(i),2)*((Cn*cos(theta)+Ct*sin(theta)/cos(delta)));
 
-
-//						u2_older = u2_old;
 						u2_old   = u2;
 						u2 = pow(u2,2)+Fx;
 
@@ -895,18 +895,13 @@ void DData::OnDMS()
                 }// convergence
 				u2 = 1-u2;
 
-    //                    if (V<0.01)
-    //                    {
-    //                        m_bBackflow=true;
-    //                        return;
-    //                    }
-
                 // save final azi results
                 it_loc[l] = count-1;
                 vrel_loc[l] = W;
                 u_loc[l] = u2;
                 V_loc[l] = V;
-                Re_loc[l]= W * m_c_local.at(i)/visc;;
+                Re_loc[l]= RE;
+                DeltaRe_loc[l] = RE - REBlade;
                 alpha_loc[l] = alpha;
                 Ftip_loc[l] = F;
                 CD_loc[l]=CD;
@@ -956,6 +951,7 @@ void DData::OnDMS()
                 u_loc[l] = m_u[i].at(l);
                 V_loc[l] = m_V[i].at(l);
                 Re_loc[l] = m_Re[i].at(l);
+                DeltaRe_loc[l] = m_DeltaRe[i].at(l);
                 alpha_loc[l] = m_alpha[i].at(l);
                 Ftip_loc[l] = m_Ftip[i].at(l);
                 CL_loc[l] = m_CL[i].at(l);
@@ -969,6 +965,7 @@ void DData::OnDMS()
             m_u.replace(i, u_loc);
             m_V.replace(i, V_loc);
             m_Re.replace(i, Re_loc);
+            m_DeltaRe.replace(i, DeltaRe_loc);
             m_alpha.replace(i, alpha_loc);
             for (int l=0; l<72; l++) alpha_deg_loc[l] = m_alpha[i].at(l)*180.0/PI;
             m_alpha_deg.append(alpha_deg_loc);
@@ -980,7 +977,6 @@ void DData::OnDMS()
             m_Ct.replace(i, Ct_loc);
 
         }//elements
-
     }
 
     // constant interference factors
@@ -1080,55 +1076,25 @@ void DData::OnDMS()
 
 					}
 
-                    // lift/drag coefficients
-                    // extract polar data from polar at previous section
-                    bool found=false;
-
                     double alpha_corrected;
                     alpha_corrected = alpha_deg;
                     if (alpha_corrected > 180) alpha_corrected-=360;
-                    int j=0;
-                    while (j < m_PolarPointers.at(i)->m_Alpha.size() && !found)
-                    {
-                        if (m_PolarPointers.at(i)->m_Alpha.at(j) >= alpha_corrected)
-                        {
-                            DeltaAlpha = m_PolarPointers.at(i)->m_Alpha.at(j)-m_PolarPointers.at(i)->m_Alpha.at(j-1);
+                    if (m_bIsInverted) alpha_corrected *= -1;
 
-                            CL = m_PolarPointers.at(i)->m_Cl.at(j-1)+(m_PolarPointers.at(i)->m_Cl.at(j)-m_PolarPointers.at(i)->m_Cl.at(j-1))/DeltaAlpha*(alpha_corrected-m_PolarPointers.at(i)->m_Alpha.at(j-1));
-                            CD = m_PolarPointers.at(i)->m_Cd.at(j-1)+(m_PolarPointers.at(i)->m_Cd.at(j)-m_PolarPointers.at(i)->m_Cd.at(j-1))/DeltaAlpha*(alpha_corrected-m_PolarPointers.at(i)->m_Alpha.at(j-1));
+                    QList<double> ClCd;
 
-                            found = true;
-                        }
-                        j++;
-                    }
+                    //getting lift and drag coefficients
 
-                    // extract polar data from polar at next section
-                    found=false;
+                    RE = W * m_c_local.at(i)/visc;
 
-					//if (m_bInterpolation && m_PolarPointers.at(i)->getName() != m_PolarPointersTO.at(i)->getName())
-					if (m_PolarPointers.at(i)->getName() != m_PolarPointersTO.at(i)->getName())
-                    {
-                        int k=0;
-                        while (k< m_PolarPointersTO.at(i)->m_Alpha.size() && !found)
-                        {
-                            if (m_PolarPointersTO.at(i)->m_Alpha.at(k) >= alpha_corrected)
-                            {
-                                DeltaAlpha = m_PolarPointersTO.at(i)->m_Alpha.at(k)-m_PolarPointersTO.at(i)->m_Alpha.at(k-1);
+                    ClCd = pBlade->getBladeParameters(m_pos[i], alpha_corrected, true, RE, false, 0, pBlade->m_bisSinglePolar);
+                    CL = ClCd.at(0);
+                    CD = ClCd.at(1);
+                    REBlade = ClCd.at(2);
 
-                                CL2 = m_PolarPointersTO.at(i)->m_Cl.at(k-1)+(m_PolarPointersTO.at(i)->m_Cl.at(k)-m_PolarPointersTO.at(i)->m_Cl.at(k-1))/DeltaAlpha*(alpha_corrected-m_PolarPointersTO.at(i)->m_Alpha.at(k-1));
-                                CD2 = m_PolarPointersTO.at(i)->m_Cd.at(k-1)+(m_PolarPointersTO.at(i)->m_Cd.at(k)-m_PolarPointersTO.at(i)->m_Cd.at(k-1))/DeltaAlpha*(alpha_corrected-m_PolarPointersTO.at(i)->m_Alpha.at(k-1));
 
-                                double newCL = CL*m_between.at(i)+(1.0-m_between.at(i))*CL2;
-                                double newCD = CD*m_between.at(i)+(1.0-m_between.at(i))*CD2;
-
-                                // blade element lift and drag coefficients
-                                CL = newCL;
-                                CD = newCD;
-
-                                found = true;
-                            }
-                            k++;
-                        }
+                    if (m_bIsInverted){
+                        CL *= -1;
                     }
                     // implementation of the tiploss correction
                     // (Willmer modification of Prandtl method)
@@ -1167,7 +1133,8 @@ void DData::OnDMS()
                         vrel_loc[l] = W;
                         u_loc[l] = u;
                         V_loc[l] = V;
-                        Re_loc[l]= W * m_c_local.at(i)/visc;;
+                        Re_loc[l]= RE;
+                        DeltaRe_loc[l] = RE - REBlade;
                         alpha_loc[l] = alpha;
                         Ftip_loc[l] = F;
                         CD_loc[l]=CD;
@@ -1211,12 +1178,6 @@ void DData::OnDMS()
 
             }// convergence
 
-//            if (u <= 0.5)
-//            {
-//                m_bBackflow = true;
-//                return;
-//            }
-
             // load distribution
             tempCFNlist.append(tempCFN);
             tempCFTlist.append(tempCFT);
@@ -1241,6 +1202,7 @@ void DData::OnDMS()
             m_u.append(u_loc);
             m_V.append(V_loc);
             m_Re.append(Re_loc);
+            m_DeltaRe.append(DeltaRe_loc);
             m_alpha.append(alpha_loc);
             m_Ftip.append(Ftip_loc);
             m_CL.append(CL_loc);
@@ -1270,7 +1232,6 @@ void DData::OnDMS()
             u2 = 1;
             delta_u = 10000;
             u2_old=u2;
-//            u2_older=u2;
             // iterations counter
             int count =0;
             int save = 0;
@@ -1349,55 +1310,25 @@ void DData::OnDMS()
                         alpha_deg = -180.0-asin(F * cos(theta) * cos(delta) * V/W)*180/PI+m_twist[i]*cos(delta);
                     }
 
-                    // lift/drag coefficients
-                    // extract polar data from polar at previous section
-                    bool found=false;
-
                     double alpha_corrected;
                     alpha_corrected = alpha_deg;
-                    if (alpha_corrected <= -180) alpha_corrected+=360;
-                    int j=0;
-                    while (j < m_PolarPointers.at(i)->m_Alpha.size() && !found)
-                    {
-                        if (m_PolarPointers.at(i)->m_Alpha.at(j) >= alpha_corrected)
-                        {
-                            DeltaAlpha = m_PolarPointers.at(i)->m_Alpha.at(j)-m_PolarPointers.at(i)->m_Alpha.at(j-1);
+                    if (alpha_corrected > 180) alpha_corrected-=360;
+                    if (m_bIsInverted) alpha_corrected *= -1;
 
-                            CL = m_PolarPointers.at(i)->m_Cl.at(j-1)+(m_PolarPointers.at(i)->m_Cl.at(j)-m_PolarPointers.at(i)->m_Cl.at(j-1))/DeltaAlpha*(alpha_corrected-m_PolarPointers.at(i)->m_Alpha.at(j-1));
-                            CD = m_PolarPointers.at(i)->m_Cd.at(j-1)+(m_PolarPointers.at(i)->m_Cd.at(j)-m_PolarPointers.at(i)->m_Cd.at(j-1))/DeltaAlpha*(alpha_corrected-m_PolarPointers.at(i)->m_Alpha.at(j-1));
+                    QList<double> ClCd;
 
-                            found = true;
-                        }
-                        j++;
-                    }
+                    //getting lift and drag coefficients
 
-                    // extract polar data from polar at next section
-                    found=false;
+                    RE = W * m_c_local.at(i)/visc;
 
-					//if (m_bInterpolation && m_PolarPointers.at(i)->getName() != m_PolarPointersTO.at(i)->getName())
-					if (m_PolarPointers.at(i)->getName() != m_PolarPointersTO.at(i)->getName())
-                    {
-                        int k=0;
-                        while (k< m_PolarPointersTO.at(i)->m_Alpha.size() && !found)
-                        {
-                            if (m_PolarPointersTO.at(i)->m_Alpha.at(k) >= alpha_corrected)
-                            {
-                                DeltaAlpha = m_PolarPointersTO.at(i)->m_Alpha.at(k)-m_PolarPointersTO.at(i)->m_Alpha.at(k-1);
+                    ClCd = pBlade->getBladeParameters(m_pos[i], alpha_corrected, true, RE, false, 0, pBlade->m_bisSinglePolar);
+                    CL = ClCd.at(0);
+                    CD = ClCd.at(1);
+                    REBlade = ClCd.at(2);
 
-                                CL2 = m_PolarPointersTO.at(i)->m_Cl.at(k-1)+(m_PolarPointersTO.at(i)->m_Cl.at(k)-m_PolarPointersTO.at(i)->m_Cl.at(k-1))/DeltaAlpha*(alpha_corrected-m_PolarPointersTO.at(i)->m_Alpha.at(k-1));
-                                CD2 = m_PolarPointersTO.at(i)->m_Cd.at(k-1)+(m_PolarPointersTO.at(i)->m_Cd.at(k)-m_PolarPointersTO.at(i)->m_Cd.at(k-1))/DeltaAlpha*(alpha_corrected-m_PolarPointersTO.at(i)->m_Alpha.at(k-1));
 
-                                double newCL = CL*m_between.at(i)+(1.0-m_between.at(i))*CL2;
-                                double newCD = CD*m_between.at(i)+(1.0-m_between.at(i))*CD2;
-
-                                // blade element lift and drag coefficients
-                                CL = newCL;
-                                CD = newCD;
-
-                                found = true;
-                            }
-                            k++;
-                        }
+                    if (m_bIsInverted){
+                        CL *= -1;
                     }
 
                     // implementation of the tiploss correction
@@ -1437,7 +1368,8 @@ void DData::OnDMS()
                         vrel_loc[l] = W;
                         u_loc[l] = u2;
                         V_loc[l] = V;
-                        Re_loc[l]= W * m_c_local.at(i)/visc;;
+                        Re_loc[l]= RE;
+                        DeltaRe_loc[l]= RE - REBlade;
                         alpha_loc[l] = alpha;
                         Ftip_loc[l] = F;
                         CD_loc[l]=CD;
@@ -1467,11 +1399,6 @@ void DData::OnDMS()
 
             }// convergence
 
-			//            if (V<0.01)
-            //            {
-			//                m_bBackflow=true;
-            //            }
-
             // load distribution
             tempCFNlist[i] = tempCFN;
             tempCFTlist[i] = tempCFT;
@@ -1498,6 +1425,7 @@ void DData::OnDMS()
                 u_loc[l] = m_u[i].at(l);
                 V_loc[l] = m_V[i].at(l);
                 Re_loc[l] = m_Re[i].at(l);
+                DeltaRe_loc[l] = m_DeltaRe[i].at(l);
                 alpha_loc[l] = m_alpha[i].at(l);
                 Ftip_loc[l] = m_Ftip[i].at(l);
                 CL_loc[l] = m_CL[i].at(l);
@@ -1511,6 +1439,7 @@ void DData::OnDMS()
             m_u.replace(i, u_loc);
             m_V.replace(i, V_loc);
             m_Re.replace(i, Re_loc);
+            m_DeltaRe.replace(i, DeltaRe_loc);
             m_alpha.replace(i, alpha_loc);
             for (int l=0; l<72; l++) alpha_deg_loc[l] = m_alpha[i].at(l)*180.0/PI;
             m_alpha_deg.append(alpha_deg_loc);
@@ -1524,9 +1453,6 @@ void DData::OnDMS()
         }//elements
 
     }//const/var interference factors
-
-
-
 
     // load distribution height integral
     for (int i=0; i<elements; i++)
@@ -1670,27 +1596,6 @@ void DData::OnDMS()
     cp2=CP2;
     cp=CP;
 
-//	double CD0 = 1.9;
-//	double num_struts_blade = 3;
-//	double c_struts = 0.05;
-//	double CPA = 0, TPA = 0;
-
-//	for (int i=0;i<72;i++)
-//	{
-//		TPA=TPA+1.0/4.0/PI*rho*c_struts*PI/36.0*pow(m_vrel[10].at(i),2)*CD0*pow(m_radius_local.at(10),2)/2.0;
-//	}
-
-
-////	TPA = 1.0/8.0 * rho * CD0 * c_struts * pow(omega,2) * pow(m_radius_local.at(10),4) * num_struts_blade * blades;
-//	CPA = omega * TPA * 2 / rho / sweptArea / pow(m_velocity_inf[0],3) * c_struts*num_struts_blade*blades*m_radius_local.at(10);
-
-//	CPA = omega * TPA * 2 / sweptArea / pow(m_velocity_inf[0],3);
-
-//	cp -= CPA;
-//	cp2 = TPA;
-
-
-
     // calculate torque and power for turbine
     if (windspeed>0)
 	{
@@ -1718,347 +1623,13 @@ void DData::OnDMS()
 
 }
 
-
-void DData::Serialize(QDataStream &ar, bool bIsStoring)
-{
-    int m,n,i,j;
-    float f;
-
-    if(bIsStoring)
-    {
-
-        if (m_bIsVisible)  ar<<1; else ar<<0;
-        if (m_bShowPoints) ar<<1; else ar<<0;
-        ar << (int) m_Style;
-        ar << (int) m_Width;
-
-        ar << (float) elements;
-        ar << (float) rho;
-        ar << (float) epsilon;
-        ar << (float) iterations;
-        ar << (float) relax;
-        ar << (float) visc;
-        ar << (float) exponent;
-        ar << (float) roughness;
-        ar << (float) Toff;
-        ar << (float) windspeed;
-        ar << (float) sweptArea;
-        ar << (float) max_radius;
-        ar << (float) height;
-
-        if (m_bTipLoss) ar << 1; else ar<<0;
-		if (m_bAspectRatio) ar << 1; else ar<<0;
-        if (m_bVariable) ar << 1; else ar<<0;
-        if (bConstant) ar << 1; else ar<<0;
-        if (bPowerLaw) ar << 1; else ar<<0;
-        if (bLogarithmic) ar << 1; else ar<<0;
-
-        WriteCOLORREF(ar,m_Color);
-        WriteCString(ar,m_WingName);
-        WriteCString(ar,m_DMSName);
-        WriteCString(ar,lambdaglobal);
-        WriteCString(ar,windspeedStr);
-
-        m=m_pos.size();
-        ar << (int) m;
-
-        n=m_theta.size();
-        ar << (int) n;
-
-        for (i=0;i<m;i++)
-        {
-            ar << (float) m_pos[i] << (float) m_zeta[i] << (float) m_c_local[i] << (float) m_t_local[i] << (float) m_delta[i];
-            ar << (float) m_radius_local[i] << (float) m_eta[i] << (float) m_between[i] << (float) m_area[i];
-            ar << (float) m_lambda_up[i] << (float) m_lambda_down[i];
-            ar << (float) m_velocity_inf[i] << (float) m_velocity_up[i] << (float) m_velocity_equil[i];
-            ar << (float) m_velocity_down[i] << (float) m_velocity_wake[i];
-            ar << (float) m_u_up[i] << (float) m_u_down[i] << (float) m_a_up[i] << (float) m_a_down[i];
-            ar << (float) m_Ftip_up[i] << (float) m_Ftip_dw[i] << (float) m_it_up[i] << (float) m_it_dw[i];
-
-            for (j=0;j<n;j++) ar << (float) m_iterations[i].at(j);
-            for (j=0;j<n;j++) ar << (float) m_vrel[i].at(j);
-            for (j=0;j<n;j++) ar << (float) m_u[i].at(j);
-            for (j=0;j<n;j++) ar << (float) m_V[i].at(j);
-            for (j=0;j<n;j++) ar << (float) m_Re[i].at(j);
-            for (j=0;j<n;j++) ar << (float) m_alpha[i].at(j);
-            for (j=0;j<n;j++) ar << (float) m_alpha_deg[i].at(j);
-            for (j=0;j<n;j++) ar << (float) m_Ftip[i].at(j);
-            for (j=0;j<n;j++) ar << (float) m_CL[i].at(j);
-            for (j=0;j<n;j++) ar << (float) m_CD[i].at(j);
-            for (j=0;j<n;j++) ar << (float) m_LD[i].at(j);
-            for (j=0;j<n;j++) ar << (float) m_Cn[i].at(j);
-            for (j=0;j<n;j++) ar << (float) m_Ct[i].at(j);
-        }
-
-        for (i=0;i<n;i++)
-        {
-            ar << (float) m_theta_deg[i] << (float) m_theta[i] << (float) m_theta_plot[i];
-            ar << (float) m_FN[i] << (float) m_FT[i] << (float) m_T[i];
-            ar << (float) m_FN_tot[i] << (float) m_FT_tot[i] << (float) m_T_tot[i];
-			ar << (float) m_CF_length[i] << (float) m_CF_cross[i] << (float) m_CF_length_tot[i] << (float) m_CF_cross_tot[i];
-			ar << (float) m_F_length[i] << (float) m_F_cross[i] << (float) m_F_length_tot[i] << (float) m_F_cross_tot[i];
-
-        }
-
-    }
-    else
-    {
-        ar >> f;
-        if (f) m_bIsVisible = true; else m_bIsVisible = false;
-        ar >> f;
-        if (f) m_bShowPoints = true; else m_bShowPoints = false;
-        ar >> j;
-        m_Style = j;
-        ar >> j;
-        m_Width = j;
-        ar >> f;
-        elements = f;
-        ar >> f;
-        rho = f;
-        ar >> f;
-        epsilon = f;
-        ar >> f;
-        iterations = f;
-        ar >> f;
-        relax = f;
-        ar >> f;
-        visc = f;
-        ar >> f;
-        exponent = f;
-        ar >> f;
-        roughness = f;
-        ar >> f;
-        Toff = f;
-        ar >> f;
-        windspeed = f;
-        ar >> f;
-        sweptArea = f;
-        ar >> f;
-        max_radius = f;
-        ar >> f;
-        height = f;
-
-        ar >> f;
-        if (f) m_bTipLoss = true; else m_bTipLoss = false;
-        ar >> f;
-        if (f) m_bAspectRatio = true; else m_bAspectRatio = false;
-        ar >> f;
-        if (f) m_bVariable = true; else m_bVariable = false;
-        ar >> f;
-        if (f) bConstant = true; else bConstant = false;
-        ar >> f;
-        if (f) bPowerLaw = true; else bPowerLaw = false;
-        ar >> f;
-        if (f) bLogarithmic = true; else bLogarithmic = false;
-
-        ReadCOLORREF(ar,m_Color);
-        ReadCString(ar,m_WingName);
-        ReadCString(ar,m_DMSName);
-        ReadCString(ar,lambdaglobal);
-        ReadCString(ar,windspeedStr);
-
-        ar >> m;
-        ar >> n;
-
-        for (i=0;i<m;i++)
-        {
-            ar >> f;
-            m_pos.append(f);
-            ar >> f;
-            m_zeta.append(f);
-            ar >> f;
-            m_c_local.append(f);
-            ar >> f;
-            m_t_local.append(f);
-            ar >> f;
-            m_delta.append(f);
-            ar >> f;
-            m_radius_local.append(f);
-            ar >> f;
-            m_eta.append(f);
-            ar >> f;
-            m_between.append(f);
-            ar >> f;
-            m_area.append(f);
-            ar >> f;
-            m_lambda_up.append(f);
-            ar >> f;
-            m_lambda_down.append(f);
-            ar >> f;
-            m_velocity_inf.append(f);
-            ar >> f;
-            m_velocity_up.append(f);
-            ar >> f;
-            m_velocity_equil.append(f);
-            ar >> f;
-            m_velocity_down.append(f);
-            ar >> f;
-            m_velocity_wake .append(f);
-            ar >> f;
-            m_u_up.append(f);
-            ar >> f;
-            m_u_down.append(f);
-            ar >> f;
-            m_a_up.append(f);
-            ar >> f;
-            m_a_down.append(f);
-            ar >> f;
-            m_Ftip_up.append(f);
-            ar >> f;
-            m_Ftip_dw.append(f);
-            ar >> f;
-            m_it_up.append(f);
-            ar >> f;
-            m_it_dw.append(f);
-
-            QList <double> tmp;
-
-            for (j=0;j<n;j++)
-            {
-                ar >> f;
-                tmp.append(f);
-            }
-            m_iterations.append(tmp);
-            tmp.clear();
-
-            for (j=0;j<n;j++)
-            {
-                ar >> f;
-                tmp.append(f);
-            }
-            m_vrel.append(tmp);
-            tmp.clear();
-
-            for (j=0;j<n;j++)
-            {
-                ar >> f;
-                tmp.append(f);
-            }
-            m_u.append(tmp);
-            tmp.clear();
-
-            for (j=0;j<n;j++)
-            {
-                ar >> f;
-                tmp.append(f);
-            }
-            m_V.append(tmp);
-            tmp.clear();
-
-            for (j=0;j<n;j++)
-            {
-                ar >> f;
-                tmp.append(f);
-            }
-            m_Re.append(tmp);
-            tmp.clear();
-
-
-            for (j=0;j<n;j++)
-            {
-                ar >> f;
-                tmp.append(f);
-            }
-            m_alpha.append(tmp);
-            tmp.clear();
-
-            for (j=0;j<n;j++)
-            {
-                ar >> f;
-                tmp.append(f);
-            }
-            m_alpha_deg.append(tmp);
-            tmp.clear();
-
-            for (j=0;j<n;j++)
-            {
-                ar >> f;
-                tmp.append(f);
-            }
-            m_Ftip.append(tmp);
-            tmp.clear();
-
-            for (j=0;j<n;j++)
-            {
-                ar >> f;
-                tmp.append(f);
-            }
-            m_CL.append(tmp);
-            tmp.clear();
-
-            for (j=0;j<n;j++)
-            {
-                ar >> f;
-                tmp.append(f);
-            }
-            m_CD.append(tmp);
-            tmp.clear();
-
-            for (j=0;j<n;j++)
-            {
-                ar >> f;
-                tmp.append(f);
-            }
-            m_LD.append(tmp);
-            tmp.clear();
-
-            for (j=0;j<n;j++)
-            {
-                ar >> f;
-                tmp.append(f);
-            }
-            m_Cn.append(tmp);
-            tmp.clear();
-
-            for (j=0;j<n;j++)
-            {
-                ar >> f;
-                tmp.append(f);
-            }
-            m_Ct.append(tmp);
-        }
-
-        for (i=0;i<n;i++)
-        {
-            ar >> f;
-            m_theta_deg.append(f);
-            ar >> f;
-            m_theta.append(f);
-            ar >> f;
-            m_theta_plot.append(f);
-            ar >> f;
-            m_FN.append(f);
-            ar >> f;
-            m_FT .append(f);
-            ar >> f;
-            m_T.append(f);
-            ar >> f;
-            m_FN_tot.append(f);
-            ar >> f;
-            m_FT_tot .append(f);
-            ar >> f;
-            m_T_tot.append(f);
-            ar >> f;
-			m_CF_length.append(f);
-            ar >> f;
-			m_CF_cross.append(f);
-            ar >> f;
-			m_CF_length_tot.append(f);
-            ar >> f;
-			m_CF_cross_tot.append(f);
-			ar >> f;
-			m_F_length.append(f);
-			ar >> f;
-			m_F_cross.append(f);
-			ar >> f;
-			m_F_length_tot.append(f);
-			ar >> f;
-			m_F_cross_tot.append(f);
-        }
+void DData::serialize(){
+	if (g_serializer.getArchiveFormat() >= 100032) {
+		ShowAsGraphInterface::serialize();
 	}
-}
 
-void DData::serialize() {
+    if (g_serializer.getArchiveFormat() >= 100026) 	g_serializer.readOrWriteBool (&m_bIsInverted);
+
 	g_serializer.readOrWriteDouble (&elements);
 	g_serializer.readOrWriteDouble (&epsilon);
 	g_serializer.readOrWriteDouble (&iterations);
@@ -2118,7 +1689,13 @@ void DData::serialize() {
 	g_serializer.readOrWriteDoubleList1D (&m_radius_local);
 	g_serializer.readOrWriteDoubleList1D (&m_theta_local);
 	g_serializer.readOrWriteDoubleList1D (&m_eta);
-	g_serializer.readOrWriteDoubleList1D (&m_between);
+
+    if (g_serializer.isReadMode() && g_serializer.getArchiveFormat() < 100027){ // compatibility after removing m_polarPointers
+        QList <double> m_between;
+        g_serializer.readOrWriteDoubleList1D (&m_between);
+    }
+
+
 	g_serializer.readOrWriteDoubleList1D (&m_lambda_up);
 	g_serializer.readOrWriteDoubleList1D (&m_lambda_down);
 	g_serializer.readOrWriteDoubleList1D (&m_velocity_inf);
@@ -2126,7 +1703,7 @@ void DData::serialize() {
 	g_serializer.readOrWriteDoubleList1D (&m_velocity_equil);
 	g_serializer.readOrWriteDoubleList1D (&m_velocity_down);
 	g_serializer.readOrWriteDoubleList1D (&m_velocity_wake);
-	
+
 	g_serializer.readOrWriteDoubleList1D (&m_u_up);
 	g_serializer.readOrWriteDoubleList1D (&m_u_down);
 	
@@ -2177,6 +1754,10 @@ void DData::serialize() {
 	g_serializer.readOrWriteDoubleList2D (&m_u);
 	g_serializer.readOrWriteDoubleList2D (&m_V);
 	g_serializer.readOrWriteDoubleList2D (&m_Re);
+    if (g_serializer.getArchiveFormat() >= 100027) g_serializer.readOrWriteDoubleList2D (&m_DeltaRe);
+
+
+
 	g_serializer.readOrWriteDoubleList2D (&m_vrel);
 	g_serializer.readOrWriteDoubleList2D (&m_CD);
 	g_serializer.readOrWriteDoubleList2D (&m_CL);
@@ -2184,12 +1765,23 @@ void DData::serialize() {
 	g_serializer.readOrWriteDoubleList2D (&m_Cn);
 	g_serializer.readOrWriteDoubleList2D (&m_Ct);
 	
-	g_serializer.readOrWriteStringList (&m_polar);
-	g_serializer.readOrWriteStringList (&m_foil);
-	g_serializer.readOrWriteStringList (&m_polarTO);
-	g_serializer.readOrWriteStringList (&m_foilTO);
-	g_serializer.readOrWriteStorableObjectVector (&m_PolarPointers);	
-	g_serializer.readOrWriteStorableObjectVector (&m_PolarPointersTO);	
+    if (g_serializer.isReadMode() && g_serializer.getArchiveFormat() < 100027){ // compatibility after removing m_polarPointers
+        QStringList m_polar;
+        QStringList m_foil;
+        QStringList m_polarTO;
+        QStringList m_foilTO;
+        QVector <C360Polar *> m_PolarPointers;
+        QVector <C360Polar *> m_PolarPointersTO;
+        g_serializer.readOrWriteStringList (&m_polar);
+        g_serializer.readOrWriteStringList (&m_foil);
+        g_serializer.readOrWriteStringList (&m_polarTO);
+        g_serializer.readOrWriteStringList (&m_foilTO);
+        g_serializer.readOrWriteStorableObjectVector (&m_PolarPointers);
+        g_serializer.readOrWriteStorableObjectVector (&m_PolarPointersTO);
+        for (int i=0;i<m_Re.size();i++){
+              m_DeltaRe.append(m_Re.at(i));
+        }
+    }
 	
 	g_serializer.readOrWriteBool (&m_bShowPoints);
 	g_serializer.readOrWriteBool (&m_bIsVisible);
@@ -2200,7 +1792,7 @@ void DData::serialize() {
 }
 
 DData* DData::newBySerialize() {
-	DData* dData = new DData ();
+	DData* dData = new DData ("<name>");
 	dData->serialize();
 	return dData;
 }

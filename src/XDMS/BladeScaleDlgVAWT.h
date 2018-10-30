@@ -31,7 +31,6 @@ class BladeScaleDlgVAWT : public QDialog
 {
     Q_OBJECT
 
-    friend class QMiarex;
     friend class MainFrame;
 
 public:

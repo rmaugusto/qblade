@@ -43,7 +43,6 @@
 #include "BatchThreadDlg.h"
 #include "FoilPolarDlg.h"
 #include "XFoilAdvancedDlg.h"
-#include "../Misc/RenameDlg.h"
 #include "../Misc/PolarFilterDlg.h"
 
 #include "TwoDPanelDlg.h"
@@ -90,6 +89,7 @@ public slots:
 
 private slots:
 	void OnXFoilAdvanced();
+    void OnEditPolar();
 
 	void OnCouplePolarGraphs();
 	void OnAllPolarGraphs();
@@ -130,7 +130,6 @@ private slots:
 	void OnResetFoilScale();
 	void OnResetXFoil();
 	void OnResetCurPolar();
-	void OnSavePolars();
 	void OnSequence();
 	void OnShowFoilPolars();
 	void OnShowBL();
@@ -141,7 +140,8 @@ private slots:
 	void OnShowAllOpps();
 	void OnShowAllPolars();
 	void OnShowPressure();
-	void OnDefinePolar();
+    void OnNewPolar();
+    void OnDeletePolar();
 	void OnSpec();
 	void OnViscous();
 	void OnXDirectStyle();
@@ -202,6 +202,7 @@ protected:
 	void Connect();
 	void CreateOppCurves(OpPoint *pOpp= NULL);
 	void CreatePolarCurves();
+    void CreateSinglePolarCurve();
 	void DeleteFoil(bool bAsk);
 	void DeleteOpPoint(bool bCurrent);
 	void PaintPolarLegend(QPoint place, int bottom,QPainter &painter);
@@ -259,7 +260,6 @@ private:
 	BatchDlg m_BatchDlg;
 	BatchThreadDlg m_BatchThreadDlg;
 	FoilPolarDlg m_FoilPolarDlg;
-	RenameDlg m_RenameDlg;
 
 	TwoDPanelDlg        m_TwoDPanelDlg;
 	InterpolateFoilsDlg m_InterpolateFoilsDlg;
@@ -289,7 +289,7 @@ private:
 
 	QCheckBox *m_pctrlViscous ;
 	QCheckBox *m_pctrlInitBL;
-    QPushButton *m_pctrlAnalyze, *m_pctrlDefineAnalysis;
+    QPushButton *m_pctrlAnalyze, *m_pctrlNewPolar, *m_pctrlDeletePolar, *m_pctrlEditPolar;
 
 	QCheckBox *m_pctrlShowBL, *m_pctrlShowPressure;
 
@@ -354,7 +354,7 @@ private:
 
 
 	CFoil m_BufferFoil;		// used for screen drawing and temporary geometric mods
-	CPolar* m_pCurPolar;	// pointer to the currently selected foil polar
+    CPolar *m_pCurPolar;	// pointer to the currently selected foil polar
 	OpPoint * m_pCurOpp;	// pointer to the currently selected foil operating point
 
 	QGraph* m_pCpGraph;		//pointers to the various graphs
@@ -387,8 +387,6 @@ private:
 	XFoilAnalysisDlg m_XFdlg;	// the dialog class which manages the xfoil calculation and display output
 
 	XFoil *m_pXFoil;		// a pointer to the XFoil object
-
-    void addOpPointsResult(OpPoint *opPoint, QTextStream &out, QString &strong, QString &OutString, int &type);
 };
 
 

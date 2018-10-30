@@ -37,12 +37,8 @@
 #include "AFoilTableDlg.h"
 #include "SplineCtrlsDlg.h"
 #include <QtDebug>
-#include "../XGlobals.h"
 #include "../Store.h"
 #include "../XDirect/XDirect.h"
-
-extern CFoil *g_pCurFoil;
-
 
 
 QAFoil::QAFoil(QWidget *parent)
@@ -655,7 +651,7 @@ void QAFoil::LoadSettings(QSettings *pSettings)
 		m_NeutralColor = QColor(r,g,b);
 		m_bNeutralLine = pSettings->value("NeutralLine").toBool();
 		
-		style  = pSettings->value("SFStyle", SOLIDLINE).toInt();
+		style  = pSettings->value("SFStyle", 0 /*SOLIDLINE*/).toInt();
 		width  = pSettings->value("SFWidth",1).toInt();
 		r = pSettings->value("SFColorRed",216).toInt();
 		g = pSettings->value("SFColorGreen",183).toInt();
@@ -1677,6 +1673,7 @@ void QAFoil::OnImportFoil(){
         g_mainFrame->SetSaveState(false);
         g_mainFrame->AddRecentFile(PathName);
         pXDirect->SetControls();
+        FillFoilTable();
     }
 }
 

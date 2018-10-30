@@ -30,8 +30,8 @@ public:
 	/**
 	 * @brief Changes the name of the object.
 	 *
-	 * @attention It is not allowed to change the name of an object that is stored in a Store! Use
-	 * Store::rename instead.
+	 * @attention It is not allowed to change the name of an object that is stored in a Store!
+	 * Use Store::rename instead.
 	 * @param newName The new name of the object.
 	 */
 	void setName (QString newName);
@@ -40,10 +40,11 @@ public:
 	virtual void restorePointers ();
 	
 protected:
-	StorableObject(QString name = "< no name >", StorableObject *parent = NULL);
-	~StorableObject ();
+    StorableObject(QString name = "< no name >", StorableObject *parent = NULL);
+	virtual ~StorableObject ();
 	void addChild (StorableObject *newChild);
 	void removeParent (StorableObject *formerParent);
+	void removeAllParents ();
 	void removeChild (StorableObject *formerChild);
 	
 	static int nextId;  /**< Counts up each time an ID was used */

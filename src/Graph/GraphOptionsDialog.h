@@ -8,8 +8,8 @@ class QCheckBox;
 
 class NewGraph;
 class NumberEdit;
-class LineButton;
-class ColorButton;
+class LineStyleButton;
+class NewColorButton;
 
 
 class GraphOptionsDialog : public QDialog
@@ -27,9 +27,10 @@ private:
 	QListWidget *m_xVariableList, *m_yVariableList;
 	NumberEdit *m_xLowLimitEdit, *m_xHighLimitEdit, *m_yLowLimitEdit, *m_yHighLimitEdit;
 	NumberEdit *m_xTickSizeEdit, *m_yTickSizeEdit;
-	QCheckBox *m_xLimitsManuelCheckBox, *m_yLimitsManuelCheckBox, *m_xTickManuelCheckBox, *m_yTickManuelCheckBox;
-	LineButton *m_xGridStyleButton, *m_yGridStyleButton, *m_mainAxisStyleButton, *m_borderStyleButton;
-	ColorButton *m_backgroundColorButton, *m_tickColorButton, *m_titleColorButton;
+	QCheckBox *m_xLogScale, *m_yLogScale;
+	QCheckBox *m_xLimitsManualCheckBox, *m_yLimitsManualCheckBox, *m_xTickManuelCheckBox, *m_yTickManuelCheckBox;
+	LineStyleButton *m_xGridStyleButton, *m_yGridStyleButton, *m_mainAxisStyleButton, *m_borderStyleButton;
+	NewColorButton *m_backgroundColorButton, *m_tickColorButton, *m_titleColorButton;
 	QPushButton *m_tickFontButton, *m_titleFontButton;
 	QFont m_tickFont, m_titleFont;
 	
@@ -38,11 +39,10 @@ private slots:
 	void onRestoreButtonClicked ();
 	void onApplyButtonClicked ();
 	void onOkButtonClicked ();
-	void onLineButtonClicked ();  // the LineButton is badly designed. The Dialog must be called manually...
-	void onColorButtonClicked ();  // same with ColorButton...
 	void onFontButtonClicked ();  // FontButton is not even implemented...
 	void setFontButtonsText (QPushButton *button, QString fontName);
 	void onAxisValueChanged ();
+	void onLogarithmicChanged ();
 };
 
 #endif // GRAPHOPTIONSDIALOG_H

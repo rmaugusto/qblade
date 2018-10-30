@@ -31,7 +31,7 @@
 #include <QDateTime>
 #include <QApplication>
 #include <QMessageBox>
-
+#include "../Store.h"
 
 
 bool BatchDlg::s_bStoreOpp = false;
@@ -534,18 +534,17 @@ void BatchDlg::CreatePolar(double Spec, double Mach, double NCrit)
 	m_pCurPolar->m_ACrit = NCrit;
 	m_pCurPolar->m_XTop  = m_XTopTr;
 	m_pCurPolar->m_XBot  = m_XBotTr;
-
 	m_pCurPolar->m_Color = pMainFrame->GetColor(1);
 
 	SetPlrName();
-	CPolar *pPolar = pMainFrame->GetPolar(m_pFoil->getName(), m_pCurPolar->getName());
-
-	if(pPolar)
-	{
+	
+	CPolar *pPolar = g_polarStore.getObjectByName(m_pCurPolar->getName(), m_pFoil);
+	if (pPolar) {
 		delete m_pCurPolar;
 		m_pCurPolar = pPolar;
+	} else {
+		m_pCurPolar = (g_polarStore.add(m_pCurPolar) ? m_pCurPolar : NULL);
 	}
-	else m_pCurPolar = pMainFrame->AddPolar(m_pCurPolar);
 }
 
 
@@ -591,8 +590,6 @@ void BatchDlg::InitDialog()
 
 	if(!m_pFoil) return;
 
-//	QXDirect* pXDirect = (QXDirect*)s_pXDirect;
-
 	m_pctrlFoil1->setChecked(s_bCurrentFoil);
 	m_pctrlFoil2->setChecked(!s_bCurrentFoil);
 	m_pctrlFoilList->setEnabled(!s_bCurrentFoil);
@@ -634,24 +631,24 @@ void BatchDlg::InitDialog()
 	}
 
 	if(m_ReMin<=0.0) m_ReMin = fabs(m_ReInc);
-	if(m_PolarType!=FIXEDAOAPOLAR)
-	{
+//	if(m_PolarType!=FIXEDAOAPOLAR)
+//	{
 		m_pctrlReMin->setValue(m_ReMin);
 		m_pctrlReMax->setValue(m_ReMax);
 		m_pctrlReDelta->setValue(m_ReInc);
 		m_pctrlSpecMin->setValue(m_SpMin);
 		m_pctrlSpecMax->setValue(m_SpMax);
 		m_pctrlSpecDelta->setValue(m_SpInc);
-	}
-	else
-	{
-		m_pctrlReMin->setValue(m_SpMin);
-		m_pctrlReMax->setValue(m_SpMax);
-		m_pctrlReDelta->setValue(m_SpInc);
-		m_pctrlSpecMin->setValue(m_ReMin);
-		m_pctrlSpecMax->setValue(m_ReMax);
-		m_pctrlSpecDelta->setValue(m_ReInc);
-	}
+//	}
+//	else
+//	{
+//		m_pctrlReMin->setValue(m_SpMin);
+//		m_pctrlReMax->setValue(m_SpMax);
+//		m_pctrlReDelta->setValue(m_SpInc);
+//		m_pctrlSpecMin->setValue(m_ReMin);
+//		m_pctrlSpecMax->setValue(m_ReMax);
+//		m_pctrlSpecDelta->setValue(m_ReInc);
+//	}
 	m_pctrlMach->setValue(m_Mach);
 	m_pctrlNCrit->setValue(m_NCrit);
 	m_pctrlXTopTr->setValue(m_XTopTr);
@@ -661,11 +658,11 @@ void BatchDlg::InitDialog()
 	else         m_rbspec2->setChecked(true);
 	OnAcl();
 
-	if(m_PolarType==FIXEDSPEEDPOLAR)       m_rbtype1->setChecked(true);
-	else if(m_PolarType==FIXEDLIFTPOLAR)   m_rbtype2->setChecked(true);
-	else if(m_PolarType==RUBBERCHORDPOLAR) m_rbtype3->setChecked(true);
-	else if(m_PolarType==FIXEDAOAPOLAR)    m_rbtype4->setChecked(true);
-	OnType1();
+//	if(m_PolarType==FIXEDSPEEDPOLAR)       m_rbtype1->setChecked(true);
+//	else if(m_PolarType==FIXEDLIFTPOLAR)   m_rbtype2->setChecked(true);
+//	else if(m_PolarType==RUBBERCHORDPOLAR) m_rbtype3->setChecked(true);
+//	else if(m_PolarType==FIXEDAOAPOLAR)    m_rbtype4->setChecked(true);
+//	OnType1();
 
 
 	if(!m_bFromList)  m_rbRange1->setChecked(true);
@@ -1154,6 +1151,12 @@ void BatchDlg::ReLoop()
 			pXFoil->minf1  = m_MachList[iRe];
 			pXFoil->acrit  = m_NCritList[iRe];
 		}
+        //was missing...fixed DM
+        pXFoil->acrit      = m_NCrit;
+        pXFoil->xstrip[1]  = m_XTopTr;
+        pXFoil->xstrip[2]  = m_XBotTr;
+        pXFoil->minf1  = m_Mach;
+        //end
 		str = QString("Re=%1   Ma=%2   Nc=%3\n").arg(pXFoil->reinf1,8,'f',0).arg(pXFoil->minf1,5,'f',3).arg(pXFoil->acrit,5,'f',2);
 		strong+= str;
 		UpdateOutput(str);

@@ -1,7 +1,7 @@
 /****************************************************************************
 
     SimuWidget Class
-        Copyright (C) 2010 David Marten qblade@web.de
+        Copyright (C) 2010 David Marten david.marten@tu-berlin.de
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -82,9 +82,9 @@ public:
     QStackedWidget *middleControls;
     //wing simu range layout
 
-    QPushButton *m_pctrlCreateBEM, *m_pctrlStartBEM, *m_pctrlDefineTurbineSim, *m_pctrlStartTurbineSim;
+    QPushButton *m_pctrlCreateBEM, *m_pctrlStartBEM, *m_pctrlDefineTurbineSim, *m_pctrlStartTurbineSim, *m_pctrlDeleteBEM, *m_pctrlDeleteCBEM, *m_pctrlDeleteTBEM;
     QLabel *m_pctrlLSLabel, *m_pctrlLELabel, *m_pctrlLDLabel, *speed1, *speed2, *speed3;
-    NumberEdit *m_pctrlLSLineEdit, *m_pctrlLDLineEdit, *m_pctrlLELineEdit;
+    NumberEdit *m_pctrlLSLineEdit, *m_pctrlLDLineEdit, *m_pctrlLELineEdit, *m_pctrlWindspeed;
     NumberEdit *m_pctrlWind1, *m_pctrlWind2, *m_pctrlWindDelta;
     NumberEdit *WindStart, *WindEnd, *WindDelta, *RotStart, *RotEnd, *RotDelta, *PitchStart, *PitchEnd, *PitchDelta;
     QCheckBox *WindFixed, *RotFixed, *PitchFixed;

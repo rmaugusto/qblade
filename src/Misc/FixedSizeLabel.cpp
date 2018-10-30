@@ -6,6 +6,8 @@ FixedSizeLabel::FixedSizeLabel(const QString &text, int width) {
 }
 
 void FixedSizeLabel::setText(const QString &value) {
+	m_fullString = value;
+	
 	if (m_fixedWidth == 0) {
 		QLabel::setText(value);
 	} else {
@@ -26,7 +28,11 @@ void FixedSizeLabel::setText(const QString &value) {
 	}
 }
 
+QString FixedSizeLabel::text() const {
+	return m_fullString;
+}
+
 void FixedSizeLabel::setFixedWidth(int width) {
 	m_fixedWidth = width;
-	QLabel::setFixedWidth(width);
+	QLabel::setMaximumWidth(width);
 }

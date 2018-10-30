@@ -1,6 +1,6 @@
 <RCC>
     <qresource prefix="/">
-        <file>images/OnCpView.png</file>
+        <file>images/OnOpPointView.png</file>
         <file>images/OnExtractFoil.png</file>
         <file>images/OnPolarView.png</file>
         <file>images/OnRedo.png</file>
@@ -10,7 +10,6 @@
         <file>images/OnStabView.png</file>
         <file>images/OnStoreFoil.png</file>
         <file>images/OnUndo.png</file>
-        <file>images/OnWOppView.png</file>
         <file>images/OnZoomGraphX.png</file>
         <file>images/OnZoomGraphY.png</file>
         <file>images/OnZoomIn.png</file>
@@ -27,8 +26,6 @@
         <file>images/vturb.png</file>
         <file>images/rotor.png</file>
         <file>images/WKA.png</file>
-        <file>images/qblade64.png</file>
-        <file>images/vchar.png</file>
         <file>images/struct.png</file>
         <file>images/stress.png</file>
         <file>images/hawt.png</file>
@@ -50,9 +47,12 @@
         <file>images/dfg.png</file>
         <file>images/qblade600.png</file>
         <file>images/vblade.png</file>
-        <file>images/Noise-Icon.png</file>
+        <file>images/LLT.png</file>
+        <file>images/LLT_VAWT.png</file>
+        <file>images/NoiseIcon.png</file>
         <file>images/noise_3d_plate.png</file>
-        <file>images/2d-noise.png</file>
-        <file>images/3d-noise.png</file>
+        <file>images/Poli_logo_3.jpg</file>
+        <file>images/Poli_USP.png</file>
+        <file>images/logo_1000.png</file>
     </qresource>
 </RCC>
