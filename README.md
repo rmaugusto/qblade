@@ -1,7 +1,8 @@
-# This is a fork
+# This is an unofficial repository
 
-This project is a fork to contribute with Airfoil self-noise evaluation
-Visit original project: http://www.q-blade.org/
+This project is a fork to contribute with Airfoil self-noise evaluation.
+
+Visit original project at http://www.q-blade.org/
 
 
 QBlade is an open source wind turbine calculation software, distributed under the GPL.
